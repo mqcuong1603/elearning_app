@@ -1,19 +1,19 @@
+import 'dart:io';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
-import 'dart:io';
 
-import 'database_config.dart';
-import 'tables/user_table.dart';
-import 'tables/semester_table.dart';
-import 'tables/course_table.dart';
-import 'tables/group_table.dart';
-import 'tables/enrollment_table.dart';
-import 'tables/announcement_table.dart';
-import 'tables/assignment_table.dart';
-import 'tables/quiz_table.dart';
-import 'tables/question_table.dart';
-import 'tables/material_table.dart';
+import 'package:elearning_app/core/database/database_config.dart';
+import 'package:elearning_app/core/database/tables/user_table.dart';
+import 'package:elearning_app/core/database/tables/semester_table.dart';
+import 'package:elearning_app/core/database/tables/course_table.dart';
+import 'package:elearning_app/core/database/tables/group_table.dart';
+import 'package:elearning_app/core/database/tables/enrollment_table.dart';
+import 'package:elearning_app/core/database/tables/announcement_table.dart';
+import 'package:elearning_app/core/database/tables/assignment_table.dart';
+import 'package:elearning_app/core/database/tables/quiz_table.dart';
+import 'package:elearning_app/core/database/tables/question_table.dart';
+import 'package:elearning_app/core/database/tables/material_table.dart';
 
 /// Singleton class to manage SQLite database
 class DatabaseHelper {
@@ -151,7 +151,7 @@ class DatabaseHelper {
     String path = join(documentsDirectory.path, DatabaseConfig.databaseName);
     await databaseFactory.deleteDatabase(path);
     _database = null;
-    print('=Ñ  Database deleted');
+    print('=ï¿½  Database deleted');
   }
 
   /// Clear all tables (keep structure)
@@ -179,6 +179,6 @@ class DatabaseHelper {
     // Re-insert admin
     await _insertDefaultAdmin(db);
 
-    print('>ù All tables cleared');
+    print('>ï¿½ All tables cleared');
   }
 }
