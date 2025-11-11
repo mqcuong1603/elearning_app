@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:elearning_app/features/auth/presentation/providers/auth_state_provider.dart';
 
 /// Splash Screen with Authentication Check
 /// Shows app branding while checking authentication status
@@ -22,42 +21,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _checkAuthAndNavigate() async {
     // Wait minimum time for splash screen visibility
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
 
-    try {
-      // Check authentication status
-      await ref.read(authStateProvider.notifier).checkAuth();
-
-      if (!mounted) return;
-
-      // Get updated auth state
-      final authState = ref.read(authStateProvider);
-
-      if (authState.isAuthenticated) {
-        // User is authenticated, check role and navigate accordingly
-
-        if (authState.isAdmin) {
-          // Admin user → Dashboard
-          context.go('/dashboard');
-        } else if (authState.isStudent) {
-          // Student user → Course List (Home)
-          context.go('/');
-        } else {
-          // Unknown role → Login
-          context.go('/login');
-        }
-      } else {
-        // Not authenticated → Login
-        context.go('/login');
-      }
-    } catch (e) {
-      // If auth check fails (e.g., database not available on web), go to login
-      print('Auth check failed: $e');
-      if (!mounted) return;
-      context.go('/login');
-    }
+    // Skip auth check for now - go straight to login
+    // This avoids potential database initialization hang
+    context.go('/login');
   }
 
   @override

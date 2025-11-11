@@ -26,6 +26,9 @@ abstract class StudentRepositoryInterface {
   /// Get all students in a course
   Future<List<StudentEnrollmentEntity>> getStudentsByCourse(String courseId);
 
+  /// Get all enrollments in a course with student details (for list screen)
+  Future<List<StudentEnrollmentEntity>> getEnrollmentsByCourseWithDetails(String courseId);
+
   /// Check if student is already enrolled in a course
   Future<bool> isStudentEnrolled(String studentId, String courseId, String semesterId);
 

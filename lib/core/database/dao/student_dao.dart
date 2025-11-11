@@ -202,6 +202,40 @@ class StudentEnrollmentDao {
     }).toList();
   }
 
+  /// Get enrollments with student details for a course
+  /// For display in Student List Screen
+  Future<List<StudentEnrollmentEntity>> getByCourseWithStudentDetails(String courseId) async {
+    final db = await _dbHelper.database;
+
+    final result = await db.rawQuery('''
+      SELECT e.*,
+        u.display_name as student_name,
+        u.email as student_email,
+        u.avatar_url as student_avatar_url,
+        g.name as group_name,
+        c.name as course_name,
+        c.code as course_code
+      FROM ${DatabaseConfig.tableStudentEnrollments} e
+      INNER JOIN ${DatabaseConfig.tableUsers} u ON u.${DatabaseConfig.columnId} = e.student_id
+      LEFT JOIN ${DatabaseConfig.tableGroups} g ON g.${DatabaseConfig.columnId} = e.group_id
+      LEFT JOIN ${DatabaseConfig.tableCourses} c ON c.${DatabaseConfig.columnId} = e.course_id
+      WHERE e.course_id = ?
+      ORDER BY u.display_name ASC
+    ''', [courseId]);
+
+    return result.map((map) {
+      final enrollment = _fromMap(map);
+      return enrollment.copyWith(
+        studentName: map['student_name'] as String?,
+        studentEmail: map['student_email'] as String?,
+        studentAvatarUrl: map['student_avatar_url'] as String?,
+        groupName: map['group_name'] as String?,
+        courseName: map['course_name'] as String?,
+        courseCode: map['course_code'] as String?,
+      );
+    }).toList();
+  }
+
   /// Update enrollment (change group)
   Future<int> update(StudentEnrollmentEntity enrollment) async {
     final db = await _dbHelper.database;

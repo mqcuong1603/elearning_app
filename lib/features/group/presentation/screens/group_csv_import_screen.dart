@@ -5,34 +5,29 @@ import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'dart:convert';
 import 'package:uuid/uuid.dart';
-import 'package:elearning_app/features/auth/domain/entities/user_entity.dart';
-import 'package:elearning_app/features/student/domain/entities/student_entity.dart';
-import 'package:elearning_app/features/student/presentation/providers/student_repository_provider.dart';
-import 'package:elearning_app/features/student/presentation/providers/student_list_provider.dart';
-import 'package:elearning_app/features/course/presentation/providers/course_repository_provider.dart';
-import 'package:elearning_app/features/course/presentation/providers/course_detail_provider.dart';
-import 'package:elearning_app/features/group/presentation/providers/group_repository_provider.dart';
-import 'package:elearning_app/core/database/dao/user_dao.dart';
-import 'package:elearning_app/features/course/domain/entities/course_entity.dart';
 import 'package:elearning_app/features/group/domain/entities/group_entity.dart';
+import 'package:elearning_app/features/group/presentation/providers/group_repository_provider.dart';
+import 'package:elearning_app/features/group/presentation/providers/group_list_provider.dart';
+import 'package:elearning_app/features/course/presentation/providers/course_repository_provider.dart';
+import 'package:elearning_app/features/course/domain/entities/course_entity.dart';
 
-/// Student CSV Import Screen
-/// Expected CSV format: display_name,email,student_id,group_name,course_code
-/// PDF Requirement: Smart preview showing "40 already exist, 10 new" status
-/// PDF Requirement: Real names only - no "user1", "user2"
-class StudentImportScreen extends ConsumerStatefulWidget {
-  final String? courseId;
+/// Group CSV Import Screen
+/// Expected CSV format: name,course_code
+/// PDF Requirement: One group per course - enforces during import
+/// Shows smart preview with validation status
+class GroupCsvImportScreen extends ConsumerStatefulWidget {
+  final String courseId;
 
-  const StudentImportScreen({super.key, this.courseId});
+  const GroupCsvImportScreen({super.key, required this.courseId});
 
   @override
-  ConsumerState<StudentImportScreen> createState() => _StudentImportScreenState();
+  ConsumerState<GroupCsvImportScreen> createState() => _GroupCsvImportScreenState();
 }
 
-class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
+class _GroupCsvImportScreenState extends ConsumerState<GroupCsvImportScreen> {
   String? _fileName;
   List<List<dynamic>>? _csvData;
-  List<_StudentImportRow> _parsedRows = [];
+  List<_GroupImportRow> _parsedRows = [];
   bool _hasHeader = true;
   bool _isImporting = false;
   CourseEntity? _course;
@@ -40,16 +35,15 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.courseId != null) {
-      _loadCourse();
-    }
+    _loadCourse();
   }
 
   Future<void> _loadCourse() async {
-    final courseAsync = ref.read(courseDetailProvider(widget.courseId!));
+    final repository = ref.read(courseRepositoryProvider);
+    final course = await repository.getCourseById(widget.courseId);
     if (mounted) {
       setState(() {
-        _course = courseAsync.value;
+        _course = course;
       });
     }
   }
@@ -58,14 +52,14 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Import Students from CSV'),
+        title: const Text('Import Groups from CSV'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Course Context (if provided)
+            // Course Context Card
             if (_course != null) ...[
               Card(
                 color: Colors.blue.shade50,
@@ -100,9 +94,12 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
                                 fontSize: 16,
                               ),
                             ),
-                            const Text(
-                              'Importing students for this course',
-                              style: TextStyle(fontSize: 12),
+                            Text(
+                              'Importing groups for this course',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
                             ),
                           ],
                         ),
@@ -146,9 +143,9 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: const Text(
-                        'display_name,email,student_id,group_name,course_code\n'
-                        'Nguyen Van A,nva@student.tdtu.edu.vn,519H0001,Group 1,CS101\n'
-                        'Tran Thi B,ttb@student.tdtu.edu.vn,519H0002,Group 1,CS101',
+                        'name,course_code\n'
+                        'Group 1,CS101\n'
+                        'Group A,CS102',
                         style: TextStyle(fontFamily: 'monospace', fontSize: 13),
                       ),
                     ),
@@ -160,23 +157,16 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.orange.shade200),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'PDF Requirements:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ],
+                          Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'PDF Requirement: One group per course. Courses with existing groups will be skipped.',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text('• Real names only (no "user1", "user2")', style: TextStyle(fontSize: 12)),
-                          const Text('• One student per group per course', style: TextStyle(fontSize: 12)),
-                          const Text('• Display names cannot be modified later', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                     ),
@@ -247,57 +237,37 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
   }
 
   Widget _buildPreviewSection() {
-    final newStudents = _parsedRows.where((r) => r.isValid && !r.userExists).toList();
-    final existingStudents = _parsedRows.where((r) => r.isValid && r.userExists && !r.alreadyEnrolled).toList();
-    final alreadyEnrolled = _parsedRows.where((r) => r.alreadyEnrolled).toList();
+    final validRows = _parsedRows.where((r) => r.isValid).toList();
     final invalidRows = _parsedRows.where((r) => !r.isValid).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Summary Stats (PDF Requirement: "40 already exist, 10 new")
+        // Summary Stats
         Card(
           color: Colors.grey.shade50,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _StatBadge(
-                      label: 'New',
-                      count: newStudents.length,
-                      color: Colors.green,
-                      icon: Icons.person_add,
-                    ),
-                    _StatBadge(
-                      label: 'Exist',
-                      count: existingStudents.length,
-                      color: Colors.blue,
-                      icon: Icons.check_circle,
-                    ),
-                    _StatBadge(
-                      label: 'Enrolled',
-                      count: alreadyEnrolled.length,
-                      color: Colors.orange,
-                      icon: Icons.warning,
-                    ),
-                    _StatBadge(
-                      label: 'Invalid',
-                      count: invalidRows.length,
-                      color: Colors.red,
-                      icon: Icons.error,
-                    ),
-                  ],
+                _StatBadge(
+                  label: 'Valid',
+                  count: validRows.length,
+                  color: Colors.green,
+                  icon: Icons.check_circle,
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Smart Preview: ${newStudents.length} new, ${existingStudents.length} already exist',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade700,
-                  ),
+                _StatBadge(
+                  label: 'Invalid',
+                  count: invalidRows.length,
+                  color: Colors.red,
+                  icon: Icons.error,
+                ),
+                _StatBadge(
+                  label: 'Total',
+                  count: _parsedRows.length,
+                  color: Colors.blue,
+                  icon: Icons.list_alt,
                 ),
               ],
             ),
@@ -321,7 +291,7 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
           itemCount: _parsedRows.length,
           itemBuilder: (context, index) {
             final row = _parsedRows[index];
-            return _StudentImportCard(row: row);
+            return _GroupImportCard(row: row);
           },
         ),
       ],
@@ -329,7 +299,7 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
   }
 
   Widget _buildImportButton() {
-    final validRows = _parsedRows.where((r) => r.isValid && !r.alreadyEnrolled).toList();
+    final validRows = _parsedRows.where((r) => r.isValid).toList();
 
     if (validRows.isEmpty) {
       return const SizedBox.shrink();
@@ -346,7 +316,7 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
             : const Icon(Icons.cloud_upload),
-        label: Text(_isImporting ? 'Importing...' : 'Import ${validRows.length} Students'),
+        label: Text(_isImporting ? 'Importing...' : 'Import ${validRows.length} Groups'),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
           backgroundColor: Colors.green,
@@ -392,63 +362,28 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
 
     final courseRepository = ref.read(courseRepositoryProvider);
     final groupRepository = ref.read(groupRepositoryProvider);
-    final studentRepository = ref.read(studentRepositoryProvider);
-    final userDao = UserDao();
 
-    // Get all courses and groups for validation
+    // Get all courses and existing groups for validation
     final allCourses = await courseRepository.getAllCourses();
     final courseMap = {for (var c in allCourses) c.code.toLowerCase(): c};
 
-    // Get existing users by email
-    final allUsers = await userDao.getAll();
-    final userEmailMap = {for (var u in allUsers) u.email.toLowerCase(): u};
-
-    final rows = <_StudentImportRow>[];
+    final rows = <_GroupImportRow>[];
     final startIndex = _hasHeader ? 1 : 0;
 
     for (int i = startIndex; i < _csvData!.length; i++) {
       final row = _csvData![i];
-      if (row.length < 5) continue;
+      if (row.length < 2) continue;
 
-      final parsedRow = _StudentImportRow(rowNumber: i + 1, rawData: row);
+      final parsedRow = _GroupImportRow(rowNumber: i + 1, rawData: row);
 
-      // Parse display_name (PDF requirement: real names only)
-      parsedRow.displayName = row[0].toString().trim();
-      if (parsedRow.displayName!.isEmpty) {
-        parsedRow.errors.add('Display name is required');
-      } else if (parsedRow.displayName!.toLowerCase().contains('user')) {
-        parsedRow.errors.add('PDF Requirement: Use real names only, not "user1", "user2"');
+      // Parse name
+      parsedRow.name = row[0].toString().trim();
+      if (parsedRow.name!.isEmpty) {
+        parsedRow.errors.add('Name is required');
       }
 
-      // Parse email
-      parsedRow.email = row[1].toString().trim().toLowerCase();
-      if (parsedRow.email!.isEmpty) {
-        parsedRow.errors.add('Email is required');
-      } else if (!parsedRow.email!.contains('@')) {
-        parsedRow.errors.add('Invalid email format');
-      }
-
-      // Check if user already exists
-      final existingUser = userEmailMap[parsedRow.email!.toLowerCase()];
-      if (existingUser != null) {
-        parsedRow.userExists = true;
-        parsedRow.userId = existingUser.id;
-      }
-
-      // Parse student_id
-      parsedRow.studentId = row[2].toString().trim();
-      if (parsedRow.studentId!.isEmpty) {
-        parsedRow.errors.add('Student ID is required');
-      }
-
-      // Parse group_name
-      parsedRow.groupName = row[3].toString().trim();
-      if (parsedRow.groupName!.isEmpty) {
-        parsedRow.errors.add('Group name is required');
-      }
-
-      // Parse and validate course_code
-      final courseCode = row[4].toString().trim();
+      // Parse and validate course code
+      final courseCode = row[1].toString().trim();
       parsedRow.courseCode = courseCode;
 
       final course = courseMap[courseCode.toLowerCase()];
@@ -457,27 +392,11 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
       } else {
         parsedRow.course = course;
 
-        // Get group by name
-        final groups = await groupRepository.getGroupsByCourse(course.id);
-        final group = groups.where((g) => g.name.toLowerCase() == parsedRow.groupName!.toLowerCase()).firstOrNull;
-
-        if (group == null) {
-          parsedRow.errors.add('Group "${parsedRow.groupName}" not found in course');
-        } else {
-          parsedRow.group = group;
-
-          // Check if already enrolled (if user exists)
-          if (existingUser != null) {
-            final isEnrolled = await studentRepository.isStudentEnrolled(
-              existingUser.id,
-              course.id,
-              course.semesterId,
-            );
-            if (isEnrolled) {
-              parsedRow.alreadyEnrolled = true;
-              parsedRow.errors.add('Already enrolled in this course');
-            }
-          }
+        // Check if course already has a group (ONE GROUP PER COURSE rule)
+        final existingGroups = await groupRepository.getGroupsByCourse(course.id);
+        if (existingGroups.isNotEmpty) {
+          parsedRow.errors.add('Course already has group "${existingGroups.first.name}"');
+          parsedRow.hasExistingGroup = true;
         }
       }
 
@@ -497,54 +416,28 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
     });
 
     try {
-      final userDao = UserDao();
-      final studentRepository = ref.read(studentRepositoryProvider);
-      final validRows = _parsedRows.where((r) => r.isValid && !r.alreadyEnrolled).toList();
+      final repository = ref.read(groupRepositoryProvider);
+      final validRows = _parsedRows.where((r) => r.isValid).toList();
 
       if (validRows.isEmpty) {
-        throw Exception('No valid students to import');
+        throw Exception('No valid groups to import');
       }
 
-      // Step 1: Create new users
-      final newUserRows = validRows.where((r) => !r.userExists).toList();
-      final newUsers = newUserRows.map((row) {
-        return UserEntity(
+      // Convert to entities
+      final entities = validRows.map((row) {
+        return GroupEntity(
           id: const Uuid().v4(),
-          username: row.email!.split('@')[0], // Use email prefix as username
-          displayName: row.displayName!,
-          email: row.email!,
-          role: UserRole.student,
-          studentId: row.studentId,
+          name: row.name!,
+          courseId: row.course!.id,
+          semesterId: row.course!.semesterId,
           createdAt: DateTime.now(),
         );
       }).toList();
 
-      if (newUsers.isNotEmpty) {
-        await userDao.insertBatch(newUsers);
-
-        // Update parsedRows with new user IDs
-        for (int i = 0; i < newUserRows.length; i++) {
-          newUserRows[i].userId = newUsers[i].id;
-        }
-      }
-
-      // Step 2: Create enrollments
-      final enrollments = validRows.map((row) {
-        return StudentEnrollmentEntity(
-          id: const Uuid().v4(),
-          studentId: row.userId!,
-          groupId: row.group!.id,
-          courseId: row.course!.id,
-          semesterId: row.course!.semesterId,
-          enrolledAt: DateTime.now(),
-        );
-      }).toList();
-
-      final enrolledIds = await studentRepository.enrollBatch(enrollments);
+      // Batch insert
+      final insertedIds = await repository.insertBatch(entities);
 
       final skippedCount = _parsedRows.length - validRows.length;
-      final newCount = newUserRows.length;
-      final existingCount = validRows.length - newCount;
 
       if (mounted) {
         setState(() {
@@ -567,36 +460,20 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ResultRow(
-                  icon: Icons.person_add,
-                  color: Colors.green,
-                  label: 'New students created',
-                  count: newCount,
-                ),
-                const SizedBox(height: 8),
-                _ResultRow(
                   icon: Icons.check_circle,
-                  color: Colors.blue,
-                  label: 'Existing students enrolled',
-                  count: existingCount,
+                  color: Colors.green,
+                  label: 'Successfully imported',
+                  count: insertedIds.length,
                 ),
                 if (skippedCount > 0) ...[
                   const SizedBox(height: 8),
                   _ResultRow(
                     icon: Icons.warning,
                     color: Colors.orange,
-                    label: 'Skipped (invalid/enrolled)',
+                    label: 'Skipped (invalid/duplicate)',
                     count: skippedCount,
                   ),
                 ],
-                const SizedBox(height: 8),
-                const Divider(),
-                const SizedBox(height: 8),
-                _ResultRow(
-                  icon: Icons.groups,
-                  color: Colors.purple,
-                  label: 'Total enrolled',
-                  count: enrolledIds.length,
-                ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -610,7 +487,7 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'Students have been enrolled in their assigned groups.',
+                          'Groups have been created. Students can now be assigned to these groups.',
                           style: TextStyle(fontSize: 12),
                         ),
                       ),
@@ -623,7 +500,7 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  context.pop(); // Go back to student list
+                  context.pop(); // Go back to group list
                 },
                 child: const Text('Close'),
               ),
@@ -631,10 +508,8 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
           ),
         );
 
-        // Refresh the student list if courseId is provided
-        if (widget.courseId != null) {
-          ref.invalidate(enrollmentsByCourseWithDetailsProvider(widget.courseId!));
-        }
+        // Refresh the groups list
+        ref.invalidate(groupsByCourseWithCountsProvider(widget.courseId));
       }
     } catch (e) {
       if (mounted) {
@@ -655,66 +530,35 @@ class _StudentImportScreenState extends ConsumerState<StudentImportScreen> {
 
 // Helper Models and Widgets
 
-class _StudentImportRow {
+class _GroupImportRow {
   final int rowNumber;
   final List<dynamic> rawData;
-  String? displayName;
-  String? email;
-  String? studentId;
-  String? groupName;
+  String? name;
   String? courseCode;
   CourseEntity? course;
-  GroupEntity? group;
-  bool userExists = false;
-  String? userId;
-  bool alreadyEnrolled = false;
+  bool hasExistingGroup = false;
   List<String> errors = [];
 
-  _StudentImportRow({
+  _GroupImportRow({
     required this.rowNumber,
     required this.rawData,
   });
 
-  bool get isValid => errors.isEmpty && displayName != null && email != null && course != null && group != null;
+  bool get isValid => errors.isEmpty && name != null && course != null;
 }
 
-class _StudentImportCard extends StatelessWidget {
-  final _StudentImportRow row;
+class _GroupImportCard extends StatelessWidget {
+  final _GroupImportRow row;
 
-  const _StudentImportCard({required this.row});
+  const _GroupImportCard({required this.row});
 
   @override
   Widget build(BuildContext context) {
-    Color cardColor;
-    Color badgeColor;
-    String badgeText;
-    IconData badgeIcon;
-
-    if (!row.isValid) {
-      cardColor = Colors.red.shade50;
-      badgeColor = Colors.red;
-      badgeText = 'INVALID';
-      badgeIcon = Icons.error;
-    } else if (row.alreadyEnrolled) {
-      cardColor = Colors.orange.shade50;
-      badgeColor = Colors.orange;
-      badgeText = 'ENROLLED';
-      badgeIcon = Icons.warning;
-    } else if (row.userExists) {
-      cardColor = Colors.blue.shade50;
-      badgeColor = Colors.blue;
-      badgeText = 'EXISTS';
-      badgeIcon = Icons.check_circle;
-    } else {
-      cardColor = Colors.green.shade50;
-      badgeColor = Colors.green;
-      badgeText = 'NEW';
-      badgeIcon = Icons.person_add;
-    }
+    final isValid = row.isValid;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: cardColor,
+      color: isValid ? Colors.green.shade50 : Colors.red.shade50,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -722,7 +566,11 @@ class _StudentImportCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(badgeIcon, color: badgeColor, size: 20),
+                Icon(
+                  isValid ? Icons.check_circle : Icons.error,
+                  color: isValid ? Colors.green : Colors.red,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Row ${row.rowNumber}',
@@ -735,11 +583,11 @@ class _StudentImportCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: badgeColor,
+                    color: isValid ? Colors.green : Colors.red,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    badgeText,
+                    isValid ? 'VALID' : 'INVALID',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -750,11 +598,13 @@ class _StudentImportCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Name: ${row.displayName ?? 'N/A'}', style: const TextStyle(fontSize: 13)),
-            Text('Email: ${row.email ?? 'N/A'}', style: const TextStyle(fontSize: 13)),
-            Text('Student ID: ${row.studentId ?? 'N/A'}', style: const TextStyle(fontSize: 13)),
-            Text('Group: ${row.groupName ?? 'N/A'}', style: const TextStyle(fontSize: 13)),
-            Text('Course: ${row.courseCode ?? 'N/A'}', style: const TextStyle(fontSize: 13)),
+            Text('Name: ${row.name ?? 'N/A'}'),
+            Text('Course: ${row.courseCode ?? 'N/A'}'),
+            if (row.course != null)
+              Text(
+                'Course Name: ${row.course!.name}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
             if (row.errors.isNotEmpty) ...[
               const SizedBox(height: 8),
               ...row.errors.map((error) => Padding(

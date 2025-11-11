@@ -80,6 +80,16 @@ class StudentRepository implements StudentRepositoryInterface {
   }
 
   @override
+  Future<List<StudentEnrollmentEntity>> getEnrollmentsByCourseWithDetails(String courseId) async {
+    try {
+      return await _studentDao.getByCourseWithStudentDetails(courseId);
+    } catch (e) {
+      print('Error getting enrollments with details: $e');
+      return [];
+    }
+  }
+
+  @override
   Future<bool> isStudentEnrolled(String studentId, String courseId, String semesterId) async {
     try {
       return await _studentDao.isStudentEnrolled(studentId, courseId, semesterId);
@@ -109,6 +119,11 @@ class StudentRepository implements StudentRepositoryInterface {
       print('Error removing enrollment: $e');
       return false;
     }
+  }
+
+  /// Alias for removeEnrollment with clearer naming
+  Future<bool> unenrollStudent(String enrollmentId) async {
+    return await removeEnrollment(enrollmentId);
   }
 
   @override

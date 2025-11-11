@@ -11,11 +11,13 @@ import 'package:elearning_app/features/course/presentation/screens/course_home_s
 import 'package:elearning_app/features/course/presentation/screens/course_list_screen.dart';
 import 'package:elearning_app/features/course/presentation/screens/course_detail_screen.dart';
 import 'package:elearning_app/features/course/presentation/screens/course_form_screen.dart';
+import 'package:elearning_app/features/course/presentation/screens/course_csv_import_screen.dart';
 import 'package:elearning_app/features/semester/presentation/screens/semester_list_screen.dart';
 import 'package:elearning_app/features/semester/presentation/screens/semester_form_screen.dart';
 import 'package:elearning_app/features/semester/presentation/screens/semester_csv_import_screen.dart';
 import 'package:elearning_app/features/group/presentation/screens/group_list_screen.dart';
 import 'package:elearning_app/features/group/presentation/screens/group_form_screen.dart';
+import 'package:elearning_app/features/group/presentation/screens/group_csv_import_screen.dart';
 import 'package:elearning_app/features/student/presentation/screens/student_list_screen.dart';
 import 'package:elearning_app/features/student/presentation/screens/student_form_screen.dart';
 import 'package:elearning_app/features/student/presentation/screens/student_import_screen.dart';
@@ -129,6 +131,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           return CourseFormScreen(courseId: courseId);
         },
       ),
+      GoRoute(
+        path: '/courses/import',
+        builder: (context, state) {
+          final semesterId = state.uri.queryParameters['semesterId']!;
+          return CourseCsvImportScreen(semesterId: semesterId);
+        },
+      ),
 
       // ===== Semester Routes =====
       GoRoute(
@@ -174,6 +183,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           return GroupFormScreen(courseId: courseId, groupId: groupId);
         },
       ),
+      GoRoute(
+        path: '/courses/:courseId/groups/import',
+        builder: (context, state) {
+          final courseId = state.pathParameters['courseId']!;
+          return GroupCsvImportScreen(courseId: courseId);
+        },
+      ),
 
       // ===== Student Routes =====
       GoRoute(
@@ -185,11 +201,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/students/new',
-        builder: (context, state) => const StudentFormScreen(),
+        builder: (context, state) {
+          final courseId = state.uri.queryParameters['courseId'];
+          return StudentFormScreen(courseId: courseId);
+        },
       ),
       GoRoute(
         path: '/students/import',
-        builder: (context, state) => const StudentImportScreen(),
+        builder: (context, state) {
+          final courseId = state.uri.queryParameters['courseId'];
+          return StudentImportScreen(courseId: courseId);
+        },
       ),
 
       // ===== Content Routes (Announcements, Assignments, Quizzes, Materials) =====

@@ -14,3 +14,10 @@ final studentsByGroupProvider = FutureProvider.family<List<StudentEnrollmentEnti
   final repository = ref.watch(studentRepositoryProvider);
   return await repository.getStudentsByGroup(groupId);
 });
+
+/// Provider for enrollments by course with student details
+/// Used in Student List Screen to display full student information
+final enrollmentsByCourseWithDetailsProvider = FutureProvider.family<List<StudentEnrollmentEntity>, String>((ref, courseId) async {
+  final repository = ref.watch(studentRepositoryProvider);
+  return await repository.getEnrollmentsByCourseWithDetails(courseId);
+});
