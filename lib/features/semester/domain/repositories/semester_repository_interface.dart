@@ -8,6 +8,9 @@ abstract class SemesterRepositoryInterface {
   /// Get semester by ID
   Future<SemesterEntity?> getSemesterById(String id);
 
+  /// Get semester by code
+  Future<SemesterEntity?> getSemesterByCode(String code);
+
   /// Get semester by ID with counts (courses, students)
   Future<SemesterEntity?> getSemesterByIdWithCounts(String id);
 

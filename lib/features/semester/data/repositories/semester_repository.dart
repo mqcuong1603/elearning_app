@@ -31,6 +31,16 @@ class SemesterRepository implements SemesterRepositoryInterface {
   }
 
   @override
+  Future<SemesterEntity?> getSemesterByCode(String code) async {
+    try {
+      return await _semesterDao.getByCode(code);
+    } catch (e) {
+      print('Error getting semester by code: $e');
+      return null;
+    }
+  }
+
+  @override
   Future<SemesterEntity?> getSemesterByIdWithCounts(String id) async {
     try {
       return await _semesterDao.getByIdWithCounts(id);
