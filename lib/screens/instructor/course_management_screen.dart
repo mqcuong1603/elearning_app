@@ -264,10 +264,11 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
             };
           },
           onImport: () async {
-            return await courseProvider.importCoursesFromCsv(
+            final result = await courseProvider.importCoursesFromCsv(
               data,
               _selectedSemester!.id,
             );
+            return result ?? {'success': 0, 'failed': 0, 'alreadyExists': 0};
           },
         ),
       );

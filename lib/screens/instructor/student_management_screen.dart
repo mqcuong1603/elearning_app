@@ -212,7 +212,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
             };
           },
           onImport: () async {
-            return await studentProvider.importStudentsFromCsv(data);
+            final result = await studentProvider.importStudentsFromCsv(data);
+            return result ?? {'success': 0, 'failed': 0, 'alreadyExists': 0};
           },
         ),
       );
