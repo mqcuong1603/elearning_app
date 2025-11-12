@@ -39,28 +39,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = authState.isAuthenticated;
       final isAdmin = authState.isAdmin;
       final isStudent = authState.isStudent;
-      final isLoading = authState.isLoading;
 
       final isSplash = state.matchedLocation == '/splash';
       final isLogin = state.matchedLocation == '/login';
 
-      // If still loading, stay on splash
-      if (isLoading && !isSplash) {
-        return '/splash';
+      // Don't interfere with splash or login screens
+      if (isSplash || isLogin) {
+        return null;
       }
 
-      // If not authenticated and not on login/splash, redirect to login
-      if (!isAuthenticated && !isLogin && !isSplash) {
+      // For all other pages, require authentication
+      if (!isAuthenticated) {
         return '/login';
       }
 
-      // If authenticated and on splash/login, redirect based on role
-      if (isAuthenticated && (isSplash || isLogin)) {
+      // Redirect based on role for root path
+      if (state.matchedLocation == '/') {
         if (isAdmin) {
           return '/dashboard';
-        } else if (isStudent) {
-          return '/';
         }
+        // Students stay on root (course home)
       }
 
       return null; // No redirect needed

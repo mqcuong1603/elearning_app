@@ -20,6 +20,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    // Check if already authenticated
+    _checkExistingSession();
+  }
+
+  Future<void> _checkExistingSession() async {
+    await ref.read(authStateProvider.notifier).checkAuth();
+
+    if (!mounted) return;
+
+    final authState = ref.read(authStateProvider);
+    if (authState.isAuthenticated) {
+      // User already logged in, redirect
+      if (authState.isAdmin) {
+        context.go('/dashboard');
+      } else {
+        context.go('/');
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();

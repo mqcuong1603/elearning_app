@@ -163,7 +163,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _selectedGroupId,
+                      initialValue: _selectedGroupId,
                       decoration: InputDecoration(
                         hintText: 'Choose a group',
                         prefixIcon: const Icon(Icons.groups),
@@ -203,7 +203,7 @@ class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _selectedStudentId,
+                      initialValue: _selectedStudentId,
                       decoration: InputDecoration(
                         hintText: 'Choose a student',
                         prefixIcon: const Icon(Icons.person),

@@ -282,4 +282,15 @@ class AnnouncementDao {
 
     return maps.map((map) => _fromMap(map)).toList();
   }
+
+  /// Get all announcements
+  Future<List<AnnouncementEntity>> getAll() async {
+    final db = await _dbHelper.database;
+    final maps = await db.query(
+      DatabaseConfig.tableAnnouncements,
+      orderBy: '${DatabaseConfig.columnCreatedAt} DESC',
+    );
+
+    return maps.map((map) => _fromMap(map)).toList();
+  }
 }
