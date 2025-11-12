@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../config/app_theme.dart';
-import '../config/app_constants.dart';
 
 class CsvImportDialog extends StatefulWidget {
   final String title;
@@ -171,7 +170,8 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _isImporting ? null : () => Navigator.of(context).pop(false),
+          onPressed:
+              _isImporting ? null : () => Navigator.of(context).pop(false),
           child: const Text('Cancel'),
         ),
         ElevatedButton(

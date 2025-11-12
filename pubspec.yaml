@@ -11,10 +11,10 @@ dependencies:
     sdk: flutter
 
   # Firebase
-  firebase_core: ^3.1.0
-  firebase_auth: ^5.1.0
-  cloud_firestore: ^5.0.0
-  firebase_storage: ^12.0.0
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+  firebase_storage: ^13.0.4
 
   # Offline Database
   hive: ^2.2.3
@@ -24,14 +24,14 @@ dependencies:
   provider: ^6.1.2
 
   # Routing
-  go_router: ^14.2.0
+  go_router: ^17.0.0
 
   # UI/UX
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
 
   # File Handling
-  file_picker: ^8.0.6
+  file_picker: ^10.3.6
   image_picker: ^1.1.2
   path_provider: ^2.1.3
   open_file: ^3.3.2
@@ -41,13 +41,13 @@ dependencies:
   csv: ^6.0.0
 
   # Date & Time
-  intl: ^0.19.0
+  intl: ^0.20.2
 
   # Charts
-  fl_chart: ^0.68.0
+  fl_chart: ^1.1.1
 
   # Notifications
-  flutter_local_notifications: ^17.2.1+2
+  flutter_local_notifications: ^19.5.0
   mailer: ^6.1.0
 
   # Utilities
@@ -58,7 +58,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
   build_runner: ^2.4.11
   hive_generator: ^2.0.1
 
