@@ -5,6 +5,7 @@ import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 import 'semester_management_screen.dart';
+import 'course_management_screen.dart';
 
 class InstructorDashboardScreen extends StatefulWidget {
   const InstructorDashboardScreen({super.key});
@@ -235,9 +236,9 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                   icon: Icons.school,
                   title: 'Manage\nCourses',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Course management coming soon!'),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CourseManagementScreen(),
                       ),
                     );
                   },
