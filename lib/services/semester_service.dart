@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/semester_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';

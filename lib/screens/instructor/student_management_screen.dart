@@ -177,18 +177,45 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     final studentProvider = context.read<StudentProvider>();
     final csvService = context.read<CsvService>();
 
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => CsvImportDialog(
-        title: 'Import Students',
-        csvService: csvService,
-        requiredColumns: const ['username', 'fullName', 'email'],
-        optionalColumns: const ['studentId'],
-        onImport: (data) async {
-          return await studentProvider.importStudentsFromCsv(data);
-        },
-      ),
-    );
+    try {
+      // Step 1: Pick and parse CSV file
+      final data = await csvService.pickAndParseCsv(
+        expectedHeaders: const ['studentId', 'fullName', 'email', 'password'],
+      );
+
+      if (data.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No data found in CSV file'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Step 2: Show dialog with preview
+      if (!mounted) return;
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => CsvImportDialog(
+          title: 'Import Students',
+          headers: const ['Student ID', 'Full Name', 'Email', 'Password'],
+          data: data,
+          previewBuilder: (row) {
+            return {
+              'Student ID': row['studentId'] ?? '',
+              'Full Name': row['fullName'] ?? '',
+              'Email': row['email'] ?? '',
+              'Password': '********',
+            };
+          },
+          onImport: () async {
+            return await studentProvider.importStudentsFromCsv(data);
+          },
+        ),
+      );
 
     if (result != null && mounted) {
       final success = result['success'] ?? 0;
@@ -241,6 +268,16 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           ],
         ),
       );
+    }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

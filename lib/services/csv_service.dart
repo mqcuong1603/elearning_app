@@ -152,6 +152,38 @@ class CsvService {
     }
   }
 
+  /// Export data to CSV file
+  Future<void> exportToCsv(
+    List<Map<String, dynamic>> data,
+    String filename,
+  ) async {
+    try {
+      if (data.isEmpty) {
+        throw Exception('No data to export');
+      }
+
+      // Extract headers from first row
+      final headers = data.first.keys.toList();
+
+      // Convert data to rows
+      final rows = data.map((row) {
+        return headers.map((header) => row[header] ?? '').toList();
+      }).toList();
+
+      // Generate CSV string
+      final csvString = exportToCsvString(
+        headers: headers,
+        rows: rows,
+      );
+
+      // Download file
+      downloadCsvFile(csvString: csvString, filename: filename);
+    } catch (e) {
+      print('Export to CSV error: $e');
+      throw Exception('Failed to export CSV: ${e.toString()}');
+    }
+  }
+
   /// Download CSV file (for web)
   void downloadCsvFile({
     required String csvString,

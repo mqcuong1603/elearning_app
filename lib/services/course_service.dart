@@ -1,6 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/course_model.dart';
-import '../models/semester_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
 import 'hive_service.dart';
@@ -269,7 +267,7 @@ class CourseService {
   /// Stream courses by semester (real-time updates)
   Stream<List<CourseModel>> streamCoursesBySemester(String semesterId) {
     return _firestoreService
-        .streamCollection(
+        .streamQuery(
       collection: AppConstants.collectionCourses,
       filters: [
         QueryFilter(field: 'semesterId', isEqualTo: semesterId),

@@ -229,48 +229,85 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
     final courseProvider = context.read<CourseProvider>();
     final csvService = context.read<CsvService>();
 
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => CsvImportDialog(
-        title: 'Import Courses',
-        csvService: csvService,
-        requiredColumns: const ['code', 'name', 'sessions'],
-        optionalColumns: const ['description'],
-        onImport: (data) async {
-          return await courseProvider.importCoursesFromCsv(
-            data,
-            _selectedSemester!.id,
-          );
-        },
-      ),
-    );
+    try {
+      // Step 1: Pick and parse CSV file
+      final data = await csvService.pickAndParseCsv(
+        expectedHeaders: const ['code', 'name', 'sessions', 'semesterId'],
+      );
 
-    if (result != null && mounted) {
-      final success = result['success'] ?? 0;
-      final failed = result['failed'] ?? 0;
-      final exists = result['alreadyExists'] ?? 0;
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Import Results'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('✓ Successfully imported: $success'),
-              if (exists > 0) Text('⊘ Already exists: $exists'),
-              if (failed > 0) Text('✗ Failed: $failed'),
-            ],
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+      if (data.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No data found in CSV file'),
+              backgroundColor: Colors.orange,
             ),
-          ],
+          );
+        }
+        return;
+      }
+
+      // Step 2: Show dialog with preview
+      if (!mounted) return;
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => CsvImportDialog(
+          title: 'Import Courses',
+          headers: const ['Code', 'Name', 'Sessions', 'Semester ID'],
+          data: data,
+          previewBuilder: (row) {
+            return {
+              'Code': row['code'] ?? '',
+              'Name': row['name'] ?? '',
+              'Sessions': row['sessions'] ?? '',
+              'Semester ID': row['semesterId'] ?? '',
+            };
+          },
+          onImport: () async {
+            return await courseProvider.importCoursesFromCsv(
+              data,
+              _selectedSemester!.id,
+            );
+          },
         ),
       );
+
+      if (result != null && mounted) {
+        final success = result['success'] ?? 0;
+        final failed = result['failed'] ?? 0;
+        final exists = result['alreadyExists'] ?? 0;
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Import Results'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('✓ Successfully imported: $success'),
+                if (exists > 0) Text('⊘ Already exists: $exists'),
+                if (failed > 0) Text('✗ Failed: $failed'),
+              ],
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -375,7 +412,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.05),
+            color: AppTheme.primaryColor.withValues(alpha: 0.05),
             border: Border(
               bottom: BorderSide(color: Colors.grey.shade300),
             ),

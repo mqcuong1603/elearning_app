@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
@@ -188,15 +187,6 @@ class StudentService {
         throw Exception('Student not found');
       }
 
-      // Check if student is enrolled in any groups
-      final groupsCount = await _firestoreService.count(
-        collection: AppConstants.collectionGroups,
-        filters: [
-          // This would need a proper query based on your group enrollment structure
-          // For now, we'll skip this check or implement it based on your data model
-        ],
-      );
-
       // Delete student account
       await _firestoreService.delete(
         collection: AppConstants.collectionUsers,
@@ -316,7 +306,7 @@ class StudentService {
   /// Stream all students (real-time updates)
   Stream<List<UserModel>> streamStudents() {
     return _firestoreService
-        .streamCollection(
+        .streamQuery(
       collection: AppConstants.collectionUsers,
       filters: [
         QueryFilter(field: 'role', isEqualTo: AppConstants.roleStudent),
