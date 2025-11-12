@@ -4,6 +4,7 @@ import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
+import 'semester_management_screen.dart';
 
 class InstructorDashboardScreen extends StatefulWidget {
   const InstructorDashboardScreen({super.key});
@@ -222,9 +223,9 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                   icon: Icons.folder,
                   title: 'Manage\nSemesters',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Semester management coming soon!'),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SemesterManagementScreen(),
                       ),
                     );
                   },

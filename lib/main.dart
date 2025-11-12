@@ -7,6 +7,9 @@ import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
 import 'services/storage_service.dart';
 import 'services/hive_service.dart';
+import 'services/csv_service.dart';
+import 'services/semester_service.dart';
+import 'providers/semester_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/instructor/instructor_dashboard_screen.dart';
 import 'screens/student/student_home_screen.dart';
@@ -50,6 +53,24 @@ class MyApp extends StatelessWidget {
         ),
         Provider<HiveService>(
           create: (_) => HiveService.instance,
+        ),
+        Provider<CsvService>(
+          create: (_) => CsvService(),
+        ),
+        ProxyProvider2<FirestoreService, HiveService, SemesterService>(
+          update: (_, firestoreService, hiveService, __) => SemesterService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+          ),
+        ),
+
+        // Providers (State Management)
+        ChangeNotifierProxyProvider<SemesterService, SemesterProvider>(
+          create: (context) => SemesterProvider(
+            semesterService: context.read<SemesterService>(),
+          ),
+          update: (_, semesterService, previous) =>
+              previous ?? SemesterProvider(semesterService: semesterService),
         ),
       ],
       child: MaterialApp(
