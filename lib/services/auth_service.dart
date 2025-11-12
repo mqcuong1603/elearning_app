@@ -335,4 +335,51 @@ class AuthService {
       return false;
     }
   }
+
+  /// Check if username exists
+  Future<bool> checkUsernameExists(String username) async {
+    try {
+      // Check for admin username
+      if (username == AppConstants.adminUsername) {
+        return true;
+      }
+
+      final query = await _firestore
+          .collection(AppConstants.collectionUsers)
+          .where('username', isEqualTo: username)
+          .limit(1)
+          .get();
+
+      return query.docs.isNotEmpty;
+    } catch (e) {
+      print('Check username exists error: $e');
+      return false;
+    }
+  }
+
+  /// Create user credential (username/password pair in Firestore)
+  /// This is a simple approach - in production, use proper auth with hashing
+  Future<void> createUserCredential({
+    required String username,
+    required String password,
+  }) async {
+    try {
+      // For this simple system, the password is stored in the user document
+      // This is handled when creating the user, so this method is just a placeholder
+      // In a real system, you'd create Firebase Auth credentials here
+    } catch (e) {
+      print('Create user credential error: $e');
+      throw Exception('Failed to create credentials');
+    }
+  }
+
+  /// Delete user credential
+  Future<void> deleteUserCredential(String username) async {
+    try {
+      // In this simple system, credentials are deleted with the user document
+      // This is just a placeholder for consistency
+    } catch (e) {
+      print('Delete user credential error: $e');
+    }
+  }
 }
