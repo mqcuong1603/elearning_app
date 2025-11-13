@@ -14,11 +14,15 @@ import '../../services/student_service.dart';
 import '../../services/auth_service.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
+import '../../providers/quiz_provider.dart';
 import '../../widgets/announcement_card.dart';
 import '../../widgets/announcement_form_dialog.dart';
 import '../../widgets/assignment_form_dialog.dart';
 import '../student/assignment_submission_screen.dart';
 import '../instructor/assignment_tracking_screen.dart';
+import '../instructor/quiz_management_screen.dart';
+import '../instructor/question_bank_screen.dart';
+import '../student/quiz_taking_screen.dart';
 
 /// Course Space Screen with 3 Tabs: Stream, Classwork, People
 /// Based on PDF requirements (Interface requirement - 2 pts)
@@ -45,7 +49,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   // Data lists (will be populated from services later)
   List<AnnouncementModel> _announcements = [];
   List<AssignmentModel> _assignments = [];
-  final List<QuizModel> _quizzes = [];
+  List<QuizModel> _quizzes = [];
   final List<MaterialModel> _materials = [];
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
@@ -85,6 +89,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       final studentService = context.read<StudentService>();
       final announcementProvider = context.read<AnnouncementProvider>();
       final assignmentProvider = context.read<AssignmentProvider>();
+      final quizProvider = context.read<QuizProvider>();
 
       // Load groups for this course
       _groups = await groupService.getGroupsByCourse(widget.course.id);
@@ -146,7 +151,20 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       }
       _assignments = assignmentProvider.assignments;
 
-      // TODO: Load quizzes and materials
+      // Load quizzes based on role
+      if (widget.currentUserRole == AppConstants.roleInstructor) {
+        // Instructors see all quizzes for the course
+        await quizProvider.loadQuizzesForCourse(widget.course.id);
+      } else {
+        // Students see only quizzes available to their groups
+        await quizProvider.loadAvailableQuizzes(
+          courseId: widget.course.id,
+          studentGroupIds: studentGroupIds,
+        );
+      }
+      _quizzes = quizProvider.quizzes;
+
+      // TODO: Load materials
       // These will be implemented in future iterations
 
       if (mounted) {
@@ -1019,7 +1037,37 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       ),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to quiz details
+          if (widget.currentUserRole == AppConstants.roleInstructor) {
+            // Instructors go to quiz management
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => QuizManagementScreen(
+                  courseId: widget.course.id,
+                  courseName: widget.course.name,
+                ),
+              ),
+            ).then((_) => _loadData());
+          } else {
+            // Students can take the quiz if it's available
+            if (quiz.isAvailable) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => QuizTakingScreen(
+                    quizId: quiz.id,
+                    courseId: widget.course.id,
+                  ),
+                ),
+              ).then((_) => _loadData());
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(quiz.isUpcoming
+                      ? 'Quiz will be available on ${quiz.openDate}'
+                      : 'Quiz is closed'),
+                ),
+              );
+            }
+          }
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         child: Padding(
@@ -1351,13 +1399,30 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.quiz),
-                title: const Text('Create Quiz'),
+                title: const Text('Manage Quizzes'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to create quiz
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Create quiz feature coming soon!'),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => QuizManagementScreen(
+                        courseId: widget.course.id,
+                        courseName: widget.course.name,
+                      ),
+                    ),
+                  ).then((_) => _loadData()); // Reload data when returning
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.quiz_outlined),
+                title: const Text('Question Bank'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => QuestionBankScreen(
+                        courseId: widget.course.id,
+                        courseName: widget.course.name,
+                      ),
                     ),
                   );
                 },
