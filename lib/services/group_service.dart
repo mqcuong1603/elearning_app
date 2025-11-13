@@ -111,6 +111,21 @@ class GroupService {
         throw Exception('Group name already exists in this course');
       }
 
+      // Validate that none of the initial students are already in another group for this course
+      if (studentIds != null && studentIds.isNotEmpty) {
+        for (final studentId in studentIds) {
+          final studentGroups = await _getStudentGroupsInCourse(
+            studentId,
+            courseId,
+          );
+          if (studentGroups.isNotEmpty) {
+            throw Exception(
+              'Student $studentId is already in group "${studentGroups.first.name}" for this course',
+            );
+          }
+        }
+      }
+
       final now = DateTime.now();
 
       final group = GroupModel(
@@ -152,6 +167,27 @@ class GroupService {
         );
         if (nameExists) {
           throw Exception('Group name already exists in this course');
+        }
+      }
+
+      // Validate new students being added (not already in the group)
+      if (existingGroup != null) {
+        final newStudents = group.studentIds
+            .where((id) => !existingGroup.studentIds.contains(id))
+            .toList();
+
+        for (final studentId in newStudents) {
+          final studentGroups = await _getStudentGroupsInCourse(
+            studentId,
+            group.courseId,
+          );
+          // Exclude the current group from the check
+          final otherGroups = studentGroups.where((g) => g.id != group.id).toList();
+          if (otherGroups.isNotEmpty) {
+            throw Exception(
+              'Student $studentId is already in group "${otherGroups.first.name}" for this course',
+            );
+          }
         }
       }
 
