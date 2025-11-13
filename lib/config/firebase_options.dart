@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '590588841369',
     projectId: 'elearning-management-b4314',
     authDomain: 'elearning-management-b4314.firebaseapp.com',
-    storageBucket: 'elearning-management-b4314.appspot.com',
+    storageBucket: 'elearning-management-b4314.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -60,7 +60,7 @@ class DefaultFirebaseOptions {
     appId: '1:590588841369:android:2d95d0aea59382031f1708',
     messagingSenderId: '590588841369',
     projectId: 'elearning-management-b4314',
-    storageBucket: 'elearning-management-b4314.appspot.com',
+    storageBucket: 'elearning-management-b4314.firebasestorage.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
@@ -69,6 +69,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '590588841369',
     projectId: 'elearning-management-b4314',
     authDomain: 'elearning-management-b4314.firebaseapp.com',
-    storageBucket: 'elearning-management-b4314.appspot.com',
+    storageBucket: 'elearning-management-b4314.firebasestorage.app',
   );
 }

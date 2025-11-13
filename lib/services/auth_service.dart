@@ -44,6 +44,16 @@ class AuthService {
           updatedAt: DateTime.now(),
           additionalInfo: {'isAdmin': true},
         );
+
+        // Sign in anonymously to Firebase Auth for Storage access
+        try {
+          await _auth.signInAnonymously();
+          print('✅ Admin signed in anonymously for Storage access');
+        } catch (e) {
+          print('⚠️ Warning: Anonymous auth failed for admin: $e');
+          print('Storage uploads may not work. Enable Anonymous Auth in Firebase Console.');
+        }
+
         return _currentUser;
       }
 
@@ -69,6 +79,15 @@ class AuthService {
 
       // Create user model from Firestore data
       _currentUser = UserModel.fromJson(userData);
+
+      // Sign in anonymously to Firebase Auth for Storage access
+      try {
+        await _auth.signInAnonymously();
+        print('✅ Student signed in anonymously for Storage access');
+      } catch (e) {
+        print('⚠️ Warning: Anonymous auth failed for student: $e');
+        print('Storage uploads may not work. Enable Anonymous Auth in Firebase Console.');
+      }
 
       return _currentUser;
     } catch (e) {

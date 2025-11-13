@@ -180,12 +180,16 @@ class QuizService {
     try {
       final snapshot = await _quizzesCollection
           .where('courseId', isEqualTo: courseId)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs
+      final quizzes = snapshot.docs
           .map((doc) => QuizModel.fromJson(doc.data() as Map<String, dynamic>))
           .toList();
+
+      // Sort in memory to avoid requiring a composite index
+      quizzes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return quizzes;
     } catch (e) {
       throw Exception('Failed to get quizzes: $e');
     }
@@ -347,13 +351,17 @@ class QuizService {
       final snapshot = await _submissionsCollection
           .where('quizId', isEqualTo: quizId)
           .where('studentId', isEqualTo: studentId)
-          .orderBy('attemptNumber', descending: false)
           .get();
 
-      return snapshot.docs
+      final submissions = snapshot.docs
           .map((doc) =>
               QuizSubmissionModel.fromJson(doc.data() as Map<String, dynamic>))
           .toList();
+
+      // Sort in memory to avoid requiring a composite index
+      submissions.sort((a, b) => a.attemptNumber.compareTo(b.attemptNumber));
+
+      return submissions;
     } catch (e) {
       throw Exception('Failed to get student submissions: $e');
     }
@@ -386,13 +394,17 @@ class QuizService {
     try {
       final snapshot = await _submissionsCollection
           .where('quizId', isEqualTo: quizId)
-          .orderBy('submittedAt', descending: true)
           .get();
 
-      return snapshot.docs
+      final submissions = snapshot.docs
           .map((doc) =>
               QuizSubmissionModel.fromJson(doc.data() as Map<String, dynamic>))
           .toList();
+
+      // Sort in memory to avoid requiring a composite index
+      submissions.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+
+      return submissions;
     } catch (e) {
       throw Exception('Failed to get quiz submissions: $e');
     }

@@ -113,12 +113,23 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
         ),
         body: Consumer<QuizProvider>(
           builder: (context, provider, child) {
+            // Show results if quiz is submitted
             if (_showResults) {
               return _buildResultsView(provider);
             }
 
-            if (provider.quizQuestions.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+            // Show loading while questions are being loaded
+            if (provider.quizQuestions.isEmpty && !_showResults) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading quiz...'),
+                  ],
+                ),
+              );
             }
 
             return Column(
@@ -392,7 +403,30 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
   Widget _buildResultsView(QuizProvider provider) {
     final submission = provider.currentSubmission;
     if (submission == null) {
-      return const Center(child: Text('No results available'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.orange),
+            const SizedBox(height: 16),
+            const Text(
+              'No results available',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Error: ${provider.submissionError ?? "Unknown error"}',
+              style: const TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Go Back'),
+            ),
+          ],
+        ),
+      );
     }
 
     final isPassed = submission.score >= 50;
@@ -600,15 +634,15 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
     );
 
     if (mounted) {
-      setState(() {
-        _isSubmitting = false;
-      });
-
       if (success) {
         setState(() {
+          _isSubmitting = false;
           _showResults = true;
         });
       } else {
+        setState(() {
+          _isSubmitting = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import '../config/app_constants.dart';
 
@@ -99,6 +101,164 @@ class StorageService {
       switch (e.code) {
         case 'storage/unauthorized':
           errorMessage = 'You do not have permission to upload files. Please ensure you are logged in.';
+          break;
+        case 'storage/canceled':
+          errorMessage = 'Upload was canceled.';
+          break;
+        case 'storage/unknown':
+          errorMessage = 'An unknown error occurred. Please try again.';
+          break;
+        case 'storage/object-not-found':
+          errorMessage = 'Storage bucket not found. Please check your Firebase configuration.';
+          break;
+        case 'storage/bucket-not-found':
+          errorMessage = 'Storage bucket not configured. Please contact support.';
+          break;
+        case 'storage/quota-exceeded':
+          errorMessage = 'Storage quota exceeded. Please contact support.';
+          break;
+        case 'storage/unauthenticated':
+          errorMessage = 'You must be logged in to upload files.';
+          break;
+        case 'storage/retry-limit-exceeded':
+          errorMessage = 'Upload failed after multiple retries. Please check your internet connection.';
+          break;
+        default:
+          errorMessage = 'Failed to upload file: ${e.message ?? e.code}';
+      }
+
+      throw Exception(errorMessage);
+    } catch (e) {
+      print('Storage upload error: $e');
+      throw Exception('Failed to upload file: ${e.toString()}');
+    }
+  }
+
+  /// Upload a PlatformFile (works for both web and mobile)
+  /// Returns the download URL
+  Future<String> uploadPlatformFile({
+    required PlatformFile file,
+    required String storagePath,
+    Function(double progress)? onProgress,
+  }) async {
+    try {
+      // Validate file size
+      if (file.size > 0 && !AppConstants.isValidFileSize(file.size)) {
+        throw Exception(AppConstants.errorFileSize);
+      }
+
+      // Validate file format
+      final extension = AppConstants.getFileExtension(file.name);
+      final allowedFormats = [
+        ...AppConstants.allowedImageFormats,
+        ...AppConstants.allowedDocumentFormats,
+        ...AppConstants.allowedVideoFormats,
+        ...AppConstants.allowedArchiveFormats,
+      ];
+
+      if (!allowedFormats.contains(extension)) {
+        throw Exception(AppConstants.errorFileFormat);
+      }
+
+      // Create reference
+      final fullPath = '$storagePath/${file.name}';
+      print('📤 Uploading file to path: $fullPath');
+      print('   File size: ${file.size} bytes (${(file.size / 1024 / 1024).toStringAsFixed(2)} MB)');
+      print('   Platform: ${kIsWeb ? "Web" : "Mobile"}');
+      final ref = _storage.ref().child(fullPath);
+
+      // Create metadata
+      final metadata = SettableMetadata(
+        contentType: _getContentType(extension),
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'originalFilename': file.name,
+        },
+      );
+
+      UploadTask uploadTask;
+
+      // Handle web and mobile differently
+      try {
+        if (kIsWeb) {
+          // On web, use bytes
+          print('   Using web upload (putData)');
+          if (file.bytes == null) {
+            throw Exception('File bytes are null');
+          }
+          print('   Bytes length: ${file.bytes!.length}');
+          uploadTask = ref.putData(file.bytes!, metadata);
+          print('   Upload task created successfully');
+        } else {
+          // On mobile, use path
+          print('   Using mobile upload (putFile)');
+          if (file.path == null) {
+            throw Exception('File path is null');
+          }
+          print('   File path: ${file.path}');
+          uploadTask = ref.putFile(File(file.path!), metadata);
+          print('   Upload task created successfully');
+        }
+      } catch (e) {
+        print('❌ Error creating upload task: $e');
+        rethrow;
+      }
+
+      print('   Upload task created, starting upload...');
+
+      // Listen to upload progress and errors
+      uploadTask.snapshotEvents.listen(
+        (snapshot) {
+          print('   Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes} bytes');
+          print('   State: ${snapshot.state}');
+
+          if (snapshot.state == TaskState.running && onProgress != null) {
+            final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+            onProgress(progress);
+          }
+        },
+        onError: (error) {
+          print('❌ Upload stream error: $error');
+          if (error is FirebaseException) {
+            print('   Firebase error code: ${error.code}');
+            print('   Firebase error message: ${error.message}');
+          }
+        },
+      );
+
+      // Wait for upload to complete with timeout
+      print('   Waiting for upload to complete...');
+      final snapshot = await uploadTask.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('   ❌ Upload timed out after 30 seconds');
+          print('   This might be a CORS issue or Storage rules blocking the upload');
+          throw Exception('Upload timed out. Check Firebase Storage rules and CORS configuration.');
+        },
+      ).whenComplete(() {
+        print('   ✅ Upload completed for ${file.name}');
+      });
+
+      // Check if upload was successful
+      print('   Upload state: ${snapshot.state}');
+      if (snapshot.state != TaskState.success) {
+        throw Exception('Upload failed with state: ${snapshot.state}');
+      }
+
+      // Get download URL
+      print('   Getting download URL...');
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      print('✅ File uploaded successfully!');
+      print('   URL: $downloadUrl');
+
+      return downloadUrl;
+    } on FirebaseException catch (e) {
+      print('Firebase Storage error: ${e.code} - ${e.message}');
+      String errorMessage;
+
+      switch (e.code) {
+        case 'storage/unauthorized':
+          errorMessage = 'You do not have permission to upload files.';
           break;
         case 'storage/canceled':
           errorMessage = 'Upload was canceled.';

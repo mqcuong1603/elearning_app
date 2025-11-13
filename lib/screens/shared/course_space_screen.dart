@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../models/course_model.dart';
 import '../../models/announcement_model.dart';
 import '../../models/assignment_model.dart';
 import '../../models/quiz_model.dart';
+import '../../models/quiz_submission_model.dart';
 import '../../models/material_model.dart';
 import '../../models/group_model.dart';
 import '../../models/user_model.dart';
@@ -53,6 +55,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   final List<MaterialModel> _materials = [];
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
+
+  // Track quiz submissions for students (quizId -> best submission)
+  Map<String, QuizSubmissionModel> _quizSubmissions = {};
 
   // Track which group the current user belongs to (for students)
   String? _currentUserGroupId;
@@ -161,6 +166,47 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           courseId: widget.course.id,
           studentGroupIds: studentGroupIds,
         );
+
+        // Load student's best submissions for each quiz
+        _quizSubmissions = {};
+        for (var quiz in quizProvider.quizzes) {
+          try {
+            final bestSubmission = await quizProvider.checkQuizEligibility(
+              quizId: quiz.id,
+              studentId: widget.currentUserId,
+              studentGroupIds: studentGroupIds,
+            );
+
+            // If student has taken the quiz, load their best submission
+            final attemptCount = await quizProvider.getAttemptCount(
+              quizId: quiz.id,
+              studentId: widget.currentUserId,
+            );
+
+            if (attemptCount > 0) {
+              final submissions = await quizProvider.checkQuizEligibility(
+                quizId: quiz.id,
+                studentId: widget.currentUserId,
+                studentGroupIds: studentGroupIds,
+              );
+              // Load student submissions directly from service
+              await quizProvider.loadStudentSubmissions(
+                quizId: quiz.id,
+                studentId: widget.currentUserId,
+              );
+
+              // Get the best submission
+              if (quizProvider.submissions.isNotEmpty) {
+                // Sort by score to get the best one
+                final sortedSubmissions = List<QuizSubmissionModel>.from(quizProvider.submissions)
+                  ..sort((a, b) => b.score.compareTo(a.score));
+                _quizSubmissions[quiz.id] = sortedSubmissions.first;
+              }
+            }
+          } catch (e) {
+            // Ignore errors for individual quiz submission loading
+          }
+        }
       }
       _quizzes = quizProvider.quizzes;
 
@@ -790,9 +836,23 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         groupIds: result['groupIds'],
       );
 
-      final success = await context
-          .read<AnnouncementProvider>()
-          .updateAnnouncement(updatedAnnouncement);
+      final newAttachmentFiles = result['attachmentFiles'] as List<PlatformFile>?;
+
+      bool success;
+      if (newAttachmentFiles != null && newAttachmentFiles.isNotEmpty) {
+        // Use the method that handles file uploads
+        success = await context
+            .read<AnnouncementProvider>()
+            .updateAnnouncementWithFiles(
+              announcement: updatedAnnouncement,
+              newAttachmentFiles: newAttachmentFiles,
+            );
+      } else {
+        // No new files, just update basic info
+        success = await context
+            .read<AnnouncementProvider>()
+            .updateAnnouncement(updatedAnnouncement);
+      }
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1020,7 +1080,17 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     String statusText = 'Available';
     IconData statusIcon = Icons.check_circle;
 
-    if (quiz.isClosed) {
+    // Check if student has completed this quiz
+    final submission = widget.currentUserRole == AppConstants.roleStudent
+        ? _quizSubmissions[quiz.id]
+        : null;
+
+    if (submission != null) {
+      // Student has completed the quiz
+      statusColor = Colors.purple;
+      statusText = 'Completed • ${submission.formattedScore}';
+      statusIcon = Icons.check_circle;
+    } else if (quiz.isClosed) {
       statusColor = AppTheme.errorColor;
       statusText = 'Closed';
       statusIcon = Icons.cancel;
@@ -1115,13 +1185,14 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                                   ),
                         ),
                         const SizedBox(width: AppTheme.spacingS),
-                        Text(
-                          '${quiz.totalQuestions} questions • ${quiz.durationMinutes} min',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textSecondaryColor,
-                                  ),
-                        ),
+                        if (submission == null)
+                          Text(
+                            '${quiz.totalQuestions} questions • ${quiz.durationMinutes} min',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textSecondaryColor,
+                                    ),
+                          ),
                       ],
                     ),
                   ],

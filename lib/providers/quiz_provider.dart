@@ -383,7 +383,8 @@ class QuizProvider with ChangeNotifier {
               ))
           .toList();
 
-      _currentSubmission = await _quizService.submitQuiz(
+      // Submit to service and get result
+      final submission = await _quizService.submitQuiz(
         quizId: _selectedQuiz!.id,
         studentId: studentId,
         studentName: studentName,
@@ -392,17 +393,27 @@ class QuizProvider with ChangeNotifier {
         questions: _quizQuestions,
       );
 
-      // Reset quiz state
+      // Verify submission was created
+      if (submission == null) {
+        throw Exception('Failed to create quiz submission');
+      }
+
+      // Set current submission before resetting state
+      _currentSubmission = submission;
+
+      // Reset quiz state (but keep currentSubmission)
       _isQuizActive = false;
       _quizStartTime = null;
       _selectedAnswers = {};
       _quizQuestions = [];
       _timeRemainingSeconds = 0;
+      _submissionError = null; // Clear any previous errors
 
       notifyListeners();
       return true;
     } catch (e) {
       _submissionError = e.toString();
+      _currentSubmission = null; // Clear submission on error
       notifyListeners();
       return false;
     }
@@ -415,6 +426,7 @@ class QuizProvider with ChangeNotifier {
     _selectedAnswers = {};
     _quizQuestions = [];
     _timeRemainingSeconds = 0;
+    _currentSubmission = null; // Clear submission when canceling
     notifyListeners();
   }
 

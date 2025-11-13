@@ -128,13 +128,17 @@ class QuestionService {
     try {
       final snapshot = await _questionsCollection
           .where('courseId', isEqualTo: courseId)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs
+      final questions = snapshot.docs
           .map((doc) =>
               QuestionModel.fromJson(doc.data() as Map<String, dynamic>))
           .toList();
+
+      // Sort in memory to avoid requiring a composite index
+      questions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return questions;
     } catch (e) {
       throw Exception('Failed to get questions: $e');
     }

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import '../models/announcement_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
@@ -144,27 +144,18 @@ class AnnouncementService {
     required List<String> groupIds,
     required String instructorId,
     required String instructorName,
-    List<File>? attachmentFiles,
+    List<PlatformFile>? attachmentFiles,
   }) async {
     try {
       final now = DateTime.now();
 
-      // Upload attachments if any
-      List<AttachmentModel> attachments = [];
-      if (attachmentFiles != null && attachmentFiles.isNotEmpty) {
-        attachments = await _uploadAttachments(
-          files: attachmentFiles,
-          courseId: courseId,
-          announcementId: '', // Will be updated after creation
-        );
-      }
-
+      // Create announcement first without attachments
       final announcement = AnnouncementModel(
         id: '', // Will be set by Firestore
         courseId: courseId,
         title: title,
         content: content,
-        attachments: attachments,
+        attachments: [], // Empty initially
         groupIds: groupIds,
         instructorId: instructorId,
         instructorName: instructorName,
@@ -175,12 +166,39 @@ class AnnouncementService {
         comments: [],
       );
 
+      // Create announcement in Firestore to get ID
       final id = await _firestoreService.create(
         collection: AppConstants.collectionAnnouncements,
         data: announcement.toJson(),
       );
 
-      final createdAnnouncement = announcement.copyWith(id: id);
+      // Now upload attachments with the proper announcement ID
+      List<AttachmentModel> attachments = [];
+      if (attachmentFiles != null && attachmentFiles.isNotEmpty) {
+        print('Uploading ${attachmentFiles.length} attachments for announcement $id');
+        attachments = await _uploadAttachments(
+          files: attachmentFiles,
+          courseId: courseId,
+          announcementId: id,
+        );
+        print('Successfully uploaded ${attachments.length} attachments');
+
+        // Update announcement with attachments
+        if (attachments.isNotEmpty) {
+          print('Updating announcement with attachments');
+          await _firestoreService.update(
+            collection: AppConstants.collectionAnnouncements,
+            documentId: id,
+            data: {'attachments': attachments.map((a) => a.toJson()).toList()},
+          );
+          print('Announcement updated with attachments');
+        }
+      }
+
+      final createdAnnouncement = announcement.copyWith(
+        id: id,
+        attachments: attachments,
+      );
 
       // Clear cache to force refresh
       await _clearAnnouncementsCache();
@@ -205,6 +223,52 @@ class AnnouncementService {
       await _clearAnnouncementsCache();
     } catch (e) {
       print('Update announcement error: $e');
+      throw Exception('Failed to update announcement: ${e.toString()}');
+    }
+  }
+
+  /// Update announcement with new attachments
+  Future<AnnouncementModel> updateAnnouncementWithFiles({
+    required AnnouncementModel announcement,
+    List<PlatformFile>? newAttachmentFiles,
+  }) async {
+    try {
+      // Upload new attachments if any
+      List<AttachmentModel> newAttachments = [];
+      if (newAttachmentFiles != null && newAttachmentFiles.isNotEmpty) {
+        print('Uploading ${newAttachmentFiles.length} new attachments for announcement ${announcement.id}');
+        newAttachments = await _uploadAttachments(
+          files: newAttachmentFiles,
+          courseId: announcement.courseId,
+          announcementId: announcement.id,
+        );
+        print('Successfully uploaded ${newAttachments.length} new attachments');
+      }
+
+      // Combine existing and new attachments
+      final allAttachments = [
+        ...announcement.attachments,
+        ...newAttachments,
+      ];
+
+      // Update announcement with combined attachments
+      final updatedAnnouncement = announcement.copyWith(
+        attachments: allAttachments,
+        updatedAt: DateTime.now(),
+      );
+
+      await _firestoreService.update(
+        collection: AppConstants.collectionAnnouncements,
+        documentId: announcement.id,
+        data: updatedAnnouncement.toJson(),
+      );
+
+      // Clear cache to force refresh
+      await _clearAnnouncementsCache();
+
+      return updatedAnnouncement;
+    } catch (e) {
+      print('Update announcement with files error: $e');
       throw Exception('Failed to update announcement: ${e.toString()}');
     }
   }
@@ -427,7 +491,7 @@ class AnnouncementService {
 
   /// Upload attachments to storage
   Future<List<AttachmentModel>> _uploadAttachments({
-    required List<File> files,
+    required List<PlatformFile> files,
     required String courseId,
     required String announcementId,
   }) async {
@@ -435,20 +499,20 @@ class AnnouncementService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = file.path.split('/').last;
+      final filename = file.name;
       final extension = filename.split('.').last.toLowerCase();
 
       try {
         // Upload to storage
         final storagePath =
-            'announcements/$courseId/$announcementId/${DateTime.now().millisecondsSinceEpoch}_$filename';
-        final downloadUrl = await _storageService.uploadFile(
+            'announcements/$courseId/$announcementId';
+        final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
           storagePath: storagePath,
         );
 
         // Get file size
-        final fileSize = await file.length();
+        final fileSize = file.size;
 
         // Create attachment model
         final attachment = AttachmentModel(
@@ -460,12 +524,14 @@ class AnnouncementService {
         );
 
         attachments.add(attachment);
+        print('Successfully added attachment: $filename (${attachment.formattedSize})');
       } catch (e) {
-        print('Failed to upload attachment $filename: $e');
-        // Continue with other files
+        print('ERROR: Failed to upload attachment $filename: $e');
+        // Continue with other files - don't throw, just log and skip
       }
     }
 
+    print('Total attachments uploaded: ${attachments.length} of ${files.length}');
     return attachments;
   }
 
