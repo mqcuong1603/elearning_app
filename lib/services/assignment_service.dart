@@ -839,6 +839,7 @@ class AssignmentService {
     required String assignmentId,
   }) async {
     final attachments = <AttachmentModel>[];
+    final failedFiles = <String>[];
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
@@ -846,12 +847,13 @@ class AssignmentService {
       final extension = filename.split('.').last.toLowerCase();
 
       try {
-        // Upload to storage
-        final storagePath =
-            'assignments/$courseId/$assignmentId/${DateTime.now().millisecondsSinceEpoch}_$filename';
+        // Upload to storage - use directory path only
+        final storagePath = 'assignments/$courseId/$assignmentId';
+        final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
         final downloadUrl = await _storageService.uploadFile(
           file: file,
           storagePath: storagePath,
+          filename: timestampedFilename,
         );
 
         // Get file size
@@ -869,8 +871,13 @@ class AssignmentService {
         attachments.add(attachment);
       } catch (e) {
         print('Failed to upload attachment $filename: $e');
-        // Continue with other files
+        failedFiles.add(filename);
       }
+    }
+
+    // Log warning if some files failed
+    if (failedFiles.isNotEmpty) {
+      print('Warning: Some attachment files failed to upload: ${failedFiles.join(", ")}');
     }
 
     return attachments;
@@ -884,6 +891,7 @@ class AssignmentService {
     required int attemptNumber,
   }) async {
     final submissionFiles = <AttachmentModel>[];
+    final failedFiles = <String>[];
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
@@ -891,12 +899,14 @@ class AssignmentService {
       final extension = filename.split('.').last.toLowerCase();
 
       try {
-        // Upload to storage
+        // Upload to storage - use directory path only
         final storagePath =
-            'submissions/$assignmentId/$studentId/attempt_$attemptNumber/${DateTime.now().millisecondsSinceEpoch}_$filename';
+            'submissions/$assignmentId/$studentId/attempt_$attemptNumber';
+        final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
         final downloadUrl = await _storageService.uploadFile(
           file: file,
           storagePath: storagePath,
+          filename: timestampedFilename,
         );
 
         // Get file size
@@ -914,8 +924,20 @@ class AssignmentService {
         submissionFiles.add(submissionFile);
       } catch (e) {
         print('Failed to upload submission file $filename: $e');
-        // Continue with other files
+        failedFiles.add(filename);
       }
+    }
+
+    // If all files failed to upload, throw an error
+    if (submissionFiles.isEmpty) {
+      throw Exception(
+        'All files failed to upload. Please check your internet connection and try again.',
+      );
+    }
+
+    // If some files failed, log a warning
+    if (failedFiles.isNotEmpty) {
+      print('Warning: Some files failed to upload: ${failedFiles.join(", ")}');
     }
 
     return submissionFiles;

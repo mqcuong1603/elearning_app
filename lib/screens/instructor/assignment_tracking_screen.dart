@@ -42,7 +42,10 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Defer loading until after the first frame to avoid notifying listeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   @override
@@ -666,8 +669,8 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
                 IconButton(
                   icon: const Icon(Icons.visibility, color: Colors.blue),
                   tooltip: 'View Submission',
-                  onPressed: () {
-                    Navigator.of(context).push(
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => AssignmentGradingScreen(
                           assignment: widget.assignment,
@@ -676,6 +679,11 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
                         ),
                       ),
                     );
+
+                    // Refresh data if grading was successful
+                    if (result == true) {
+                      _loadData();
+                    }
                   },
                 ),
               if (!hasSubmitted)

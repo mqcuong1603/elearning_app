@@ -41,7 +41,10 @@ class _AssignmentGradingScreenState extends State<AssignmentGradingScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSubmissions();
+    // Defer loading until after the first frame to avoid notifying listeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSubmissions();
+    });
   }
 
   @override
@@ -166,6 +169,9 @@ class _AssignmentGradingScreenState extends State<AssignmentGradingScreen> {
               backgroundColor: Colors.green,
             ),
           );
+
+          // Pop with result to trigger refresh in parent screen
+          Navigator.of(context).pop(true);
         }
       } else {
         throw Exception(provider.error ?? 'Failed to submit grade');
