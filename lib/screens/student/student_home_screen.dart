@@ -23,10 +23,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEnrolledCourses();
+    // Defer loading to after the first frame to avoid build-phase conflicts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadEnrolledCourses();
+    });
   }
 
   Future<void> _loadEnrolledCourses() async {
+    if (!mounted) return;
+
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
 

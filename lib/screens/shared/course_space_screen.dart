@@ -52,7 +52,10 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadData();
+    // Defer loading to after the first frame to avoid build-phase conflicts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   @override
@@ -62,6 +65,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
