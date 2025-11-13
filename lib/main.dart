@@ -11,9 +11,11 @@ import 'services/csv_service.dart';
 import 'services/semester_service.dart';
 import 'services/course_service.dart';
 import 'services/student_service.dart';
+import 'services/group_service.dart';
 import 'providers/semester_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/student_provider.dart';
+import 'providers/group_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/instructor/instructor_dashboard_screen.dart';
 import 'screens/student/student_home_screen.dart';
@@ -85,6 +87,12 @@ class MyApp extends StatelessWidget {
             authService: authService,
           ),
         ),
+        ProxyProvider2<FirestoreService, HiveService, GroupService>(
+          update: (_, firestoreService, hiveService, __) => GroupService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+          ),
+        ),
 
         // Providers (State Management)
         ChangeNotifierProxyProvider<SemesterService, SemesterProvider>(
@@ -107,6 +115,13 @@ class MyApp extends StatelessWidget {
           ),
           update: (_, studentService, previous) =>
               previous ?? StudentProvider(studentService: studentService),
+        ),
+        ChangeNotifierProxyProvider<GroupService, GroupProvider>(
+          create: (context) => GroupProvider(
+            groupService: context.read<GroupService>(),
+          ),
+          update: (_, groupService, previous) =>
+              previous ?? GroupProvider(groupService: groupService),
         ),
       ],
       child: MaterialApp(
