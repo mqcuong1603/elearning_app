@@ -14,12 +14,15 @@ import 'services/student_service.dart';
 import 'services/group_service.dart';
 import 'services/announcement_service.dart';
 import 'services/assignment_service.dart';
+import 'services/quiz_service.dart';
+import 'services/question_service.dart';
 import 'providers/semester_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/group_provider.dart';
 import 'providers/announcement_provider.dart';
 import 'providers/assignment_provider.dart';
+import 'providers/quiz_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/instructor/instructor_dashboard_screen.dart';
 import 'screens/student/student_home_screen.dart';
@@ -119,6 +122,12 @@ class MyApp extends StatelessWidget {
             storageService: storageService,
           ),
         ),
+        Provider<QuizService>(
+          create: (_) => QuizService(),
+        ),
+        Provider<QuestionService>(
+          create: (_) => QuestionService(),
+        ),
 
         // Providers (State Management)
         ChangeNotifierProxyProvider<SemesterService, SemesterProvider>(
@@ -162,6 +171,9 @@ class MyApp extends StatelessWidget {
           ),
           update: (_, assignmentService, previous) => previous ??
               AssignmentProvider(assignmentService: assignmentService),
+        ),
+        ChangeNotifierProvider<QuizProvider>(
+          create: (context) => QuizProvider(),
         ),
       ],
       child: MaterialApp(
