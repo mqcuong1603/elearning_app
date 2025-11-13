@@ -345,9 +345,8 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
             // This avoids Navigator lock issues when dialog rebuilds
             Future.microtask(() {
               if (mounted && Navigator.of(context).canPop()) {
-                // Return true if any records were successfully imported, false otherwise
-                final success = _importResult?['success'] ?? 0;
-                Navigator.of(context).pop(success > 0);
+                // Return the full import result map
+                Navigator.of(context).pop(_importResult);
               }
             });
           },

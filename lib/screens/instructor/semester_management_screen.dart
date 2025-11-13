@@ -125,7 +125,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
       if (!mounted) return;
 
       // Show preview dialog
-      final result = await showDialog<bool>(
+      final result = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (context) => CsvImportDialog(
           title: 'Import Semesters',
@@ -142,14 +142,8 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
         ),
       );
 
-      if (result == true && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppConstants.successImport),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
-      }
+      // CsvImportDialog already shows the results, no need for another snackbar
+      // The result map contains: {'success': n, 'failed': m, 'alreadyExists': k, ...}
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
