@@ -52,6 +52,31 @@ class GroupService {
       return groups;
     } catch (e) {
       print('Get groups by course error: $e');
+
+      // Fallback: Try without orderBy if index is missing, then sort in memory
+      if (e.toString().contains('failed-precondition') ||
+          e.toString().contains('index')) {
+        try {
+          print('Attempting query without orderBy and sorting in memory...');
+          final data = await _firestoreService.query(
+            collection: AppConstants.collectionGroups,
+            filters: [
+              QueryFilter(field: 'courseId', isEqualTo: courseId),
+            ],
+          );
+
+          final groups = data.map((json) => GroupModel.fromJson(json)).toList();
+
+          // Sort in memory by name
+          groups.sort((a, b) => a.name.compareTo(b.name));
+
+          return groups;
+        } catch (fallbackError) {
+          print('Fallback query also failed: $fallbackError');
+          return [];
+        }
+      }
+
       return [];
     }
   }

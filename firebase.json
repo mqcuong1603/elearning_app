@@ -1,1 +1,26 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"elearning-management-b4314","appId":"1:590588841369:android:2d95d0aea59382031f1708","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"elearning-management-b4314","configurations":{"android":"1:590588841369:android:2d95d0aea59382031f1708","web":"1:590588841369:web:690f30a25ad6c5961f1708","windows":"1:590588841369:web:431aec787bb0d0021f1708"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "elearning-management-b4314",
+          "appId": "1:590588841369:android:2d95d0aea59382031f1708",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "elearning-management-b4314",
+          "configurations": {
+            "android": "1:590588841369:android:2d95d0aea59382031f1708",
+            "web": "1:590588841369:web:690f30a25ad6c5961f1708",
+            "windows": "1:590588841369:web:431aec787bb0d0021f1708"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  }
+}

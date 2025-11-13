@@ -1,15 +1,15 @@
 {
   "indexes": [
     {
-      "collectionGroup": "users",
+      "collectionGroup": "groups",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "role",
+          "fieldPath": "courseId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "fullName",
+          "fieldPath": "name",
           "order": "ASCENDING"
         }
       ]
