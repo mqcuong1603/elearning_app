@@ -14,12 +14,18 @@ class FirestoreService {
     try {
       if (documentId != null) {
         // Create with specific ID
-        await _firestore.collection(collection).doc(documentId).set(data);
+        final dataWithId = {...data, 'id': documentId};
+        await _firestore.collection(collection).doc(documentId).set(dataWithId);
         return documentId;
       } else {
         // Create with auto-generated ID
         final docRef = await _firestore.collection(collection).add(data);
-        return docRef.id;
+        final generatedId = docRef.id;
+
+        // Update the document to include its own ID
+        await docRef.update({'id': generatedId});
+
+        return generatedId;
       }
     } catch (e) {
       print('Firestore create error: $e');
@@ -273,7 +279,9 @@ class FirestoreService {
 
       for (final data in dataList) {
         final docRef = _firestore.collection(collection).doc();
-        batch.set(docRef, data);
+        // Include the document ID in the data
+        final dataWithId = {...data, 'id': docRef.id};
+        batch.set(docRef, dataWithId);
       }
 
       await batch.commit();

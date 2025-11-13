@@ -9,6 +9,7 @@ import '../../models/course_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
 import '../debug/enrollment_debug_screen.dart';
+import '../debug/data_migration_screen.dart';
 import 'semester_management_screen.dart';
 import 'course_management_screen.dart';
 import 'student_management_screen.dart';
@@ -336,11 +337,12 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
             ),
             const SizedBox(height: AppTheme.spacingM),
             GridView.count(
-              crossAxisCount: 2,
+              crossAxisCount: 3,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: AppTheme.spacingM,
               crossAxisSpacing: AppTheme.spacingM,
+              childAspectRatio: 1.2,
               children: [
                 _buildActionCard(
                   context,
@@ -399,6 +401,19 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const EnrollmentDebugScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  context,
+                  icon: Icons.build,
+                  title: 'Fix Data\nIssues',
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DataMigrationScreen(),
                       ),
                     );
                   },
