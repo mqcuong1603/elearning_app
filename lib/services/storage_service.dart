@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/scheduler.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
@@ -63,13 +65,23 @@ class StorageService {
       // Upload file with metadata
       final uploadTask = ref.putFile(file, metadata);
 
-      // Listen to upload progress on the main thread
+      // Listen to upload progress
+      // On desktop platforms, ensure callbacks run on UI thread
+      StreamSubscription<TaskSnapshot>? progressSubscription;
       if (onProgress != null) {
-        uploadTask.snapshotEvents.listen(
+        progressSubscription = uploadTask.snapshotEvents.listen(
           (snapshot) {
             if (snapshot.state == TaskState.running) {
               final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-              onProgress(progress);
+
+              // Ensure callback runs on UI thread to avoid threading issues on desktop platforms
+              if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+                onProgress(progress);
+              } else {
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  onProgress(progress);
+                });
+              }
             }
           },
           onError: (error) {
@@ -79,9 +91,15 @@ class StorageService {
       }
 
       // Wait for upload to complete
-      final snapshot = await uploadTask.whenComplete(() {
-        print('Upload completed for $fileName');
-      });
+      TaskSnapshot snapshot;
+      try {
+        snapshot = await uploadTask.whenComplete(() {
+          print('Upload completed for $fileName');
+        });
+      } finally {
+        // Clean up the progress subscription
+        await progressSubscription?.cancel();
+      }
 
       // Check if upload was successful
       if (snapshot.state != TaskState.success) {
@@ -207,37 +225,58 @@ class StorageService {
       print('   Upload task created, starting upload...');
 
       // Listen to upload progress and errors
-      uploadTask.snapshotEvents.listen(
-        (snapshot) {
-          print('   Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes} bytes');
-          print('   State: ${snapshot.state}');
+      // On desktop platforms (Windows/Linux/macOS), Firebase Storage sends events
+      // from background threads. We need to ensure callbacks run on the UI thread.
+      StreamSubscription<TaskSnapshot>? progressSubscription;
+      if (onProgress != null) {
+        progressSubscription = uploadTask.snapshotEvents.listen(
+          (snapshot) {
+            print('   Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes} bytes');
+            print('   State: ${snapshot.state}');
 
-          if (snapshot.state == TaskState.running && onProgress != null) {
-            final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-            onProgress(progress);
-          }
-        },
-        onError: (error) {
-          print('❌ Upload stream error: $error');
-          if (error is FirebaseException) {
-            print('   Firebase error code: ${error.code}');
-            print('   Firebase error message: ${error.message}');
-          }
-        },
-      );
+            if (snapshot.state == TaskState.running) {
+              final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+
+              // Ensure callback runs on UI thread to avoid threading issues on desktop platforms
+              if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+                // Already on UI thread or safe to call
+                onProgress(progress);
+              } else {
+                // Post to UI thread
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  onProgress(progress);
+                });
+              }
+            }
+          },
+          onError: (error) {
+            print('❌ Upload stream error: $error');
+            if (error is FirebaseException) {
+              print('   Firebase error code: ${error.code}');
+              print('   Firebase error message: ${error.message}');
+            }
+          },
+        );
+      }
 
       // Wait for upload to complete with timeout
       print('   Waiting for upload to complete...');
-      final snapshot = await uploadTask.timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          print('   ❌ Upload timed out after 30 seconds');
-          print('   This might be a CORS issue or Storage rules blocking the upload');
-          throw Exception('Upload timed out. Check Firebase Storage rules and CORS configuration.');
-        },
-      ).whenComplete(() {
-        print('   ✅ Upload completed for ${file.name}');
-      });
+      TaskSnapshot snapshot;
+      try {
+        snapshot = await uploadTask.timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            print('   ❌ Upload timed out after 30 seconds');
+            print('   This might be a CORS issue or Storage rules blocking the upload');
+            throw Exception('Upload timed out. Check Firebase Storage rules and CORS configuration.');
+          },
+        ).whenComplete(() {
+          print('   ✅ Upload completed for ${file.name}');
+        });
+      } finally {
+        // Clean up the progress subscription
+        await progressSubscription?.cancel();
+      }
 
       // Check if upload was successful
       print('   Upload state: ${snapshot.state}');
