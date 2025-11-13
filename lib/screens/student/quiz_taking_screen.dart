@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../config/app_constants.dart';
-import '../../models/quiz_model.dart';
 import '../../models/question_model.dart';
 import '../../providers/quiz_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 
 /// Screen for students to take quizzes with timer and auto-grading
 class QuizTakingScreen extends StatefulWidget {
@@ -74,8 +72,16 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () => _confirmExit(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          final shouldPop = await _confirmExit();
+          if (shouldPop && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           title: Consumer<QuizProvider>(
@@ -540,7 +546,7 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
       ),
     );
 
-    if (result == true) {
+    if (result == true && mounted) {
       _timer?.cancel();
       final provider = Provider.of<QuizProvider>(context, listen: false);
       provider.cancelQuiz();
@@ -585,8 +591,8 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
     _timer?.cancel();
 
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.currentUser!;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser!;
 
     final success = await quizProvider.submitQuiz(
       studentId: user.id,

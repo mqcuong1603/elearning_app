@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../config/app_constants.dart';
 import '../../models/quiz_model.dart';
-import '../../models/group_model.dart';
 import '../../providers/quiz_provider.dart';
 import '../../providers/group_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 import 'quiz_tracking_screen.dart';
 
 /// Screen for managing quizzes (Create, Edit, Delete)
@@ -39,7 +37,7 @@ class _QuizManagementScreenState extends State<QuizManagementScreen> {
 
     await Future.wait([
       quizProvider.loadQuizzesForCourse(widget.courseId),
-      groupProvider.loadGroupsForCourse(widget.courseId),
+      groupProvider.loadGroupsByCourse(widget.courseId),
       quizProvider.loadQuestionStatistics(widget.courseId),
     ]);
   }
@@ -125,7 +123,6 @@ class _QuizManagementScreenState extends State<QuizManagementScreen> {
   }
 
   Widget _buildQuizCard(QuizModel quiz) {
-    final now = DateTime.now();
     final status = quiz.isUpcoming
         ? 'Upcoming'
         : quiz.isAvailable
@@ -285,12 +282,16 @@ class _QuizManagementScreenState extends State<QuizManagementScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
               final provider =
                   Provider.of<QuizProvider>(context, listen: false);
+
+              navigator.pop();
               final success = await provider.deleteQuiz(quiz.id);
+
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text(success
                         ? 'Quiz deleted successfully'
@@ -648,7 +649,7 @@ class _QuizFormDialogState extends State<_QuizFormDialog> {
   Widget _buildGroupSelector() {
     return Consumer<GroupProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoadingGroups) {
+        if (provider.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
@@ -704,8 +705,8 @@ class _QuizFormDialogState extends State<_QuizFormDialog> {
     });
 
     final quizProvider = Provider.of<QuizProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.currentUser!;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser!;
 
     bool success;
     if (widget.quiz == null) {
