@@ -278,27 +278,31 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
         final failed = result['failed'] ?? 0;
         final exists = result['alreadyExists'] ?? 0;
 
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Import Results'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('✓ Successfully imported: $success'),
-                if (exists > 0) Text('⊘ Already exists: $exists'),
-                if (failed > 0) Text('✗ Failed: $failed'),
+        // Wait for the previous dialog to fully close before showing results
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Import Results'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('✓ Successfully imported: $success'),
+                  if (exists > 0) Text('⊘ Already exists: $exists'),
+                  if (failed > 0) Text('✗ Failed: $failed'),
+                ],
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
               ],
             ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
+          );
+        });
       }
     } catch (e) {
       if (mounted) {
