@@ -10,7 +10,10 @@ import '../config/app_constants.dart';
 /// Storage Service
 /// Handles file uploads and downloads with Firebase Storage
 class StorageService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // Use explicit bucket to avoid .appspot.com vs .firebasestorage.app issues
+  final FirebaseStorage _storage = FirebaseStorage.instanceFor(
+    bucket: 'elearning-management-b4314.firebasestorage.app',
+  );
 
   /// Check if running on desktop platform (Windows, macOS, Linux)
   bool get _isDesktop {
