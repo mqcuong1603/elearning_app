@@ -219,19 +219,41 @@ class CourseService {
           continue;
         }
 
-        // Validate that semester exists
-        final semesterExists = await _firestoreService.read(
+        // Validate that semester exists and get actual semester document ID
+        // semesterId might be a semester code (e.g., "2025-2") or a document ID
+        String? actualSemesterId;
+
+        // First try as document ID
+        var semester = await _firestoreService.read(
           collection: AppConstants.collectionSemesters,
           documentId: semesterId,
         );
 
-        if (semesterExists == null) {
+        if (semester != null) {
+          // It's a valid document ID
+          actualSemesterId = semesterId;
+        } else {
+          // Try to find by semester code
+          final semestersByCode = await _firestoreService.query(
+            collection: AppConstants.collectionSemesters,
+            filters: [
+              QueryFilter(field: 'code', isEqualTo: semesterId),
+            ],
+            limit: 1,
+          );
+
+          if (semestersByCode.isNotEmpty) {
+            actualSemesterId = semestersByCode.first['id'] as String;
+          }
+        }
+
+        if (actualSemesterId == null) {
           results['failed']++;
           results['details'].add({
             'code': code,
             'name': name,
             'status': 'failed',
-            'error': 'Semester ID "$semesterId" does not exist',
+            'error': 'Semester "$semesterId" does not exist',
           });
           continue;
         }
@@ -254,7 +276,7 @@ class CourseService {
           collection: AppConstants.collectionCourses,
           filters: [
             QueryFilter(field: 'code', isEqualTo: code),
-            QueryFilter(field: 'semesterId', isEqualTo: semesterId),
+            QueryFilter(field: 'semesterId', isEqualTo: actualSemesterId),
           ],
           limit: 1,
         );
@@ -274,7 +296,7 @@ class CourseService {
         await createCourse(
           code: code,
           name: name,
-          semesterId: semesterId,
+          semesterId: actualSemesterId,
           sessions: sessions,
           description: data['description']?.trim(),
         );
