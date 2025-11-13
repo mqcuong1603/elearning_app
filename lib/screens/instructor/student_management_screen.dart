@@ -224,55 +224,56 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       final exists = result['alreadyExists'] ?? 0;
 
       // Wait for the previous dialog to fully close before showing results
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Import Results'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('✓ Successfully imported: $success'),
-                if (exists > 0) Text('⊘ Already exists: $exists'),
-                if (failed > 0) Text('✗ Failed: $failed'),
-                const SizedBox(height: 16),
-                if (success > 0)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline,
-                            size: 20, color: Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Default passwords are set to usernames',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue.shade700,
-                            ),
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted) return;
+
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Import Results'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('✓ Successfully imported: $success'),
+              if (exists > 0) Text('⊘ Already exists: $exists'),
+              if (failed > 0) Text('✗ Failed: $failed'),
+              const SizedBox(height: 16),
+              if (success > 0)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 20, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Default passwords are set to usernames',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-              ],
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
+                ),
             ],
           ),
-        );
-      });
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
     } catch (e) {
       if (mounted) {
