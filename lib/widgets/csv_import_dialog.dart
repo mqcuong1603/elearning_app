@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import '../config/app_theme.dart';
 
 class CsvImportDialog extends StatefulWidget {
@@ -342,10 +341,10 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
       actions: [
         ElevatedButton(
           onPressed: () {
-            // Use post-frame callback to avoid Navigator lock assertion error
-            // This ensures the pop happens after any pending rebuilds complete
-            SchedulerBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
+            // Use microtask to defer the pop operation to the next event loop cycle
+            // This avoids Navigator lock issues when dialog rebuilds
+            Future.microtask(() {
+              if (mounted && Navigator.of(context).canPop()) {
                 Navigator.of(context).pop(_importResult);
               }
             });
