@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../models/course_model.dart';
@@ -8,6 +9,8 @@ import '../../models/quiz_model.dart';
 import '../../models/material_model.dart';
 import '../../models/group_model.dart';
 import '../../models/user_model.dart';
+import '../../services/group_service.dart';
+import '../../services/student_service.dart';
 
 /// Course Space Screen with 3 Tabs: Stream, Classwork, People
 /// Based on PDF requirements (Interface requirement - 2 pts)
@@ -39,6 +42,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
 
+  // Track which group the current user belongs to (for students)
+  String? _currentUserGroupId;
+
   // Loading state
   bool _isLoading = true;
 
@@ -61,13 +67,49 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     });
 
     try {
-      // TODO: Load data from services
-      // This is placeholder - will be implemented with actual services
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Get services from context
+      final groupService = context.read<GroupService>();
+      final studentService = context.read<StudentService>();
 
-      setState(() {
-        _isLoading = false;
-      });
+      // Load groups for this course
+      _groups = await groupService.getGroupsByCourse(widget.course.id);
+
+      // Find which group the current user belongs to (if they are a student)
+      if (widget.currentUserRole == AppConstants.roleStudent) {
+        for (var group in _groups) {
+          if (group.hasStudent(widget.currentUserId)) {
+            _currentUserGroupId = group.id;
+            break;
+          }
+        }
+      }
+
+      // Collect all unique student IDs from all groups in this course
+      final Set<String> studentIds = {};
+      for (var group in _groups) {
+        studentIds.addAll(group.studentIds);
+      }
+
+      // Load student details for all student IDs
+      _students = [];
+      for (var studentId in studentIds) {
+        final student = await studentService.getStudentById(studentId);
+        if (student != null) {
+          _students.add(student);
+        }
+      }
+
+      // Sort students by name for better UX
+      _students.sort((a, b) => a.fullName.compareTo(b.fullName));
+
+      // TODO: Load announcements, assignments, quizzes, and materials
+      // These will be implemented in future iterations
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -1007,28 +1049,71 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
   // Build Group Card
   Widget _buildGroupCard(GroupModel group) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: AppTheme.primaryLightColor,
-        child: Icon(
-          Icons.group,
-          color: AppTheme.primaryColor,
-          size: 20,
-        ),
-      ),
-      title: Text(group.name),
-      subtitle: Text('${group.studentIds.length} students'),
-      trailing: widget.currentUserRole == AppConstants.roleInstructor
-          ? IconButton(
-              icon: const Icon(Icons.edit, size: 20),
-              onPressed: () {
-                // TODO: Edit group
-              },
+    final isCurrentUserGroup = _currentUserGroupId == group.id;
+
+    return Container(
+      decoration: isCurrentUserGroup
+          ? BoxDecoration(
+              color: AppTheme.primaryLightColor.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(AppTheme.radiusM),
+              border: Border.all(
+                color: AppTheme.primaryColor,
+                width: 2,
+              ),
             )
           : null,
-      onTap: () {
-        // TODO: View group details
-      },
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isCurrentUserGroup
+              ? AppTheme.primaryColor
+              : AppTheme.primaryLightColor,
+          child: Icon(
+            Icons.group,
+            color: isCurrentUserGroup
+                ? AppTheme.textOnPrimaryColor
+                : AppTheme.primaryColor,
+            size: 20,
+          ),
+        ),
+        title: Row(
+          children: [
+            Text(group.name),
+            if (isCurrentUserGroup) ...[
+              const SizedBox(width: AppTheme.spacingS),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacingS,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                ),
+                child: Text(
+                  'Your Group',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.textOnPrimaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Text('${group.studentIds.length} students'),
+        trailing: widget.currentUserRole == AppConstants.roleInstructor
+            ? IconButton(
+                icon: const Icon(Icons.edit, size: 20),
+                onPressed: () {
+                  // TODO: Edit group
+                },
+              )
+            : null,
+        onTap: () {
+          // TODO: View group details
+        },
+      ),
     );
   }
 
