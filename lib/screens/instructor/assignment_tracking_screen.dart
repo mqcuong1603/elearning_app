@@ -5,10 +5,13 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../models/assignment_model.dart';
 import '../../models/user_model.dart';
+import '../../models/group_model.dart';
+import '../../models/announcement_model.dart'; // For AttachmentModel
 import '../../providers/assignment_provider.dart';
 import '../../services/group_service.dart';
 import '../../services/student_service.dart';
 import '../../config/app_theme.dart';
+import '../../widgets/assignment_form_dialog.dart';
 import 'assignment_grading_screen.dart';
 
 /// Instructor Assignment Tracking Dashboard
@@ -38,6 +41,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
   List<Map<String, dynamic>> _filteredStatus = [];
   Map<String, dynamic>? _stats;
   bool _isLoading = false;
+  List<GroupModel> _groups = [];
 
   @override
   void initState() {
@@ -67,6 +71,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
 
       // Get all groups in the course
       final groups = await groupService.getGroupsByCourse(widget.courseId);
+      _groups = groups;
 
       // Collect all unique student IDs from all groups
       final Set<String> studentIds = {};
@@ -284,6 +289,79 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
         _filterStatus = filter;
         _applyFilters();
       });
+    }
+  }
+
+  Future<void> _showEditAssignmentDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AssignmentFormDialog(
+        assignment: widget.assignment,
+        groups: _groups,
+        courseId: widget.courseId,
+      ),
+    );
+
+    if (result != null && mounted) {
+      final assignmentProvider = context.read<AssignmentProvider>();
+
+      // Upload new attachment files if any
+      List<File> newFiles = result['attachmentFiles'] ?? [];
+      List<AttachmentModel> existingAttachments = result['existingAttachments'] ?? [];
+
+      // Merge existing and new attachments
+      List<AttachmentModel> allAttachments = List.from(existingAttachments);
+
+      // Upload new files and add to attachments list
+      if (newFiles.isNotEmpty) {
+        try {
+          // We need to upload new files through the service
+          // For now, we'll use the provider's internal service
+          final uploadedAttachments = await assignmentProvider.uploadAttachmentsForEdit(
+            files: newFiles,
+            courseId: widget.courseId,
+            assignmentId: widget.assignment.id,
+          );
+          allAttachments.addAll(uploadedAttachments);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error uploading attachments: $e')),
+            );
+            return;
+          }
+        }
+      }
+
+      // Create updated assignment
+      final updatedAssignment = widget.assignment.copyWith(
+        title: result['title'],
+        description: result['description'],
+        startDate: result['startDate'],
+        deadline: result['deadline'],
+        allowLateSubmission: result['allowLateSubmission'],
+        lateDeadline: result['lateDeadline'],
+        maxAttempts: result['maxAttempts'],
+        allowedFileFormats: result['allowedFileFormats'],
+        maxFileSize: result['maxFileSize'],
+        groupIds: result['groupIds'],
+        attachments: allAttachments,
+      );
+
+      final success = await assignmentProvider.updateAssignment(updatedAssignment);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment updated successfully')),
+        );
+        // Pop back to previous screen since assignment was updated
+        Navigator.of(context).pop(true);
+      } else if (mounted) {
+        final error = assignmentProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to update assignment')),
+        );
+      }
     }
   }
 
@@ -713,6 +791,11 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
         title: Text('Track: ${widget.assignment.title}'),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _showEditAssignmentDialog,
+            tooltip: 'Edit Assignment',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,

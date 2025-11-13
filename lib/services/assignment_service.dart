@@ -229,6 +229,19 @@ class AssignmentService {
     }
   }
 
+  /// Upload attachments for an existing assignment (public wrapper)
+  Future<List<AttachmentModel>> uploadAttachmentsForAssignment({
+    required List<File> files,
+    required String courseId,
+    required String assignmentId,
+  }) async {
+    return await _uploadAttachments(
+      files: files,
+      courseId: courseId,
+      assignmentId: assignmentId,
+    );
+  }
+
   /// Delete assignment
   Future<void> deleteAssignment(String id) async {
     try {

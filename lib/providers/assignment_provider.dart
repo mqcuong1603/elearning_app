@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/assignment_model.dart';
 import '../models/assignment_submission_model.dart';
 import '../models/user_model.dart';
+import '../models/announcement_model.dart'; // For AttachmentModel
 import '../services/assignment_service.dart';
 
 /// Assignment Provider
@@ -157,6 +158,25 @@ class AssignmentProvider extends ChangeNotifier {
       _error = e.toString();
       notifyListeners();
       return null;
+    }
+  }
+
+  /// Upload attachments for editing an assignment
+  Future<List<AttachmentModel>> uploadAttachmentsForEdit({
+    required List<File> files,
+    required String courseId,
+    required String assignmentId,
+  }) async {
+    try {
+      return await _assignmentService.uploadAttachmentsForAssignment(
+        files: files,
+        courseId: courseId,
+        assignmentId: assignmentId,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 
