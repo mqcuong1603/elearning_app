@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/scheduler.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
@@ -11,6 +10,12 @@ import '../config/app_constants.dart';
 /// Handles file uploads and downloads with Firebase Storage
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  /// Check if running on desktop platform (Windows, macOS, Linux)
+  bool get _isDesktop {
+    if (kIsWeb) return false;
+    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  }
 
   /// Upload a file to Firebase Storage
   /// Returns the download URL
@@ -66,22 +71,16 @@ class StorageService {
       final uploadTask = ref.putFile(file, metadata);
 
       // Listen to upload progress
-      // On desktop platforms, ensure callbacks run on UI thread
+      // NOTE: On desktop platforms (Windows/macOS/Linux), Firebase Storage has a bug
+      // where snapshotEvents send messages from background threads, causing errors.
+      // We skip the progress listener on desktop platforms to avoid this issue.
       StreamSubscription<TaskSnapshot>? progressSubscription;
-      if (onProgress != null) {
+      if (onProgress != null && !_isDesktop) {
         progressSubscription = uploadTask.snapshotEvents.listen(
           (snapshot) {
             if (snapshot.state == TaskState.running) {
               final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-
-              // Ensure callback runs on UI thread to avoid threading issues on desktop platforms
-              if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
-                onProgress(progress);
-              } else {
-                SchedulerBinding.instance.addPostFrameCallback((_) {
-                  onProgress(progress);
-                });
-              }
+              onProgress(progress);
             }
           },
           onError: (error) {
@@ -182,7 +181,7 @@ class StorageService {
       final fullPath = '$storagePath/${file.name}';
       print('📤 Uploading file to path: $fullPath');
       print('   File size: ${file.size} bytes (${(file.size / 1024 / 1024).toStringAsFixed(2)} MB)');
-      print('   Platform: ${kIsWeb ? "Web" : "Mobile"}');
+      print('   Platform: ${kIsWeb ? "Web" : (_isDesktop ? "Desktop (${Platform.operatingSystem})" : "Mobile")}');
       final ref = _storage.ref().child(fullPath);
 
       // Create metadata
@@ -225,10 +224,11 @@ class StorageService {
       print('   Upload task created, starting upload...');
 
       // Listen to upload progress and errors
-      // On desktop platforms (Windows/Linux/macOS), Firebase Storage sends events
-      // from background threads. We need to ensure callbacks run on the UI thread.
+      // NOTE: On desktop platforms (Windows/Linux/macOS), Firebase Storage has a bug
+      // where snapshotEvents send messages from background threads, causing errors.
+      // We skip the progress listener on desktop platforms to avoid this issue.
       StreamSubscription<TaskSnapshot>? progressSubscription;
-      if (onProgress != null) {
+      if (onProgress != null && !_isDesktop) {
         progressSubscription = uploadTask.snapshotEvents.listen(
           (snapshot) {
             print('   Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes} bytes');
@@ -236,17 +236,7 @@ class StorageService {
 
             if (snapshot.state == TaskState.running) {
               final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-
-              // Ensure callback runs on UI thread to avoid threading issues on desktop platforms
-              if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
-                // Already on UI thread or safe to call
-                onProgress(progress);
-              } else {
-                // Post to UI thread
-                SchedulerBinding.instance.addPostFrameCallback((_) {
-                  onProgress(progress);
-                });
-              }
+              onProgress(progress);
             }
           },
           onError: (error) {
@@ -257,6 +247,8 @@ class StorageService {
             }
           },
         );
+      } else if (_isDesktop && onProgress != null) {
+        print('   ⚠️  Progress tracking disabled on desktop platforms to avoid threading issues');
       }
 
       // Wait for upload to complete with timeout
@@ -284,13 +276,32 @@ class StorageService {
         throw Exception('Upload failed with state: ${snapshot.state}');
       }
 
-      // Get download URL
+      // Get download URL with retry logic
+      // On some platforms, there's a brief delay before the file is available
       print('   Getting download URL...');
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      print('✅ File uploaded successfully!');
-      print('   URL: $downloadUrl');
+      String downloadUrl;
+      int retryCount = 0;
+      const maxRetries = 3;
+      const retryDelay = Duration(milliseconds: 500);
 
-      return downloadUrl;
+      while (retryCount <= maxRetries) {
+        try {
+          downloadUrl = await snapshot.ref.getDownloadURL();
+          print('✅ File uploaded successfully!');
+          print('   URL: $downloadUrl');
+          return downloadUrl;
+        } catch (e) {
+          retryCount++;
+          if (retryCount > maxRetries) {
+            print('❌ Failed to get download URL after $maxRetries retries');
+            rethrow;
+          }
+          print('   ⚠️  Retry $retryCount/$maxRetries: Waiting for file to be available...');
+          await Future.delayed(retryDelay);
+        }
+      }
+
+      throw Exception('Failed to get download URL after retries');
     } on FirebaseException catch (e) {
       print('Firebase Storage error: ${e.code} - ${e.message}');
       String errorMessage;
