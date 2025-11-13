@@ -38,7 +38,10 @@ class _AssignmentSubmissionScreenState
   @override
   void initState() {
     super.initState();
-    _loadSubmissions();
+    // Defer loading until after the first frame to avoid notifying listeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSubmissions();
+    });
   }
 
   Future<void> _loadSubmissions() async {
@@ -47,9 +50,11 @@ class _AssignmentSubmissionScreenState
       assignmentId: widget.assignment.id,
       studentId: widget.student.id,
     );
-    setState(() {
-      _submissions = provider.submissions;
-    });
+    if (mounted) {
+      setState(() {
+        _submissions = provider.submissions;
+      });
+    }
   }
 
   Future<void> _pickFiles() async {
