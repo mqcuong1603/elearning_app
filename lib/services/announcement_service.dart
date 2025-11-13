@@ -172,6 +172,7 @@ class AnnouncementService {
         updatedAt: now,
         viewedBy: [],
         downloadedBy: {},
+        comments: [],
       );
 
       final id = await _firestoreService.create(
@@ -362,6 +363,65 @@ class AnnouncementService {
     } catch (e) {
       print('Get announcement count by course error: $e');
       return 0;
+    }
+  }
+
+  /// Add comment to announcement
+  Future<void> addComment({
+    required String announcementId,
+    required String userId,
+    required String userFullName,
+    required String content,
+  }) async {
+    try {
+      final announcement = await getAnnouncementById(announcementId);
+      if (announcement == null) {
+        throw Exception('Announcement not found');
+      }
+
+      // Create new comment
+      final comment = AnnouncementComment(
+        id: '${announcementId}_comment_${DateTime.now().millisecondsSinceEpoch}',
+        userId: userId,
+        userFullName: userFullName,
+        content: content,
+        createdAt: DateTime.now(),
+      );
+
+      // Add comment to list
+      final updatedComments = [...announcement.comments, comment];
+
+      await updateAnnouncement(
+        announcement.copyWith(comments: updatedComments),
+      );
+    } catch (e) {
+      print('Add comment error: $e');
+      throw Exception('Failed to add comment: ${e.toString()}');
+    }
+  }
+
+  /// Delete comment from announcement
+  Future<void> deleteComment({
+    required String announcementId,
+    required String commentId,
+  }) async {
+    try {
+      final announcement = await getAnnouncementById(announcementId);
+      if (announcement == null) {
+        throw Exception('Announcement not found');
+      }
+
+      // Remove comment from list
+      final updatedComments = announcement.comments
+          .where((comment) => comment.id != commentId)
+          .toList();
+
+      await updateAnnouncement(
+        announcement.copyWith(comments: updatedComments),
+      );
+    } catch (e) {
+      print('Delete comment error: $e');
+      throw Exception('Failed to delete comment: ${e.toString()}');
     }
   }
 

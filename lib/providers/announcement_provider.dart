@@ -237,6 +237,66 @@ class AnnouncementProvider extends ChangeNotifier {
     }
   }
 
+  /// Add comment to announcement
+  Future<bool> addComment({
+    required String announcementId,
+    required String userId,
+    required String userFullName,
+    required String content,
+  }) async {
+    try {
+      _error = null;
+
+      await _announcementService.addComment(
+        announcementId: announcementId,
+        userId: userId,
+        userFullName: userFullName,
+        content: content,
+      );
+
+      // Reload announcements to get updated comments
+      if (_selectedCourseId != null) {
+        await loadAnnouncementsByCourse(_selectedCourseId!);
+      } else {
+        await loadAnnouncements();
+      }
+
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Delete comment from announcement
+  Future<bool> deleteComment({
+    required String announcementId,
+    required String commentId,
+  }) async {
+    try {
+      _error = null;
+
+      await _announcementService.deleteComment(
+        announcementId: announcementId,
+        commentId: commentId,
+      );
+
+      // Reload announcements to get updated comments
+      if (_selectedCourseId != null) {
+        await loadAnnouncementsByCourse(_selectedCourseId!);
+      } else {
+        await loadAnnouncements();
+      }
+
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Search announcements
   void searchAnnouncements(String query) {
     _searchQuery = query.toLowerCase();

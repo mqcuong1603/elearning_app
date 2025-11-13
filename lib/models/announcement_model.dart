@@ -42,6 +42,9 @@ class AnnouncementModel extends HiveObject {
   final Map<String, List<String>>
       downloadedBy; // {attachmentId: [userId1, userId2]}
 
+  @HiveField(12)
+  final List<AnnouncementComment> comments; // Social media style comments
+
   AnnouncementModel({
     required this.id,
     required this.courseId,
@@ -55,6 +58,7 @@ class AnnouncementModel extends HiveObject {
     required this.updatedAt,
     required this.viewedBy,
     required this.downloadedBy,
+    required this.comments,
   });
 
   // Check if announcement is for all groups
@@ -65,6 +69,9 @@ class AnnouncementModel extends HiveObject {
 
   // Get view count
   int get viewCount => viewedBy.length;
+
+  // Get comment count
+  int get commentCount => comments.length;
 
   // Convert to JSON (for Firestore)
   Map<String, dynamic> toJson() {
@@ -81,6 +88,7 @@ class AnnouncementModel extends HiveObject {
       'updatedAt': updatedAt.toIso8601String(),
       'viewedBy': viewedBy,
       'downloadedBy': downloadedBy,
+      'comments': comments.map((c) => c.toJson()).toList(),
     };
   }
 
@@ -118,6 +126,11 @@ class AnnouncementModel extends HiveObject {
             ),
           ) ??
           {},
+      comments: (json['comments'] as List<dynamic>?)
+              ?.map((e) =>
+                  AnnouncementComment.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -135,6 +148,7 @@ class AnnouncementModel extends HiveObject {
     DateTime? updatedAt,
     List<String>? viewedBy,
     Map<String, List<String>>? downloadedBy,
+    List<AnnouncementComment>? comments,
   }) {
     return AnnouncementModel(
       id: id ?? this.id,
@@ -149,6 +163,7 @@ class AnnouncementModel extends HiveObject {
       updatedAt: updatedAt ?? this.updatedAt,
       viewedBy: viewedBy ?? this.viewedBy,
       downloadedBy: downloadedBy ?? this.downloadedBy,
+      comments: comments ?? this.comments,
     );
   }
 
@@ -232,6 +247,73 @@ class AttachmentModel {
       filename: filename ?? this.filename,
       size: size ?? this.size,
       type: type ?? this.type,
+    );
+  }
+}
+
+// Announcement Comment Model (for social media style comments)
+@HiveType(typeId: 101) // Using 101 for comment model
+class AnnouncementComment {
+  @HiveField(0)
+  final String id;
+
+  @HiveField(1)
+  final String userId;
+
+  @HiveField(2)
+  final String userFullName;
+
+  @HiveField(3)
+  final String content;
+
+  @HiveField(4)
+  final DateTime createdAt;
+
+  AnnouncementComment({
+    required this.id,
+    required this.userId,
+    required this.userFullName,
+    required this.content,
+    required this.createdAt,
+  });
+
+  // Convert to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'userFullName': userFullName,
+      'content': content,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  // Create from JSON
+  factory AnnouncementComment.fromJson(Map<String, dynamic> json) {
+    return AnnouncementComment(
+      id: json['id'] as String,
+      userId: json['userId'] as String,
+      userFullName: json['userFullName'] as String,
+      content: json['content'] as String,
+      createdAt: json['createdAt'] is String
+          ? DateTime.parse(json['createdAt'])
+          : (json['createdAt'] as DateTime),
+    );
+  }
+
+  AnnouncementComment copyWith({
+    String? id,
+    String? userId,
+    String? userFullName,
+    String? content,
+    DateTime? createdAt,
+  }) {
+    return AnnouncementComment(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      userFullName: userFullName ?? this.userFullName,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }
