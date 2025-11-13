@@ -11,6 +11,7 @@ import '../../models/group_model.dart';
 import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/student_service.dart';
+import '../../services/auth_service.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
 import '../../widgets/announcement_card.dart';
@@ -894,20 +895,19 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             );
           } else {
             // Student: Navigate to submission screen
-            final currentUser = UserModel(
-              id: widget.currentUserId,
-              email: '',
-              fullName: '',
-              role: AppConstants.roleStudent,
-            );
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => AssignmentSubmissionScreen(
-                  assignment: assignment,
-                  student: currentUser,
+            final authService = context.read<AuthService>();
+            final currentUser = authService.currentUser;
+
+            if (currentUser != null) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => AssignmentSubmissionScreen(
+                    assignment: assignment,
+                    student: currentUser,
+                  ),
                 ),
-              ),
-            );
+              );
+            }
           }
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),

@@ -6,9 +6,9 @@ import 'package:path_provider/path_provider.dart';
 import '../../models/assignment_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/assignment_provider.dart';
-import '../../providers/student_provider.dart';
+import '../../services/group_service.dart';
+import '../../services/student_service.dart';
 import '../../config/app_theme.dart';
-import '../../config/app_constants.dart';
 import 'assignment_grading_screen.dart';
 
 /// Instructor Assignment Tracking Dashboard
@@ -59,11 +59,26 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
     try {
       final assignmentProvider =
           Provider.of<AssignmentProvider>(context, listen: false);
-      final studentProvider =
-          Provider.of<StudentProvider>(context, listen: false);
+      final groupService = context.read<GroupService>();
+      final studentService = context.read<StudentService>();
 
-      // Get all students in the course
-      final students = await studentProvider.getStudentsByCourse(widget.courseId);
+      // Get all groups in the course
+      final groups = await groupService.getGroupsByCourse(widget.courseId);
+
+      // Collect all unique student IDs from all groups
+      final Set<String> studentIds = {};
+      for (var group in groups) {
+        studentIds.addAll(group.studentIds);
+      }
+
+      // Load student details for all student IDs
+      final students = <UserModel>[];
+      for (var studentId in studentIds) {
+        final student = await studentService.getStudentById(studentId);
+        if (student != null) {
+          students.add(student);
+        }
+      }
 
       // Load submission status
       await assignmentProvider.loadStudentSubmissionStatus(
@@ -179,10 +194,26 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
     try {
       final assignmentProvider =
           Provider.of<AssignmentProvider>(context, listen: false);
-      final studentProvider =
-          Provider.of<StudentProvider>(context, listen: false);
+      final groupService = context.read<GroupService>();
+      final studentService = context.read<StudentService>();
 
-      final students = await studentProvider.getStudentsByCourse(widget.courseId);
+      // Get all groups in the course
+      final groups = await groupService.getGroupsByCourse(widget.courseId);
+
+      // Collect all unique student IDs from all groups
+      final Set<String> studentIds = {};
+      for (var group in groups) {
+        studentIds.addAll(group.studentIds);
+      }
+
+      // Load student details for all student IDs
+      final students = <UserModel>[];
+      for (var studentId in studentIds) {
+        final student = await studentService.getStudentById(studentId);
+        if (student != null) {
+          students.add(student);
+        }
+      }
 
       final csvString = await assignmentProvider.exportGradesToCSV(
         assignmentId: widget.assignment.id,
