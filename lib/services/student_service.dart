@@ -218,7 +218,10 @@ class StudentService {
 
     for (final data in studentsData) {
       try {
-        final username = data['username']?.trim() ?? '';
+        // Use studentId as username if username is not provided
+        final username = (data['username']?.trim().isEmpty ?? true)
+            ? data['studentId']?.trim() ?? ''
+            : data['username']!.trim();
         final fullName = data['fullName']?.trim() ?? '';
         final email = data['email']?.trim() ?? '';
         final studentId = data['studentId']?.trim();
