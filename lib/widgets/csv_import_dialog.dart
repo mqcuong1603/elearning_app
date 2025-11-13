@@ -42,7 +42,7 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
       if (result['success'] > 0) {
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
-          Navigator.of(context).pop(true);
+          Navigator.of(context).pop(_importResult);
         }
       }
     } catch (e) {
@@ -171,7 +171,7 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
       actions: [
         TextButton(
           onPressed:
-              _isImporting ? null : () => Navigator.of(context).pop(false),
+              _isImporting ? null : () => Navigator.of(context).pop(null),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
@@ -275,7 +275,7 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
       ),
       actions: [
         ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(!hasError),
+          onPressed: () => Navigator.of(context).pop(_importResult),
           child: const Text('Close'),
         ),
       ],

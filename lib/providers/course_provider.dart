@@ -149,19 +149,19 @@ class CourseProvider extends ChangeNotifier {
   /// Batch create courses from CSV
   Future<Map<String, dynamic>?> importCoursesFromCsv(
     List<Map<String, String>> coursesData,
-    String semesterId,
+    String? defaultSemesterId,
   ) async {
     try {
       _error = null;
 
       final results = await _courseService.batchCreateCourses(
         coursesData,
-        semesterId,
+        defaultSemesterId,
       );
 
       // Reload courses for current semester if needed
-      if (_currentSemesterId == semesterId) {
-        await loadCoursesBySemester(semesterId);
+      if (_currentSemesterId != null) {
+        await loadCoursesBySemester(_currentSemesterId!);
       }
 
       return results;

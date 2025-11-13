@@ -264,9 +264,10 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
             };
           },
           onImport: () async {
+            // Pass null to use semesterId from CSV file
             final result = await courseProvider.importCoursesFromCsv(
               data,
-              _selectedSemester!.id,
+              null,
             );
             return result ?? {'success': 0, 'failed': 0, 'alreadyExists': 0};
           },

@@ -174,7 +174,7 @@ class CourseService {
   /// Batch create courses (for CSV import)
   Future<Map<String, dynamic>> batchCreateCourses(
     List<Map<String, String>> coursesData,
-    String semesterId,
+    String? defaultSemesterId,
   ) async {
     final results = <String, dynamic>{
       'total': coursesData.length,
@@ -190,6 +190,9 @@ class CourseService {
         final name = data['name']?.trim() ?? '';
         final sessionsStr = data['sessions']?.trim() ?? '10';
 
+        // Use semesterId from CSV or fall back to default
+        final semesterId = data['semesterId']?.trim() ?? defaultSemesterId ?? '';
+
         if (code.isEmpty || name.isEmpty) {
           results['failed']++;
           results['details'].add({
@@ -197,6 +200,35 @@ class CourseService {
             'name': name,
             'status': 'failed',
             'error': 'Code and name are required',
+          });
+          continue;
+        }
+
+        // Validate semesterId
+        if (semesterId.isEmpty) {
+          results['failed']++;
+          results['details'].add({
+            'code': code,
+            'name': name,
+            'status': 'failed',
+            'error': 'Semester ID is required',
+          });
+          continue;
+        }
+
+        // Validate that semester exists
+        final semesterExists = await _firestoreService.read(
+          collection: AppConstants.collectionSemesters,
+          documentId: semesterId,
+        );
+
+        if (semesterExists == null) {
+          results['failed']++;
+          results['details'].add({
+            'code': code,
+            'name': name,
+            'status': 'failed',
+            'error': 'Semester ID "$semesterId" does not exist',
           });
           continue;
         }
