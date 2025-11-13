@@ -1,14 +1,12 @@
-import 'dart:io' if (dart.library.html) 'dart:html' as html;
-import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:csv/csv.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../config/app_constants.dart';
 import '../../models/quiz_submission_model.dart';
 import '../../providers/quiz_provider.dart';
+import '../../utils/csv_download.dart' as csv_helper;
 
 /// Screen for instructors to track quiz results and export to CSV
 class QuizTrackingScreen extends StatefulWidget {
@@ -497,26 +495,17 @@ class _QuizTrackingScreenState extends State<QuizTrackingScreen> {
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = 'quiz_results_${widget.quizTitle.replaceAll(RegExp(r'[^\w\s]'), '')}_$timestamp.csv';
 
-      if (kIsWeb) {
-        // Web: Trigger browser download
-        final bytes = utf8.encode(csv);
-        final blob = html.Blob([bytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', fileName)
-          ..click();
-        html.Url.revokeObjectUrl(url);
-      } else {
-        // Mobile/Desktop: Save to documents directory
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/$fileName');
-        await file.writeAsString(csv);
-      }
+      // Download CSV using platform-specific implementation
+      final filePath = await csv_helper.downloadCsv(csv, fileName);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('CSV exported successfully${kIsWeb ? '' : ' to $fileName'}'),
+            content: Text(
+              filePath != null
+                ? 'CSV exported successfully to $fileName'
+                : 'CSV exported successfully',
+            ),
             duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'OK',

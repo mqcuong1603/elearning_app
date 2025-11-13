@@ -1,11 +1,8 @@
-import 'dart:io' if (dart.library.html) 'dart:html' as html;
-import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../models/assignment_model.dart';
 import '../../models/user_model.dart';
 import '../../models/group_model.dart';
@@ -15,6 +12,7 @@ import '../../services/group_service.dart';
 import '../../services/student_service.dart';
 import '../../config/app_theme.dart';
 import '../../widgets/assignment_form_dialog.dart';
+import '../../utils/csv_download.dart' as csv_helper;
 import 'assignment_grading_screen.dart';
 
 /// Instructor Assignment Tracking Dashboard
@@ -239,26 +237,17 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
       final filename =
           'assignment_${widget.assignment.id}_grades_$timestamp.csv';
 
-      if (kIsWeb) {
-        // Web: Trigger browser download
-        final bytes = utf8.encode(csvString);
-        final blob = html.Blob([bytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', filename)
-          ..click();
-        html.Url.revokeObjectUrl(url);
-      } else {
-        // Mobile/Desktop: Save to documents directory
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/$filename');
-        await file.writeAsString(csvString);
-      }
+      // Download CSV using platform-specific implementation
+      final filePath = await csv_helper.downloadCsv(csvString, filename);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('CSV exported successfully${kIsWeb ? '' : ' to $filename'}'),
+            content: Text(
+              filePath != null
+                ? 'CSV exported successfully to $filename'
+                : 'CSV exported successfully',
+            ),
             duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'OK',
