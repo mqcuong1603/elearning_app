@@ -3,7 +3,11 @@ import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
+import '../../providers/course_provider.dart';
+import '../../providers/semester_provider.dart';
+import '../../models/course_model.dart';
 import '../auth/login_screen.dart';
+import '../shared/course_space_screen.dart';
 import 'semester_management_screen.dart';
 import 'course_management_screen.dart';
 import 'student_management_screen.dart';
@@ -18,6 +22,54 @@ class InstructorDashboardScreen extends StatefulWidget {
 }
 
 class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
+  List<CourseModel> _instructorCourses = [];
+  bool _isLoadingCourses = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInstructorCourses();
+    });
+  }
+
+  Future<void> _loadInstructorCourses() async {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null) return;
+
+    setState(() => _isLoadingCourses = true);
+
+    try {
+      final courseProvider = context.read<CourseProvider>();
+      final semesterProvider = context.read<SemesterProvider>();
+
+      // Load semesters if not loaded
+      if (semesterProvider.semesters.isEmpty) {
+        await semesterProvider.loadSemesters();
+      }
+
+      // Get current semester
+      final currentSemester = semesterProvider.currentSemester;
+      if (currentSemester != null) {
+        // Load courses for current semester
+        await courseProvider.loadCoursesBySemester(currentSemester.id);
+
+        // Filter only courses taught by this instructor
+        _instructorCourses = courseProvider.courses
+            .where((course) => course.instructorId == currentUser.id)
+            .toList();
+      }
+    } catch (e) {
+      print('Load instructor courses error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCourses = false);
+      }
+    }
+  }
+
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -206,6 +258,74 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
             ),
             const SizedBox(height: AppTheme.spacingL),
 
+            // My Courses Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'My Courses',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CourseManagementScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.arrow_forward, size: 16),
+                  label: const Text('View All'),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            if (_isLoadingCourses)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppTheme.spacingL),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_instructorCourses.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTheme.spacingL),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.school_outlined,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: AppTheme.spacingM),
+                        Text(
+                          'No courses yet',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                        ),
+                        const SizedBox(height: AppTheme.spacingS),
+                        Text(
+                          'Create your first course to get started',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...List.generate(
+                _instructorCourses.length > 3 ? 3 : _instructorCourses.length,
+                (index) => _buildCourseCard(_instructorCourses[index]),
+              ),
+            const SizedBox(height: AppTheme.spacingL),
+
             // Quick Actions
             Text(
               'Quick Actions',
@@ -347,6 +467,93 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCourseCard(CourseModel course) {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
+      child: InkWell(
+        onTap: () {
+          if (currentUser != null) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => CourseSpaceScreen(
+                  course: course,
+                  currentUserId: currentUser.id,
+                  currentUserRole: AppConstants.roleInstructor,
+                ),
+              ),
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+        child: Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppTheme.primaryColor,
+                radius: 24,
+                child: Text(
+                  course.code.substring(0, 2).toUpperCase(),
+                  style: TextStyle(
+                    color: AppTheme.textOnPrimaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppTheme.spacingM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      course.code,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Text(
+                      course.name,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer,
+                          size: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${course.sessions} sessions',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: AppTheme.textSecondaryColor,
               ),
             ],
           ),

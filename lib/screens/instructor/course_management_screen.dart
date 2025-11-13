@@ -6,9 +6,12 @@ import '../../models/semester_model.dart';
 import '../../providers/course_provider.dart';
 import '../../providers/semester_provider.dart';
 import '../../services/csv_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/course_form_dialog.dart';
 import '../../widgets/csv_import_dialog.dart';
 import '../../config/app_theme.dart';
+import '../../config/app_constants.dart';
+import '../shared/course_space_screen.dart';
 
 class CourseManagementScreen extends StatefulWidget {
   const CourseManagementScreen({super.key});
@@ -213,6 +216,31 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
         }
       }
     }
+  }
+
+  void _openCourseSpace(CourseModel course) {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User not authenticated'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CourseSpaceScreen(
+          course: course,
+          currentUserId: currentUser.id,
+          currentUserRole: AppConstants.roleInstructor,
+        ),
+      ),
+    );
   }
 
   Future<void> _importFromCsv() async {
@@ -607,6 +635,16 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
         trailing: PopupMenuButton(
           itemBuilder: (context) => [
             const PopupMenuItem(
+              value: 'open',
+              child: Row(
+                children: [
+                  Icon(Icons.open_in_new, size: 20),
+                  SizedBox(width: 8),
+                  Text('Open Course Space'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
               value: 'edit',
               child: Row(
                 children: [
@@ -628,14 +666,16 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
             ),
           ],
           onSelected: (value) {
-            if (value == 'edit') {
+            if (value == 'open') {
+              _openCourseSpace(course);
+            } else if (value == 'edit') {
               _editCourse(course);
             } else if (value == 'delete') {
               _deleteCourse(course);
             }
           },
         ),
-        onTap: () => _editCourse(course),
+        onTap: () => _openCourseSpace(course),
       ),
     );
   }
