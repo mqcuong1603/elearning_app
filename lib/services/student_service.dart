@@ -65,6 +65,28 @@ class StudentService {
     }
   }
 
+  /// Get student by studentId field (e.g., "522i0001")
+  Future<UserModel?> getStudentByStudentId(String studentId) async {
+    try {
+      final data = await _firestoreService.query(
+        collection: AppConstants.collectionUsers,
+        filters: [
+          QueryFilter(field: 'studentId', isEqualTo: studentId),
+          QueryFilter(field: 'role', isEqualTo: AppConstants.roleStudent),
+        ],
+      );
+
+      if (data.isEmpty) {
+        throw Exception('Student with studentId "$studentId" not found');
+      }
+
+      return UserModel.fromJson(data.first);
+    } catch (e) {
+      print('Get student by studentId error: $e');
+      rethrow;
+    }
+  }
+
   /// Create new student account
   Future<UserModel> createStudent({
     required String username,

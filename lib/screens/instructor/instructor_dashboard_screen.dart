@@ -8,6 +8,7 @@ import '../../providers/semester_provider.dart';
 import '../../models/course_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
+import '../debug/enrollment_debug_screen.dart';
 import 'semester_management_screen.dart';
 import 'course_management_screen.dart';
 import 'student_management_screen.dart';
@@ -389,6 +390,19 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                     );
                   },
                 ),
+                _buildActionCard(
+                  context,
+                  icon: Icons.bug_report,
+                  title: 'Debug\nEnrollment',
+                  color: Colors.orange,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const EnrollmentDebugScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ],
@@ -445,6 +459,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    Color? color,
   }) {
     return Card(
       child: InkWell(
@@ -458,7 +473,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
               Icon(
                 icon,
                 size: 48,
-                color: AppTheme.primaryColor,
+                color: color ?? AppTheme.primaryColor,
               ),
               const SizedBox(height: AppTheme.spacingM),
               Text(
