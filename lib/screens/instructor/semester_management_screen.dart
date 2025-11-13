@@ -125,7 +125,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
       if (!mounted) return;
 
       // Show preview dialog
-      final result = await showDialog<Map<String, dynamic>>(
+      await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (context) => CsvImportDialog(
           title: 'Import Semesters',

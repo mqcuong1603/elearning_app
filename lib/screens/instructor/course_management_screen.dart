@@ -249,7 +249,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
 
       // Step 2: Show dialog with preview
       if (!mounted) return;
-      final result = await showDialog<Map<String, dynamic>>(
+      await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (context) => CsvImportDialog(
           title: 'Import Courses',

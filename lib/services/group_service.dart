@@ -1,5 +1,4 @@
 import '../models/group_model.dart';
-import '../models/user_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
 import 'hive_service.dart';

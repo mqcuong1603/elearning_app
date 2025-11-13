@@ -179,6 +179,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
         name: 'Unknown',
         sessions: 10,
         semesterId: '',
+        instructorId: '',
         instructorName: '',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -219,11 +220,12 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
   Future<void> _importGroupsFromCsv() async {
     try {
-      final result = await CsvService.pickAndParseCsv(
+      final csvService = CsvService();
+      final result = await csvService.pickAndParseCsv(
         expectedHeaders: AppConstants.csvHeadersGroups,
       );
 
-      if (result == null || !mounted) return;
+      if (!mounted) return;
 
       final importResult = await context.read<GroupProvider>().importGroupsFromCsv(result);
 
@@ -241,11 +243,12 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
   Future<void> _importStudentGroupAssignments() async {
     try {
-      final result = await CsvService.pickAndParseCsv(
+      final csvService = CsvService();
+      final result = await csvService.pickAndParseCsv(
         expectedHeaders: AppConstants.csvHeadersStudentGroups,
       );
 
-      if (result == null || !mounted) return;
+      if (!mounted) return;
 
       final importResult = await context
           .read<GroupProvider>()
@@ -374,7 +377,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
         children: [
           // Search and Filter Bar
           Padding(
-            padding: const EdgeInsets.all(AppTheme.paddingMedium),
+            padding: const EdgeInsets.all(AppTheme.spacingM),
             child: Row(
               children: [
                 Expanded(
@@ -399,7 +402,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: AppTheme.paddingSmall),
+                const SizedBox(width: AppTheme.spacingS),
                 IconButton(
                   icon: const Icon(Icons.filter_list),
                   onPressed: _showCourseFilter,
@@ -438,7 +441,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                           'Error: ${groupProvider.error}',
                           style: const TextStyle(color: Colors.red),
                         ),
-                        const SizedBox(height: AppTheme.paddingMedium),
+                        const SizedBox(height: AppTheme.spacingM),
                         ElevatedButton(
                           onPressed: _loadData,
                           child: const Text('Retry'),
@@ -458,12 +461,12 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                           size: 64,
                           color: Colors.grey[400],
                         ),
-                        const SizedBox(height: AppTheme.paddingMedium),
+                        const SizedBox(height: AppTheme.spacingM),
                         Text(
                           'No groups found',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        const SizedBox(height: AppTheme.paddingSmall),
+                        const SizedBox(height: AppTheme.spacingS),
                         const Text('Tap the + button to create a group'),
                       ],
                     ),
@@ -473,7 +476,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                 return RefreshIndicator(
                   onRefresh: () => groupProvider.refresh(),
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(AppTheme.paddingMedium),
+                    padding: const EdgeInsets.all(AppTheme.spacingM),
                     itemCount: groupProvider.groups.length,
                     itemBuilder: (context, index) {
                       final group = groupProvider.groups[index];
@@ -524,6 +527,7 @@ class _GroupCard extends StatelessWidget {
         name: 'Unknown Course',
         sessions: 10,
         semesterId: '',
+        instructorId: '',
         instructorName: '',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -531,9 +535,9 @@ class _GroupCard extends StatelessWidget {
     );
 
     return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.paddingMedium),
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.paddingMedium),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -547,7 +551,7 @@ class _GroupCard extends StatelessWidget {
                         group.name,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      const SizedBox(height: AppTheme.paddingSmall),
+                      const SizedBox(height: AppTheme.spacingS),
                       Text(
                         '${course.code} - ${course.name}',
                         style: Theme.of(context).textTheme.bodyMedium,
@@ -591,11 +595,11 @@ class _GroupCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppTheme.paddingMedium),
+            const SizedBox(height: AppTheme.spacingM),
             Row(
               children: [
                 const Icon(Icons.people, size: 20),
-                const SizedBox(width: AppTheme.paddingSmall),
+                const SizedBox(width: AppTheme.spacingS),
                 Text('${group.studentCount} students'),
                 const Spacer(),
                 OutlinedButton.icon(

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../models/group_model.dart';
-import '../models/user_model.dart';
 import '../services/group_service.dart';
 
 /// Group Provider
