@@ -17,6 +17,12 @@ class HiveService {
 
   /// Initialize Hive and open boxes
   Future<void> initialize() async {
+    // Check if already initialized to prevent duplicate initialization
+    if (_isInitialized) {
+      print('Hive already initialized');
+      return;
+    }
+
     try {
       // Initialize Hive for Flutter
       await Hive.initFlutter();
