@@ -17,6 +17,11 @@ class StorageService {
     Function(double progress)? onProgress,
   }) async {
     try {
+      // Check if file exists
+      if (!await file.exists()) {
+        throw Exception('File does not exist: ${file.path}');
+      }
+
       // Validate file size
       final fileSize = await file.length();
       if (!AppConstants.isValidFileSize(fileSize)) {
@@ -39,31 +44,132 @@ class StorageService {
         throw Exception(AppConstants.errorFileFormat);
       }
 
-      // Create reference
-      final ref = _storage.ref().child('$storagePath/$fileName');
+      // Create reference - ensure the path is properly formed
+      final fullPath = '$storagePath/$fileName';
+      print('Uploading file to path: $fullPath');
+      final ref = _storage.ref().child(fullPath);
 
-      // Upload file
-      final uploadTask = ref.putFile(file);
+      // Create metadata
+      final metadata = SettableMetadata(
+        contentType: _getContentType(extension),
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'originalFilename': fileName,
+        },
+      );
 
-      // Listen to upload progress
+      // Upload file with metadata
+      final uploadTask = ref.putFile(file, metadata);
+
+      // Listen to upload progress on the main thread
       if (onProgress != null) {
-        uploadTask.snapshotEvents.listen((snapshot) {
-          final progress =
-              snapshot.bytesTransferred / snapshot.totalBytes;
-          onProgress(progress);
-        });
+        uploadTask.snapshotEvents.listen(
+          (snapshot) {
+            if (snapshot.state == TaskState.running) {
+              final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+              onProgress(progress);
+            }
+          },
+          onError: (error) {
+            print('Upload progress error: $error');
+          },
+        );
       }
 
       // Wait for upload to complete
-      final snapshot = await uploadTask;
+      final snapshot = await uploadTask.whenComplete(() {
+        print('Upload completed for $fileName');
+      });
+
+      // Check if upload was successful
+      if (snapshot.state != TaskState.success) {
+        throw Exception('Upload failed with state: ${snapshot.state}');
+      }
 
       // Get download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
+      print('File uploaded successfully. URL: $downloadUrl');
 
       return downloadUrl;
+    } on FirebaseException catch (e) {
+      print('Firebase Storage error: ${e.code} - ${e.message}');
+
+      // Provide more specific error messages
+      String errorMessage;
+      switch (e.code) {
+        case 'storage/unauthorized':
+          errorMessage = 'You do not have permission to upload files. Please ensure you are logged in.';
+          break;
+        case 'storage/canceled':
+          errorMessage = 'Upload was canceled.';
+          break;
+        case 'storage/unknown':
+          errorMessage = 'An unknown error occurred. Please try again.';
+          break;
+        case 'storage/object-not-found':
+          errorMessage = 'Storage bucket not found. Please check your Firebase configuration.';
+          break;
+        case 'storage/bucket-not-found':
+          errorMessage = 'Storage bucket not configured. Please contact support.';
+          break;
+        case 'storage/quota-exceeded':
+          errorMessage = 'Storage quota exceeded. Please contact support.';
+          break;
+        case 'storage/unauthenticated':
+          errorMessage = 'You must be logged in to upload files.';
+          break;
+        case 'storage/retry-limit-exceeded':
+          errorMessage = 'Upload failed after multiple retries. Please check your internet connection.';
+          break;
+        default:
+          errorMessage = 'Failed to upload file: ${e.message ?? e.code}';
+      }
+
+      throw Exception(errorMessage);
     } catch (e) {
       print('Storage upload error: $e');
       throw Exception('Failed to upload file: ${e.toString()}');
+    }
+  }
+
+  /// Get content type from file extension
+  String _getContentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'txt':
+        return 'text/plain';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'mp4':
+        return 'video/mp4';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'mov':
+        return 'video/quicktime';
+      case 'zip':
+        return 'application/zip';
+      case 'rar':
+        return 'application/x-rar-compressed';
+      default:
+        return 'application/octet-stream';
     }
   }
 

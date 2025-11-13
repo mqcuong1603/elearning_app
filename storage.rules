@@ -1,0 +1,94 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for E-Learning Management System
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check file size (max 100MB)
+    function isValidSize() {
+      return request.resource.size <= 100 * 1024 * 1024;
+    }
+
+    // Helper function to check if file is an allowed type
+    function isAllowedFileType() {
+      return request.resource.contentType.matches('image/.*') ||
+             request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
+             request.resource.contentType.matches('text/.*') ||
+             request.resource.contentType.matches('video/.*') ||
+             request.resource.contentType.matches('application/zip') ||
+             request.resource.contentType.matches('application/x-rar-compressed');
+    }
+
+    // User avatars - users can only write their own avatar
+    match /users/{userId}/avatar/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      request.auth.uid == userId &&
+                      isValidSize() &&
+                      request.resource.contentType.matches('image/.*');
+    }
+
+    // Course covers - authenticated users can read, only instructors can write
+    match /courses/{courseId}/cover/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      isValidSize() &&
+                      request.resource.contentType.matches('image/.*');
+    }
+
+    // Announcements - authenticated users can read and write
+    match /announcements/{courseId}/{announcementId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      isValidSize() &&
+                      isAllowedFileType();
+    }
+
+    // Assignments - authenticated users can read and write
+    match /assignments/{courseId}/{assignmentId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      isValidSize() &&
+                      isAllowedFileType();
+    }
+
+    // Submissions - students can write their own submissions, instructors can read all
+    match /submissions/{assignmentId}/{studentId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      isValidSize() &&
+                      isAllowedFileType();
+    }
+
+    // Materials - authenticated users can read and write
+    match /materials/{courseId}/{materialId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      isValidSize() &&
+                      isAllowedFileType();
+    }
+
+    // Messages - authenticated users can read and write
+    match /messages/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      isValidSize() &&
+                      isAllowedFileType();
+    }
+
+    // Forums - authenticated users can read and write
+    match /forums/{courseId}/{topicId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                      isValidSize() &&
+                      isAllowedFileType();
+    }
+  }
+}
