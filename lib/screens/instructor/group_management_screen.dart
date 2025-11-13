@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/course_provider.dart';
 import '../../providers/student_provider.dart';
+import '../../providers/semester_provider.dart';
 import '../../models/group_model.dart';
 import '../../models/course_model.dart';
 import '../../models/user_model.dart';
+import '../../models/semester_model.dart';
 import '../../widgets/group_form_dialog.dart';
 import '../../services/csv_service.dart';
 import '../../config/app_constants.dart';
@@ -21,6 +23,7 @@ class GroupManagementScreen extends StatefulWidget {
 class _GroupManagementScreenState extends State<GroupManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCourseId;
+  String? _selectedSemesterId;
   String _sortBy = 'name';
   bool _sortAscending = true;
 
@@ -42,22 +45,41 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     final groupProvider = context.read<GroupProvider>();
     final courseProvider = context.read<CourseProvider>();
     final studentProvider = context.read<StudentProvider>();
+    final semesterProvider = context.read<SemesterProvider>();
 
     await Future.wait([
       groupProvider.loadGroups(),
       courseProvider.loadCourses(),
       studentProvider.loadStudents(),
+      semesterProvider.loadSemesters(),
     ]);
+
+    // Set selected semester to current semester by default
+    if (mounted && _selectedSemesterId == null) {
+      setState(() {
+        _selectedSemesterId = semesterProvider.currentSemester?.id;
+      });
+    }
   }
 
   void _showAddGroupDialog() async {
     final courseProvider = context.read<CourseProvider>();
-    final courses = courseProvider.courses;
+    final semesterProvider = context.read<SemesterProvider>();
+
+    // Filter courses by selected semester
+    final courses = _selectedSemesterId != null
+        ? courseProvider.courses
+            .where((course) => course.semesterId == _selectedSemesterId)
+            .toList()
+        : courseProvider.courses;
 
     if (courses.isEmpty) {
+      final semesterName = _selectedSemesterId != null
+          ? semesterProvider.getSemesterById(_selectedSemesterId!)?.name ?? 'this semester'
+          : 'any semester';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please create at least one course first'),
+        SnackBar(
+          content: Text('No courses found in $semesterName. Please create a course first.'),
         ),
       );
       return;
@@ -92,7 +114,13 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
   void _showEditGroupDialog(GroupModel group) async {
     final courseProvider = context.read<CourseProvider>();
-    final courses = courseProvider.courses;
+
+    // Filter courses by selected semester
+    final courses = _selectedSemesterId != null
+        ? courseProvider.courses
+            .where((course) => course.semesterId == _selectedSemesterId)
+            .toList()
+        : courseProvider.courses;
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -296,7 +324,13 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
   void _showCourseFilter() {
     final courseProvider = context.read<CourseProvider>();
-    final courses = courseProvider.courses;
+
+    // Filter courses by selected semester
+    final courses = _selectedSemesterId != null
+        ? courseProvider.courses
+            .where((course) => course.semesterId == _selectedSemesterId)
+            .toList()
+        : courseProvider.courses;
 
     showDialog(
       context: context,
@@ -375,6 +409,67 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       ),
       body: Column(
         children: [
+          // Semester Selector
+          Consumer<SemesterProvider>(
+            builder: (context, semesterProvider, child) {
+              if (semesterProvider.semesters.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(AppTheme.spacingM),
+                  child: const Text(
+                    'No semesters available. Please create a semester first.',
+                    style: TextStyle(color: Colors.orange),
+                  ),
+                );
+              }
+
+              return Container(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.spacingM,
+                  AppTheme.spacingM,
+                  AppTheme.spacingM,
+                  0,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 20),
+                    const SizedBox(width: AppTheme.spacingS),
+                    const Text('Semester:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: AppTheme.spacingS),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedSemesterId,
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: semesterProvider.semesters.map((semester) {
+                          return DropdownMenuItem(
+                            value: semester.id,
+                            child: Text(
+                              '${semester.name} (${semester.code})${semester.isCurrent ? ' - Current' : ''}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedSemesterId = value;
+                            _selectedCourseId = null; // Clear course filter when semester changes
+                          });
+                          context.read<GroupProvider>().clearCourseFilter();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
           // Search and Filter Bar
           Padding(
             padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -426,8 +521,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
           // Groups List
           Expanded(
-            child: Consumer<GroupProvider>(
-              builder: (context, groupProvider, child) {
+            child: Consumer2<GroupProvider, CourseProvider>(
+              builder: (context, groupProvider, courseProvider, child) {
                 if (groupProvider.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -451,7 +546,28 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   );
                 }
 
-                if (groupProvider.groups.isEmpty) {
+                // Filter groups by selected semester (via course relationship)
+                final filteredGroups = _selectedSemesterId != null
+                    ? groupProvider.groups.where((group) {
+                        final course = courseProvider.courses.firstWhere(
+                          (c) => c.id == group.courseId,
+                          orElse: () => CourseModel(
+                            id: '',
+                            code: '',
+                            name: '',
+                            sessions: 10,
+                            semesterId: '',
+                            instructorId: '',
+                            instructorName: '',
+                            createdAt: DateTime.now(),
+                            updatedAt: DateTime.now(),
+                          ),
+                        );
+                        return course.semesterId == _selectedSemesterId;
+                      }).toList()
+                    : groupProvider.groups;
+
+                if (filteredGroups.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -467,7 +583,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: AppTheme.spacingS),
-                        const Text('Tap the + button to create a group'),
+                        Text(
+                          _selectedSemesterId != null
+                              ? 'No groups in this semester. Tap the + button to create one.'
+                              : 'Tap the + button to create a group',
+                        ),
                       ],
                     ),
                   );
@@ -477,9 +597,9 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   onRefresh: () => groupProvider.refresh(),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(AppTheme.spacingM),
-                    itemCount: groupProvider.groups.length,
+                    itemCount: filteredGroups.length,
                     itemBuilder: (context, index) {
-                      final group = groupProvider.groups[index];
+                      final group = filteredGroups[index];
                       return _GroupCard(
                         group: group,
                         onEdit: () => _showEditGroupDialog(group),
