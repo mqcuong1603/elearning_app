@@ -217,22 +217,35 @@ class StudentService {
     };
 
     for (final data in studentsData) {
+      // Extract data outside try block for error reporting
+      final username = (data['username']?.trim().isEmpty ?? true)
+          ? data['studentId']?.trim() ?? ''
+          : data['username']!.trim();
+      final fullName = data['fullName']?.trim() ?? '';
+      final email = data['email']?.trim() ?? '';
+      final studentId = data['studentId']?.trim();
+
       try {
-        // Use studentId as username if username is not provided
-        final username = (data['username']?.trim().isEmpty ?? true)
-            ? data['studentId']?.trim() ?? ''
-            : data['username']!.trim();
-        final fullName = data['fullName']?.trim() ?? '';
-        final email = data['email']?.trim() ?? '';
-        final studentId = data['studentId']?.trim();
 
         if (username.isEmpty || fullName.isEmpty || email.isEmpty) {
           results['failed']++;
           results['details'].add({
-            'username': username,
-            'fullName': fullName,
+            'code': username,
+            'name': fullName,
             'status': 'failed',
             'error': 'Username, full name, and email are required',
+          });
+          continue;
+        }
+
+        // Validate email format
+        if (!_isValidEmail(email)) {
+          results['failed']++;
+          results['details'].add({
+            'code': username,
+            'name': fullName,
+            'status': 'failed',
+            'error': 'Invalid email format',
           });
           continue;
         }
@@ -242,8 +255,8 @@ class StudentService {
         if (usernameExists) {
           results['alreadyExists']++;
           results['details'].add({
-            'username': username,
-            'fullName': fullName,
+            'code': username,
+            'name': fullName,
             'status': 'exists',
             'error': 'Username already exists',
           });
@@ -255,8 +268,8 @@ class StudentService {
         if (emailExists) {
           results['alreadyExists']++;
           results['details'].add({
-            'username': username,
-            'fullName': fullName,
+            'code': username,
+            'name': fullName,
             'status': 'exists',
             'error': 'Email already exists',
           });
@@ -269,8 +282,8 @@ class StudentService {
           if (studentIdExists) {
             results['alreadyExists']++;
             results['details'].add({
-              'username': username,
-              'fullName': fullName,
+              'code': username,
+              'name': fullName,
               'status': 'exists',
               'error': 'Student ID already exists',
             });
@@ -288,15 +301,15 @@ class StudentService {
 
         results['success']++;
         results['details'].add({
-          'username': username,
-          'fullName': fullName,
+          'code': username,
+          'name': fullName,
           'status': 'success',
         });
       } catch (e) {
         results['failed']++;
         results['details'].add({
-          'username': data['username'] ?? '',
-          'fullName': data['fullName'] ?? '',
+          'code': username,
+          'name': fullName,
           'status': 'failed',
           'error': e.toString(),
         });
@@ -423,5 +436,11 @@ class StudentService {
     } catch (e) {
       print('Clear students cache error: $e');
     }
+  }
+
+  /// Private: Validate email format
+  bool _isValidEmail(String email) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
   }
 }
