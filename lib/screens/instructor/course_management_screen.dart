@@ -264,48 +264,17 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
             };
           },
           onImport: () async {
-            // Pass null to use semesterId from CSV file
+            // Pass selected semester as default, but CSV can override it
             final result = await courseProvider.importCoursesFromCsv(
               data,
-              null,
+              _selectedSemester!.id,
             );
             return result ?? {'success': 0, 'failed': 0, 'alreadyExists': 0};
           },
         ),
       );
 
-      if (result != null && mounted) {
-        final success = result['success'] ?? 0;
-        final failed = result['failed'] ?? 0;
-        final exists = result['alreadyExists'] ?? 0;
-
-        // Wait for the previous dialog to fully close before showing results
-        await Future.delayed(const Duration(milliseconds: 300));
-
-        if (!mounted) return;
-
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Import Results'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('✓ Successfully imported: $success'),
-                if (exists > 0) Text('⊘ Already exists: $exists'),
-                if (failed > 0) Text('✗ Failed: $failed'),
-              ],
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
+      // CsvImportDialog already shows the results, no need for another dialog
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

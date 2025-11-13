@@ -191,7 +191,10 @@ class CourseService {
         final sessionsStr = data['sessions']?.trim() ?? '10';
 
         // Use semesterId from CSV or fall back to default
-        final semesterId = data['semesterId']?.trim() ?? defaultSemesterId ?? '';
+        final csvSemesterId = data['semesterId']?.trim();
+        final semesterId = (csvSemesterId != null && csvSemesterId.isNotEmpty)
+            ? csvSemesterId
+            : defaultSemesterId;
 
         if (code.isEmpty || name.isEmpty) {
           results['failed']++;
@@ -205,13 +208,13 @@ class CourseService {
         }
 
         // Validate semesterId
-        if (semesterId.isEmpty) {
+        if (semesterId == null || semesterId.isEmpty) {
           results['failed']++;
           results['details'].add({
             'code': code,
             'name': name,
             'status': 'failed',
-            'error': 'Semester ID is required',
+            'error': 'Semester ID is required (provide in CSV or select a semester)',
           });
           continue;
         }

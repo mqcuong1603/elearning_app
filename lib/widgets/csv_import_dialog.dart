@@ -37,14 +37,6 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
         _importResult = result;
         _isImporting = false;
       });
-
-      // Auto-close after successful import
-      if (result['success'] > 0) {
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) {
-          Navigator.of(context).pop(_importResult);
-        }
-      }
     } catch (e) {
       setState(() {
         _isImporting = false;
@@ -198,6 +190,12 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
     final failed = result['failed'] ?? 0;
     final alreadyExists = result['alreadyExists'] ?? 0;
     final total = result['total'] ?? 0;
+    final details = result['details'] as List<dynamic>?;
+
+    // Get failed entries for error display
+    final failedEntries = details?.where((d) =>
+      d['status'] == 'failed' || d['status'] == 'exists'
+    ).toList() ?? [];
 
     return AlertDialog(
       title: Row(
@@ -210,68 +208,135 @@ class _CsvImportDialogState extends State<CsvImportDialog> {
           Text(hasError ? 'Import Failed' : 'Import Complete'),
         ],
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (hasError) ...[
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              decoration: BoxDecoration(
-                color: AppTheme.errorColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                border: Border.all(color: AppTheme.errorColor),
-              ),
-              child: Text(
-                result['error'],
-                style: TextStyle(color: AppTheme.errorColor),
-              ),
-            ),
-          ] else ...[
-            _buildStatCard(
-              icon: Icons.check_circle,
-              label: 'Successfully imported',
-              value: success.toString(),
-              color: AppTheme.successColor,
-            ),
-            if (alreadyExists > 0) ...[
-              const SizedBox(height: AppTheme.spacingS),
-              _buildStatCard(
-                icon: Icons.info,
-                label: 'Already exists (skipped)',
-                value: alreadyExists.toString(),
-                color: AppTheme.warningColor,
-              ),
-            ],
-            if (failed > 0) ...[
-              const SizedBox(height: AppTheme.spacingS),
-              _buildStatCard(
-                icon: Icons.error,
-                label: 'Failed',
-                value: failed.toString(),
-                color: AppTheme.errorColor,
-              ),
-            ],
-            const SizedBox(height: AppTheme.spacingM),
-            const Divider(),
-            const SizedBox(height: AppTheme.spacingS),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total processed:',
-                  style: Theme.of(context).textTheme.titleMedium,
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasError) ...[
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingM),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                  border: Border.all(color: AppTheme.errorColor),
                 ),
+                child: Text(
+                  result['error'],
+                  style: TextStyle(color: AppTheme.errorColor),
+                ),
+              ),
+            ] else ...[
+              _buildStatCard(
+                icon: Icons.check_circle,
+                label: 'Successfully imported',
+                value: success.toString(),
+                color: AppTheme.successColor,
+              ),
+              if (alreadyExists > 0) ...[
+                const SizedBox(height: AppTheme.spacingS),
+                _buildStatCard(
+                  icon: Icons.info,
+                  label: 'Already exists (skipped)',
+                  value: alreadyExists.toString(),
+                  color: AppTheme.warningColor,
+                ),
+              ],
+              if (failed > 0) ...[
+                const SizedBox(height: AppTheme.spacingS),
+                _buildStatCard(
+                  icon: Icons.error,
+                  label: 'Failed',
+                  value: failed.toString(),
+                  color: AppTheme.errorColor,
+                ),
+              ],
+              const SizedBox(height: AppTheme.spacingM),
+              const Divider(),
+              const SizedBox(height: AppTheme.spacingS),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total processed:',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    '$total',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              // Show error details if there are any failures
+              if (failedEntries.isNotEmpty) ...[
+                const SizedBox(height: AppTheme.spacingM),
+                const Divider(),
+                const SizedBox(height: AppTheme.spacingS),
                 Text(
-                  '$total',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  'Error Details:',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
+                const SizedBox(height: AppTheme.spacingS),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: failedEntries.map((entry) {
+                        final code = entry['code'] ?? '';
+                        final name = entry['name'] ?? '';
+                        final error = entry['error'] ?? '';
+                        final status = entry['status'] ?? '';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
+                          padding: const EdgeInsets.all(AppTheme.spacingS),
+                          decoration: BoxDecoration(
+                            color: status == 'exists'
+                              ? AppTheme.warningColor.withOpacity(0.1)
+                              : AppTheme.errorColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                            border: Border.all(
+                              color: status == 'exists'
+                                ? AppTheme.warningColor
+                                : AppTheme.errorColor,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$code - $name',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                error,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: status == 'exists'
+                                    ? AppTheme.warningColor
+                                    : AppTheme.errorColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
               ],
-            ),
+            ],
           ],
-        ],
+        ),
       ),
       actions: [
         ElevatedButton(
