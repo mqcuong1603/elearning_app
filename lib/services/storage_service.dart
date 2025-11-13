@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,10 +11,29 @@ import '../config/app_constants.dart';
 /// Storage Service
 /// Handles file uploads and downloads with Firebase Storage
 class StorageService {
-  // Use explicit bucket to avoid .appspot.com vs .firebasestorage.app issues
-  final FirebaseStorage _storage = FirebaseStorage.instanceFor(
-    bucket: 'elearning-management-b4314.firebasestorage.app',
-  );
+  late final FirebaseStorage _storage;
+
+  StorageService() {
+    // Get the storage bucket from Firebase options
+    // This avoids hardcoding and ensures we use the configured bucket
+    try {
+      final app = Firebase.app();
+      final storageBucket = app.options.storageBucket;
+
+      if (storageBucket != null && storageBucket.isNotEmpty) {
+        // Use explicit bucket to avoid .appspot.com vs .firebasestorage.app conversion issues
+        _storage = FirebaseStorage.instanceFor(bucket: storageBucket);
+        print('🔧 StorageService initialized with bucket: $storageBucket');
+      } else {
+        // Fallback to default instance
+        _storage = FirebaseStorage.instance;
+        print('⚠️  StorageService using default instance (no bucket specified in config)');
+      }
+    } catch (e) {
+      print('⚠️  Error initializing StorageService: $e');
+      _storage = FirebaseStorage.instance;
+    }
+  }
 
   /// Check if running on desktop platform (Windows, macOS, Linux)
   bool get _isDesktop {
