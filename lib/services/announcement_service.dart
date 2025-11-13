@@ -440,10 +440,10 @@ class AnnouncementService {
 
       try {
         // Upload to storage
-        final path = 'announcements/$courseId/$announcementId/${DateTime.now().millisecondsSinceEpoch}_$filename';
+        final storagePath = 'announcements/$courseId/$announcementId/${DateTime.now().millisecondsSinceEpoch}_$filename';
         final downloadUrl = await _storageService.uploadFile(
           file: file,
-          path: path,
+          storagePath: storagePath,
         );
 
         // Get file size
