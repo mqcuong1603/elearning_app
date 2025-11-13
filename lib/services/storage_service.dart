@@ -319,7 +319,18 @@ class StorageService {
       print('   Upload state: ${snapshot.state}');
       print('   Bytes transferred: ${snapshot.bytesTransferred}');
       print('   Total bytes: ${snapshot.totalBytes}');
-      print('   Metadata: ${snapshot.metadata?.name}');
+
+      // Metadata might be null on some platforms (Windows), so handle carefully
+      try {
+        final metadata = snapshot.metadata;
+        if (metadata != null) {
+          print('   Metadata name: ${metadata.name ?? "null"}');
+        } else {
+          print('   Metadata: null (platform limitation)');
+        }
+      } catch (e) {
+        print('   ⚠️  Could not access metadata: $e');
+      }
 
       if (snapshot.state != TaskState.success) {
         throw Exception('Upload failed with state: ${snapshot.state}');
@@ -332,8 +343,11 @@ class StorageService {
       // Get download URL with retry logic
       // On some platforms, there's a brief delay before the file is available
       print('   Getting download URL...');
-      print('   Storage reference path: ${snapshot.ref.fullPath}');
-      print('   Storage reference bucket: ${snapshot.ref.bucket}');
+
+      // Verify snapshot.ref is valid
+      final storageRef = snapshot.ref;
+      print('   Storage reference path: ${storageRef.fullPath}');
+      print('   Storage reference bucket: ${storageRef.bucket ?? "null"}');
 
       String downloadUrl;
       int retryCount = 0;
@@ -349,7 +363,7 @@ class StorageService {
       while (retryCount <= maxRetries) {
         try {
           print('   Attempt ${retryCount + 1}/${maxRetries + 1}: Getting download URL...');
-          downloadUrl = await snapshot.ref.getDownloadURL();
+          downloadUrl = await storageRef.getDownloadURL();
           print('✅ File uploaded successfully!');
           print('   URL: $downloadUrl');
           return downloadUrl;
