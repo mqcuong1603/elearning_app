@@ -1,0 +1,301 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to get user data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Helper function to check if user is an instructor
+    function isInstructor() {
+      return isAuthenticated() && getUserData().role == 'instructor';
+    }
+
+    // Helper function to check if user is a student
+    function isStudent() {
+      return isAuthenticated() && getUserData().role == 'student';
+    }
+
+    // Helper function to check if user is the owner of a document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper function to check if user is the instructor of a course
+    function isCourseInstructor(courseId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
+    }
+
+    // Helper function to check if user is enrolled in a course (via groups)
+    function isEnrolledInCourse(courseId) {
+      // This requires checking if the student is in any group for this course
+      // Note: This is a simplified check and may need optimization
+      return isAuthenticated() && isStudent();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if isAuthenticated() && (
+        isOwner(userId) ||
+        isInstructor() ||
+        isStudent()
+      );
+
+      // Users can update their own data (except role)
+      allow update: if isOwner(userId) &&
+                      request.resource.data.role == resource.data.role;
+
+      // Only allow creation during registration (handled by backend)
+      allow create: if isAuthenticated();
+    }
+
+    // Semesters collection
+    match /semesters/{semesterId} {
+      // All authenticated users can read semesters
+      allow read: if isAuthenticated();
+
+      // Only instructors can create, update, or delete semesters
+      allow create, update, delete: if isInstructor();
+    }
+
+    // Courses collection
+    match /courses/{courseId} {
+      // All authenticated users can read courses
+      // Instructors can see all courses
+      // Students can see courses (enrollment check is done client-side)
+      allow read: if isAuthenticated();
+
+      // Instructors can create courses
+      allow create: if isInstructor() &&
+                      request.resource.data.instructorId == request.auth.uid;
+
+      // Only the course instructor can update their course
+      allow update: if isInstructor() &&
+                      resource.data.instructorId == request.auth.uid;
+
+      // Only the course instructor can delete their course
+      allow delete: if isInstructor() &&
+                      resource.data.instructorId == request.auth.uid;
+    }
+
+    // Groups collection
+    match /groups/{groupId} {
+      // All authenticated users can read groups
+      allow read: if isAuthenticated();
+
+      // Only the course instructor can create, update, or delete groups
+      allow create: if isInstructor();
+      allow update, delete: if isInstructor() &&
+                              isCourseInstructor(resource.data.courseId);
+    }
+
+    // Announcements collection
+    match /announcements/{announcementId} {
+      // All authenticated users can read announcements
+      allow read: if isAuthenticated();
+
+      // Only instructors can create announcements
+      allow create: if isInstructor() &&
+                      request.resource.data.instructorId == request.auth.uid;
+
+      // Only the announcement creator can update or delete
+      allow update, delete: if isInstructor() &&
+                              resource.data.instructorId == request.auth.uid;
+    }
+
+    // Assignments collection
+    match /assignments/{assignmentId} {
+      // All authenticated users can read assignments
+      allow read: if isAuthenticated();
+
+      // Only instructors can create assignments
+      allow create: if isInstructor() &&
+                      request.resource.data.instructorId == request.auth.uid;
+
+      // Only the assignment creator can update or delete
+      allow update, delete: if isInstructor() &&
+                              resource.data.instructorId == request.auth.uid;
+    }
+
+    // Assignment submissions collection
+    match /assignment_submissions/{submissionId} {
+      // Students can read their own submissions
+      // Instructors can read all submissions
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.studentId) ||
+        isInstructor()
+      );
+
+      // Students can create their own submissions
+      allow create: if isAuthenticated() &&
+                      isStudent() &&
+                      request.resource.data.studentId == request.auth.uid;
+
+      // Students can update their own submissions (before grading)
+      // Instructors can update submissions (for grading)
+      allow update: if isAuthenticated() && (
+        (isStudent() && resource.data.studentId == request.auth.uid && !resource.data.keys().hasAny(['grade', 'graded'])) ||
+        isInstructor()
+      );
+
+      // Only instructors can delete submissions
+      allow delete: if isInstructor();
+    }
+
+    // Quizzes collection
+    match /quizzes/{quizId} {
+      // All authenticated users can read quizzes
+      allow read: if isAuthenticated();
+
+      // Only instructors can create quizzes
+      allow create: if isInstructor() &&
+                      request.resource.data.instructorId == request.auth.uid;
+
+      // Only the quiz creator can update or delete
+      allow update, delete: if isInstructor() &&
+                              resource.data.instructorId == request.auth.uid;
+    }
+
+    // Questions collection (nested under quizzes)
+    match /questions/{questionId} {
+      // All authenticated users can read questions
+      allow read: if isAuthenticated();
+
+      // Only instructors can create, update, or delete questions
+      allow create, update, delete: if isInstructor();
+    }
+
+    // Quiz submissions collection
+    match /quiz_submissions/{submissionId} {
+      // Students can read their own submissions
+      // Instructors can read all submissions
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.studentId) ||
+        isInstructor()
+      );
+
+      // Students can create their own submissions
+      allow create: if isAuthenticated() &&
+                      isStudent() &&
+                      request.resource.data.studentId == request.auth.uid;
+
+      // Students can update their own submissions
+      allow update: if isAuthenticated() &&
+                      isStudent() &&
+                      resource.data.studentId == request.auth.uid;
+
+      // Only instructors can delete submissions
+      allow delete: if isInstructor();
+    }
+
+    // Materials collection
+    match /materials/{materialId} {
+      // All authenticated users can read materials
+      allow read: if isAuthenticated();
+
+      // Only instructors can create materials
+      allow create: if isInstructor() &&
+                      request.resource.data.instructorId == request.auth.uid;
+
+      // Only the material creator can update or delete
+      allow update, delete: if isInstructor() &&
+                              resource.data.instructorId == request.auth.uid;
+    }
+
+    // Forum topics collection
+    match /forum_topics/{topicId} {
+      // All authenticated users can read forum topics
+      allow read: if isAuthenticated();
+
+      // All authenticated users can create forum topics
+      allow create: if isAuthenticated() &&
+                      request.resource.data.authorId == request.auth.uid;
+
+      // Only the topic creator can update or delete
+      allow update, delete: if isAuthenticated() &&
+                              resource.data.authorId == request.auth.uid;
+    }
+
+    // Forum replies collection
+    match /forum_replies/{replyId} {
+      // All authenticated users can read forum replies
+      allow read: if isAuthenticated();
+
+      // All authenticated users can create forum replies
+      allow create: if isAuthenticated() &&
+                      request.resource.data.authorId == request.auth.uid;
+
+      // Only the reply creator can update or delete
+      allow update, delete: if isAuthenticated() &&
+                              resource.data.authorId == request.auth.uid;
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      // Users can read messages where they are sender or recipient
+      allow read: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+
+      // Users can create messages where they are the sender
+      allow create: if isAuthenticated() &&
+                      request.resource.data.senderId == request.auth.uid;
+
+      // Users can update their own sent messages
+      allow update: if isAuthenticated() &&
+                      resource.data.senderId == request.auth.uid;
+
+      // Users can delete their own messages
+      allow delete: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if isAuthenticated() &&
+                    resource.data.userId == request.auth.uid;
+
+      // System can create notifications
+      allow create: if isAuthenticated();
+
+      // Users can update their own notifications (mark as read)
+      allow update: if isAuthenticated() &&
+                      resource.data.userId == request.auth.uid;
+
+      // Users can delete their own notifications
+      allow delete: if isAuthenticated() &&
+                      resource.data.userId == request.auth.uid;
+    }
+
+    // Comments collection
+    match /comments/{commentId} {
+      // All authenticated users can read comments
+      allow read: if isAuthenticated();
+
+      // All authenticated users can create comments
+      allow create: if isAuthenticated() &&
+                      request.resource.data.authorId == request.auth.uid;
+
+      // Only the comment creator can update or delete
+      allow update, delete: if isAuthenticated() &&
+                              resource.data.authorId == request.auth.uid;
+    }
+
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
