@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:csv/csv.dart';
+import 'package:path/path.dart' as path;
 import '../models/assignment_model.dart';
 import '../models/assignment_submission_model.dart';
 import '../models/announcement_model.dart'; // For AttachmentModel
@@ -453,7 +454,7 @@ class AssignmentService {
 
       // Validate files
       for (final file in files) {
-        final filename = file.path.split('/').last;
+        final filename = path.basename(file.path);
         if (!assignment.isValidFileFormat(filename)) {
           throw Exception(
               'Invalid file format: $filename. Allowed formats: ${assignment.allowedFileFormats.join(", ")}');
@@ -843,7 +844,7 @@ class AssignmentService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = file.path.split('/').last;
+      final filename = path.basename(file.path);
       final extension = filename.split('.').last.toLowerCase();
 
       try {
@@ -895,7 +896,7 @@ class AssignmentService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = file.path.split('/').last;
+      final filename = path.basename(file.path);
       final extension = filename.split('.').last.toLowerCase();
 
       try {
