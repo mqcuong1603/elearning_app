@@ -185,6 +185,48 @@ class CourseProvider extends ChangeNotifier {
     );
   }
 
+  /// Load courses for a student (enrolled through groups)
+  Future<List<CourseModel>> loadCoursesForStudent(String studentId) async {
+    try {
+      _setLoading(true);
+      _error = null;
+
+      final courses = await _courseService.getCoursesForStudent(studentId);
+
+      _setLoading(false);
+      return courses;
+    } catch (e) {
+      _error = e.toString();
+      _setLoading(false);
+      notifyListeners();
+      return [];
+    }
+  }
+
+  /// Load courses for a student by semester
+  Future<List<CourseModel>> loadCoursesForStudentBySemester(
+    String studentId,
+    String semesterId,
+  ) async {
+    try {
+      _setLoading(true);
+      _error = null;
+
+      final courses = await _courseService.getCoursesForStudentBySemester(
+        studentId,
+        semesterId,
+      );
+
+      _setLoading(false);
+      return courses;
+    } catch (e) {
+      _error = e.toString();
+      _setLoading(false);
+      notifyListeners();
+      return [];
+    }
+  }
+
   /// Search courses
   void searchCourses(String query) {
     _searchQuery = query.toLowerCase();

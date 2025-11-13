@@ -377,6 +377,68 @@ class CourseService {
     }
   }
 
+  /// Get courses that a student is enrolled in (through groups)
+  Future<List<CourseModel>> getCoursesForStudent(String studentId) async {
+    try {
+      // Get all groups
+      final groupsData = await _firestoreService.getAll(
+        collection: AppConstants.collectionGroups,
+      );
+
+      // Filter groups that contain this student
+      final studentGroups = groupsData.where((groupJson) {
+        final studentIds = (groupJson['studentIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [];
+        return studentIds.contains(studentId);
+      }).toList();
+
+      // Get unique course IDs
+      final courseIds = studentGroups
+          .map((group) => group['courseId'] as String)
+          .toSet()
+          .toList();
+
+      if (courseIds.isEmpty) {
+        return [];
+      }
+
+      // Fetch courses for those IDs
+      final courses = <CourseModel>[];
+      for (final courseId in courseIds) {
+        final course = await getCourseById(courseId);
+        if (course != null) {
+          courses.add(course);
+        }
+      }
+
+      // Sort by course code
+      courses.sort((a, b) => a.code.compareTo(b.code));
+
+      return courses;
+    } catch (e) {
+      print('Get courses for student error: $e');
+      return [];
+    }
+  }
+
+  /// Get courses for student by semester
+  Future<List<CourseModel>> getCoursesForStudentBySemester(
+    String studentId,
+    String semesterId,
+  ) async {
+    try {
+      final allCourses = await getCoursesForStudent(studentId);
+      return allCourses
+          .where((course) => course.semesterId == semesterId)
+          .toList();
+    } catch (e) {
+      print('Get courses for student by semester error: $e');
+      return [];
+    }
+  }
+
   /// Private: Cache courses
   Future<void> _cacheCourses(List<CourseModel> courses) async {
     try {

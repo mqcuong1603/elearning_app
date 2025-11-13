@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
+import '../../providers/course_provider.dart';
+import '../../models/course_model.dart';
 import '../auth/login_screen.dart';
+import '../shared/course_space_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -14,6 +17,49 @@ class StudentHomeScreen extends StatefulWidget {
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   int _selectedIndex = 0;
+  List<CourseModel> _enrolledCourses = [];
+  bool _isLoadingCourses = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEnrolledCourses();
+  }
+
+  Future<void> _loadEnrolledCourses() async {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null) return;
+
+    setState(() {
+      _isLoadingCourses = true;
+    });
+
+    try {
+      final courseProvider = context.read<CourseProvider>();
+      final courses = await courseProvider.loadCoursesForStudent(currentUser.id);
+
+      if (mounted) {
+        setState(() {
+          _enrolledCourses = courses;
+          _isLoadingCourses = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingCourses = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading courses: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
@@ -217,38 +263,51 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           const SizedBox(height: AppTheme.spacingM),
 
-          // Placeholder for courses
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingXL),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.school,
-                      size: 64,
-                      color: AppTheme.textDisabledColor,
-                    ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    Text(
-                      'No courses enrolled yet',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingS),
-                    Text(
-                      'Your instructor will enroll you in courses',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textDisabledColor,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+          // Courses List
+          if (_isLoadingCourses)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppTheme.spacingXL),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_enrolledCourses.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacingXL),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.school,
+                        size: 64,
+                        color: AppTheme.textDisabledColor,
+                      ),
+                      const SizedBox(height: AppTheme.spacingM),
+                      Text(
+                        'No courses enrolled yet',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingS),
+                      Text(
+                        'Your instructor will enroll you in courses',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textDisabledColor,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            )
+          else
+            ...List.generate(_enrolledCourses.length, (index) {
+              final course = _enrolledCourses[index];
+              return _buildCourseCard(course, currentUser);
+            }),
         ],
       ),
     );
@@ -476,6 +535,142 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     color: AppTheme.textSecondaryColor,
                   ),
               textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCourseCard(CourseModel course, dynamic currentUser) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
+      child: InkWell(
+        onTap: () {
+          // Navigate to Course Space
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CourseSpaceScreen(
+                course: course,
+                currentUserId: currentUser?.id ?? '',
+                currentUserRole: AppConstants.roleStudent,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Course Cover Image
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(AppTheme.radiusM),
+                  topRight: Radius.circular(AppTheme.radiusM),
+                ),
+                image: course.coverImageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(course.coverImageUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: course.coverImageUrl == null
+                  ? Center(
+                      child: Icon(
+                        Icons.school,
+                        size: 48,
+                        color: AppTheme.textOnPrimaryColor.withOpacity(0.7),
+                      ),
+                    )
+                  : null,
+            ),
+
+            // Course Info
+            Padding(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Course Code
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingS,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      course.code,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+
+                  // Course Name
+                  Text(
+                    course.name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppTheme.spacingS),
+
+                  // Instructor Info
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person,
+                        size: 16,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: AppTheme.spacingXS),
+                      Expanded(
+                        child: Text(
+                          course.instructorName,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.spacingXS),
+
+                  // Sessions Info
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: AppTheme.spacingXS),
+                      Text(
+                        '${course.sessions} sessions',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
