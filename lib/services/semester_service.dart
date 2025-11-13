@@ -350,7 +350,14 @@ class SemesterService {
       final cached = _hiveService.getCached(key: 'all_semesters');
       if (cached != null && cached is List) {
         return cached
-            .map((json) => SemesterModel.fromJson(json as Map<String, dynamic>))
+            .map((json) {
+              // Convert LinkedMap to Map<String, dynamic>
+              if (json is Map) {
+                return SemesterModel.fromJson(Map<String, dynamic>.from(json));
+              }
+              return null;
+            })
+            .whereType<SemesterModel>()
             .toList();
       }
       return [];
