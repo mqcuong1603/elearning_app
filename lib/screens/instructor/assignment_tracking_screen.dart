@@ -1,6 +1,9 @@
-import 'dart:io';
+import 'dart:io' if (dart.library.html) 'dart:html' as html;
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../models/assignment_model.dart';
@@ -232,19 +235,31 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
         throw Exception('Failed to generate CSV');
       }
 
-      // Save to file
-      final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final filename =
           'assignment_${widget.assignment.id}_grades_$timestamp.csv';
-      final file = File('${directory.path}/$filename');
-      await file.writeAsString(csvString);
+
+      if (kIsWeb) {
+        // Web: Trigger browser download
+        final bytes = utf8.encode(csvString);
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', filename)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        // Mobile/Desktop: Save to documents directory
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$filename');
+        await file.writeAsString(csvString);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('CSV exported successfully to $filename'),
-            duration: const Duration(seconds: 5),
+            content: Text('CSV exported successfully${kIsWeb ? '' : ' to $filename'}'),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'OK',
               onPressed: () {},
@@ -306,7 +321,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
       final assignmentProvider = context.read<AssignmentProvider>();
 
       // Upload new attachment files if any
-      List<File> newFiles = result['attachmentFiles'] ?? [];
+      List<PlatformFile> newFiles = result['attachmentFiles'] ?? [];
       List<AttachmentModel> existingAttachments = result['existingAttachments'] ?? [];
 
       // Merge existing and new attachments
@@ -360,6 +375,49 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
         final error = assignmentProvider.error;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error ?? 'Failed to update assignment')),
+        );
+      }
+    }
+  }
+
+  // Confirm and delete assignment
+  Future<void> _confirmDeleteAssignment() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Assignment'),
+        content: Text(
+          'Are you sure you want to delete "${widget.assignment.title}"?\n\n'
+          'This will also delete all student submissions and cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final assignmentProvider = context.read<AssignmentProvider>();
+      final success = await assignmentProvider.deleteAssignment(widget.assignment.id);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment deleted successfully')),
+        );
+        // Pop back to course screen since assignment was deleted
+        Navigator.of(context).pop(true);
+      } else if (mounted) {
+        final error = assignmentProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to delete assignment')),
         );
       }
     }
@@ -795,6 +853,12 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
             icon: const Icon(Icons.edit),
             onPressed: _showEditAssignmentDialog,
             tooltip: 'Edit Assignment',
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _confirmDeleteAssignment,
+            tooltip: 'Delete Assignment',
+            color: Colors.red,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),

@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import '../models/assignment_model.dart';
@@ -39,7 +39,7 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
   DateTime? _lateDeadline;
   List<String> _selectedGroupIds = [];
   bool _isForAllGroups = true;
-  List<File> _attachmentFiles = [];
+  List<PlatformFile> _attachmentFiles = [];
   List<String> _attachmentNames = [];
   List<AttachmentModel> _existingAttachments = [];
 
@@ -200,14 +200,12 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.any,
+        withData: kIsWeb, // Load file bytes on web
       );
 
-      if (result != null) {
+      if (result != null && result.files.isNotEmpty) {
         setState(() {
-          _attachmentFiles = result.paths
-              .where((path) => path != null)
-              .map((path) => File(path!))
-              .toList();
+          _attachmentFiles = result.files;
           _attachmentNames = result.files.map((file) => file.name).toList();
         });
       }

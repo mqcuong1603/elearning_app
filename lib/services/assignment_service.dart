@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import '../models/assignment_model.dart';
 import '../models/assignment_submission_model.dart';
@@ -160,7 +160,7 @@ class AssignmentService {
     required List<String> groupIds,
     required String instructorId,
     required String instructorName,
-    List<File>? attachmentFiles,
+    List<PlatformFile>? attachmentFiles,
   }) async {
     try {
       final now = DateTime.now();
@@ -231,7 +231,7 @@ class AssignmentService {
 
   /// Upload attachments for an existing assignment (public wrapper)
   Future<List<AttachmentModel>> uploadAttachmentsForAssignment({
-    required List<File> files,
+    required List<PlatformFile> files,
     required String courseId,
     required String assignmentId,
   }) async {
@@ -435,7 +435,7 @@ class AssignmentService {
     required String assignmentId,
     required String studentId,
     required String studentName,
-    required List<File> files,
+    required List<PlatformFile> files,
     required bool isLate,
   }) async {
     try {
@@ -467,13 +467,13 @@ class AssignmentService {
 
       // Validate files
       for (final file in files) {
-        final filename = path.basename(file.path);
+        final filename = file.name;
         if (!assignment.isValidFileFormat(filename)) {
           throw Exception(
               'Invalid file format: $filename. Allowed formats: ${assignment.allowedFileFormats.join(", ")}');
         }
 
-        final fileSize = await file.length();
+        final fileSize = file.size;
         if (fileSize > assignment.maxFileSize) {
           throw Exception(
               'File size exceeds maximum allowed size: ${assignment.formattedMaxFileSize}');
@@ -848,7 +848,7 @@ class AssignmentService {
 
   /// Upload assignment attachments to storage
   Future<List<AttachmentModel>> _uploadAttachments({
-    required List<File> files,
+    required List<PlatformFile> files,
     required String courseId,
     required String assignmentId,
   }) async {
@@ -857,21 +857,20 @@ class AssignmentService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = path.basename(file.path);
+      final filename = file.name;
       final extension = filename.split('.').last.toLowerCase();
 
       try {
         // Upload to storage - use directory path only
         final storagePath = 'assignments/$courseId/$assignmentId';
         final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
-        final downloadUrl = await _storageService.uploadFile(
+        final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
-          storagePath: storagePath,
-          filename: timestampedFilename,
+          storagePath: '$storagePath/$timestampedFilename',
         );
 
         // Get file size
-        final fileSize = await file.length();
+        final fileSize = file.size;
 
         // Create attachment model
         final attachment = AttachmentModel(
@@ -899,7 +898,7 @@ class AssignmentService {
 
   /// Upload submission files to storage
   Future<List<AttachmentModel>> _uploadSubmissionFiles({
-    required List<File> files,
+    required List<PlatformFile> files,
     required String assignmentId,
     required String studentId,
     required int attemptNumber,
@@ -909,7 +908,7 @@ class AssignmentService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = path.basename(file.path);
+      final filename = file.name;
       final extension = filename.split('.').last.toLowerCase();
 
       try {
@@ -917,14 +916,13 @@ class AssignmentService {
         final storagePath =
             'submissions/$assignmentId/$studentId/attempt_$attemptNumber';
         final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
-        final downloadUrl = await _storageService.uploadFile(
+        final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
-          storagePath: storagePath,
-          filename: timestampedFilename,
+          storagePath: '$storagePath/$timestampedFilename',
         );
 
         // Get file size
-        final fileSize = await file.length();
+        final fileSize = file.size;
 
         // Create file model
         final submissionFile = AttachmentModel(

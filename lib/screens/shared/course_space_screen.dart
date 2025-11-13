@@ -911,6 +911,49 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     }
   }
 
+  // Confirm and delete assignment
+  Future<void> _confirmDeleteAssignment(AssignmentModel assignment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Assignment'),
+        content: Text(
+          'Are you sure you want to delete "${assignment.title}"?\n\n'
+          'This will also delete all student submissions and cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await context
+          .read<AssignmentProvider>()
+          .deleteAssignment(assignment.id);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment deleted successfully')),
+        );
+        await _loadData();
+      } else if (mounted) {
+        final error = context.read<AssignmentProvider>().error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to delete assignment')),
+        );
+      }
+    }
+  }
+
   // Show create assignment dialog
   Future<void> _showCreateAssignmentDialog() async {
     final result = await showDialog<Map<String, dynamic>>(
@@ -1066,7 +1109,29 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              // Add action buttons for instructors
+              if (widget.currentUserRole == AppConstants.roleInstructor) ...[
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      _confirmDeleteAssignment(assignment);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ] else
+                const Icon(Icons.chevron_right),
             ],
           ),
         ),

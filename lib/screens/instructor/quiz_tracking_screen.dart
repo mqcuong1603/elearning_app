@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'dart:io' if (dart.library.html) 'dart:html' as html;
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -492,18 +494,30 @@ class _QuizTrackingScreenState extends State<QuizTrackingScreen> {
       // Convert to CSV string
       String csv = const ListToCsvConverter().convert(rows);
 
-      // Save to file
-      final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = 'quiz_results_${widget.quizTitle.replaceAll(RegExp(r'[^\w\s]'), '')}_$timestamp.csv';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(csv);
+
+      if (kIsWeb) {
+        // Web: Trigger browser download
+        final bytes = utf8.encode(csv);
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        // Mobile/Desktop: Save to documents directory
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsString(csv);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported to: ${file.path}'),
-            duration: const Duration(seconds: 5),
+            content: Text('CSV exported successfully${kIsWeb ? '' : ' to $fileName'}'),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'OK',
               onPressed: () {},
