@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../config/app_constants.dart';
 
@@ -5,6 +6,7 @@ import '../config/app_constants.dart';
 /// Handles offline caching and local data storage
 class HiveService {
   static HiveService? _instance;
+  bool _isInitialized = false;
 
   HiveService._();
 
@@ -34,10 +36,18 @@ class HiveService {
       // Open boxes
       await _openBoxes();
 
+      _isInitialized = true;
       print('Hive initialized successfully');
     } catch (e) {
       print('Hive initialization error: $e');
-      throw Exception('Failed to initialize Hive: ${e.toString()}');
+      // On web, Hive initialization might fail due to platform limitations
+      // We'll continue without caching rather than blocking the app
+      if (kIsWeb) {
+        print('Warning: Hive caching disabled on web platform');
+        _isInitialized = false;
+      } else {
+        throw Exception('Failed to initialize Hive: ${e.toString()}');
+      }
     }
   }
 
@@ -57,9 +67,13 @@ class HiveService {
   }
 
   /// Get a box by name
-  Box _getBox(String boxName) {
+  Box? _getBox(String boxName) {
+    if (!_isInitialized) {
+      return null;
+    }
     if (!Hive.isBoxOpen(boxName)) {
-      throw Exception('Box $boxName is not open');
+      print('Warning: Box $boxName is not open');
+      return null;
     }
     return Hive.box(boxName);
   }
@@ -71,11 +85,16 @@ class HiveService {
     required dynamic value,
   }) async {
     try {
+      if (!_isInitialized) {
+        print('Hive not initialized, skipping save');
+        return;
+      }
       final box = _getBox(boxName);
+      if (box == null) return;
       await box.put(key, value);
     } catch (e) {
       print('Hive save error: $e');
-      throw Exception('Failed to save data: ${e.toString()}');
+      // Don't throw, just log - caching is optional
     }
   }
 
@@ -86,7 +105,11 @@ class HiveService {
     dynamic defaultValue,
   }) {
     try {
+      if (!_isInitialized) {
+        return defaultValue;
+      }
       final box = _getBox(boxName);
+      if (box == null) return defaultValue;
       return box.get(key, defaultValue: defaultValue);
     } catch (e) {
       print('Hive get error: $e');
@@ -100,29 +123,35 @@ class HiveService {
     required String key,
   }) async {
     try {
+      if (!_isInitialized) return;
       final box = _getBox(boxName);
+      if (box == null) return;
       await box.delete(key);
     } catch (e) {
       print('Hive delete error: $e');
-      throw Exception('Failed to delete data: ${e.toString()}');
+      // Don't throw, just log - caching is optional
     }
   }
 
   /// Clear all data from a box
   Future<void> clearBox(String boxName) async {
     try {
+      if (!_isInitialized) return;
       final box = _getBox(boxName);
+      if (box == null) return;
       await box.clear();
     } catch (e) {
       print('Hive clear box error: $e');
-      throw Exception('Failed to clear box: ${e.toString()}');
+      // Don't throw, just log - caching is optional
     }
   }
 
   /// Get all keys from a box
   List<dynamic> getAllKeys(String boxName) {
     try {
+      if (!_isInitialized) return [];
       final box = _getBox(boxName);
+      if (box == null) return [];
       return box.keys.toList();
     } catch (e) {
       print('Hive get all keys error: $e');
@@ -133,7 +162,9 @@ class HiveService {
   /// Get all values from a box
   List<dynamic> getAllValues(String boxName) {
     try {
+      if (!_isInitialized) return [];
       final box = _getBox(boxName);
+      if (box == null) return [];
       return box.values.toList();
     } catch (e) {
       print('Hive get all values error: $e');
@@ -147,7 +178,9 @@ class HiveService {
     required String key,
   }) {
     try {
+      if (!_isInitialized) return false;
       final box = _getBox(boxName);
+      if (box == null) return false;
       return box.containsKey(key);
     } catch (e) {
       print('Hive contains key error: $e');
@@ -158,7 +191,9 @@ class HiveService {
   /// Get box length
   int getLength(String boxName) {
     try {
+      if (!_isInitialized) return 0;
       final box = _getBox(boxName);
+      if (box == null) return 0;
       return box.length;
     } catch (e) {
       print('Hive get length error: $e');
@@ -172,11 +207,13 @@ class HiveService {
     required Map<String, dynamic> items,
   }) async {
     try {
+      if (!_isInitialized) return;
       final box = _getBox(boxName);
+      if (box == null) return;
       await box.putAll(items);
     } catch (e) {
       print('Hive save all error: $e');
-      throw Exception('Failed to save all: ${e.toString()}');
+      // Don't throw, just log - caching is optional
     }
   }
 
@@ -186,11 +223,13 @@ class HiveService {
     required List<String> keys,
   }) async {
     try {
+      if (!_isInitialized) return;
       final box = _getBox(boxName);
+      if (box == null) return;
       await box.deleteAll(keys);
     } catch (e) {
       print('Hive delete all error: $e');
-      throw Exception('Failed to delete all: ${e.toString()}');
+      // Don't throw, just log - caching is optional
     }
   }
 
@@ -202,7 +241,9 @@ class HiveService {
     required Duration duration,
   }) async {
     try {
+      if (!_isInitialized) return;
       final cacheBox = _getBox(AppConstants.hiveBoxCache);
+      if (cacheBox == null) return;
       final expirationTime = DateTime.now().add(duration).millisecondsSinceEpoch;
 
       await cacheBox.put(
@@ -217,7 +258,7 @@ class HiveService {
       await save(boxName: boxName, key: key, value: value);
     } catch (e) {
       print('Hive cache with expiration error: $e');
-      throw Exception('Failed to cache with expiration: ${e.toString()}');
+      // Don't throw, just log - caching is optional
     }
   }
 
@@ -227,7 +268,9 @@ class HiveService {
     dynamic defaultValue,
   }) {
     try {
+      if (!_isInitialized) return defaultValue;
       final cacheBox = _getBox(AppConstants.hiveBoxCache);
+      if (cacheBox == null) return defaultValue;
       final cached = cacheBox.get(key);
 
       if (cached == null) return defaultValue;
@@ -251,7 +294,9 @@ class HiveService {
   /// Check if cache is valid
   bool isCacheValid(String key) {
     try {
+      if (!_isInitialized) return false;
       final cacheBox = _getBox(AppConstants.hiveBoxCache);
+      if (cacheBox == null) return false;
       final cached = cacheBox.get(key);
 
       if (cached == null) return false;
@@ -269,7 +314,9 @@ class HiveService {
   /// Clear expired cache
   Future<void> clearExpiredCache() async {
     try {
+      if (!_isInitialized) return;
       final cacheBox = _getBox(AppConstants.hiveBoxCache);
+      if (cacheBox == null) return;
       final now = DateTime.now().millisecondsSinceEpoch;
       final keysToDelete = <String>[];
 
