@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
@@ -159,6 +160,17 @@ class StorageService {
     Function(double progress)? onProgress,
   }) async {
     try {
+      // Debug: Check authentication status
+      final currentUser = FirebaseAuth.instance.currentUser;
+      print('🔐 Auth Status:');
+      print('   User ID: ${currentUser?.uid ?? "NOT AUTHENTICATED"}');
+      print('   Is Anonymous: ${currentUser?.isAnonymous ?? false}');
+      print('   Storage Bucket: ${_storage.bucket}');
+
+      if (currentUser == null) {
+        throw Exception('User not authenticated. Please sign in first.');
+      }
+
       // Validate file size
       if (file.size > 0 && !AppConstants.isValidFileSize(file.size)) {
         throw Exception(AppConstants.errorFileSize);
@@ -183,6 +195,7 @@ class StorageService {
       print('   File size: ${file.size} bytes (${(file.size / 1024 / 1024).toStringAsFixed(2)} MB)');
       print('   Platform: ${kIsWeb ? "Web" : (_isDesktop ? "Desktop (${Platform.operatingSystem})" : "Mobile")}');
       final ref = _storage.ref().child(fullPath);
+      print('   Full storage reference: ${ref.fullPath}');
 
       // Create metadata
       final metadata = SettableMetadata(
@@ -256,15 +269,24 @@ class StorageService {
       TaskSnapshot snapshot;
       try {
         snapshot = await uploadTask.timeout(
-          const Duration(seconds: 30),
+          const Duration(seconds: 60),
           onTimeout: () {
-            print('   ❌ Upload timed out after 30 seconds');
+            print('   ❌ Upload timed out after 60 seconds');
             print('   This might be a CORS issue or Storage rules blocking the upload');
             throw Exception('Upload timed out. Check Firebase Storage rules and CORS configuration.');
           },
         ).whenComplete(() {
-          print('   ✅ Upload completed for ${file.name}');
+          print('   ✅ Upload task completed for ${file.name}');
         });
+      } catch (e) {
+        await progressSubscription?.cancel();
+        print('❌ Upload failed with error: $e');
+        if (e is FirebaseException) {
+          print('   Firebase error code: ${e.code}');
+          print('   Firebase error message: ${e.message}');
+          print('   Firebase error details: ${e.stackTrace}');
+        }
+        rethrow;
       } finally {
         // Clean up the progress subscription
         await progressSubscription?.cancel();
@@ -272,32 +294,60 @@ class StorageService {
 
       // Check if upload was successful
       print('   Upload state: ${snapshot.state}');
+      print('   Bytes transferred: ${snapshot.bytesTransferred}');
+      print('   Total bytes: ${snapshot.totalBytes}');
+      print('   Metadata: ${snapshot.metadata?.name}');
+
       if (snapshot.state != TaskState.success) {
         throw Exception('Upload failed with state: ${snapshot.state}');
+      }
+
+      if (snapshot.bytesTransferred != snapshot.totalBytes) {
+        print('   ⚠️ WARNING: Bytes transferred (${snapshot.bytesTransferred}) != Total bytes (${snapshot.totalBytes})');
       }
 
       // Get download URL with retry logic
       // On some platforms, there's a brief delay before the file is available
       print('   Getting download URL...');
+      print('   Storage reference path: ${snapshot.ref.fullPath}');
+      print('   Storage reference bucket: ${snapshot.ref.bucket}');
+
       String downloadUrl;
       int retryCount = 0;
-      const maxRetries = 3;
-      const retryDelay = Duration(milliseconds: 500);
+      const maxRetries = 5;
+      final retryDelays = [
+        Duration(milliseconds: 500),
+        Duration(seconds: 1),
+        Duration(seconds: 2),
+        Duration(seconds: 3),
+        Duration(seconds: 5),
+      ];
 
       while (retryCount <= maxRetries) {
         try {
+          print('   Attempt ${retryCount + 1}/${maxRetries + 1}: Getting download URL...');
           downloadUrl = await snapshot.ref.getDownloadURL();
           print('✅ File uploaded successfully!');
           print('   URL: $downloadUrl');
           return downloadUrl;
         } catch (e) {
+          print('   ❌ Attempt ${retryCount + 1} failed: $e');
+          if (e is FirebaseException) {
+            print('      Error code: ${e.code}');
+            print('      Error message: ${e.message}');
+          }
+
           retryCount++;
           if (retryCount > maxRetries) {
-            print('❌ Failed to get download URL after $maxRetries retries');
+            print('❌ Failed to get download URL after ${maxRetries + 1} attempts');
+            print('   This usually means the file was not actually uploaded to Storage');
+            print('   Check Firebase Console Storage tab to verify');
             rethrow;
           }
-          print('   ⚠️  Retry $retryCount/$maxRetries: Waiting for file to be available...');
-          await Future.delayed(retryDelay);
+
+          final delay = retryDelays[retryCount - 1];
+          print('   ⏳ Waiting ${delay.inSeconds}s before retry...');
+          await Future.delayed(delay);
         }
       }
 
