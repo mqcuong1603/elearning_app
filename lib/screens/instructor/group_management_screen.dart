@@ -198,6 +198,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   void _showManageStudentsDialog(GroupModel group) async {
     final studentProvider = context.read<StudentProvider>();
     final courseProvider = context.read<CourseProvider>();
+    final groupProvider = context.read<GroupProvider>();
 
     final course = courseProvider.courses.firstWhere(
       (c) => c.id == group.courseId,
@@ -214,12 +215,18 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       ),
     );
 
+    // Get all groups for this course to check which students are already enrolled
+    final allGroupsInCourse = groupProvider.groups
+        .where((g) => g.courseId == group.courseId)
+        .toList();
+
     await showDialog(
       context: context,
       builder: (context) => _ManageStudentsDialog(
         group: group,
         course: course,
         allStudents: studentProvider.students,
+        allGroupsInCourse: allGroupsInCourse,
         onAddStudent: (studentId) async {
           final success = await context.read<GroupProvider>().addStudentToGroup(
                 groupId: group.id,
@@ -740,6 +747,7 @@ class _ManageStudentsDialog extends StatefulWidget {
   final GroupModel group;
   final CourseModel course;
   final List<UserModel> allStudents;
+  final List<GroupModel> allGroupsInCourse;
   final Future<String?> Function(String studentId) onAddStudent;
   final Future<String?> Function(String studentId) onRemoveStudent;
 
@@ -748,6 +756,7 @@ class _ManageStudentsDialog extends StatefulWidget {
     required this.group,
     required this.course,
     required this.allStudents,
+    required this.allGroupsInCourse,
     required this.onAddStudent,
     required this.onRemoveStudent,
   }) : super(key: key);
@@ -817,8 +826,18 @@ class _ManageStudentsDialogState extends State<_ManageStudentsDialog> {
     final studentsInGroup = widget.allStudents
         .where((s) => _currentStudentIds.contains(s.id))
         .toList();
+
+    // Get IDs of students who are in other groups for this course
+    final studentsInOtherGroups = <String>{};
+    for (final group in widget.allGroupsInCourse) {
+      if (group.id != widget.group.id) {
+        studentsInOtherGroups.addAll(group.studentIds);
+      }
+    }
+
+    // Filter out students who are already in this group OR in other groups for this course
     final studentsNotInGroup = widget.allStudents
-        .where((s) => !_currentStudentIds.contains(s.id))
+        .where((s) => !_currentStudentIds.contains(s.id) && !studentsInOtherGroups.contains(s.id))
         .toList();
 
     return AlertDialog(
