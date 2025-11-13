@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/announcement_model.dart';
 import '../config/app_theme.dart';
 import '../config/app_constants.dart';
@@ -111,6 +112,48 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
     }
   }
 
+  Future<void> _downloadAttachment(AttachmentModel attachment) async {
+    try {
+      final uri = Uri.parse(attachment.url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+        // Track download (optional - you can track this)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Opening ${attachment.filename}...')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Cannot open ${attachment.filename}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening file: $e')),
+        );
+      }
+    }
+  }
+
+  IconData _getFileIcon(String fileType) {
+    final type = fileType.toLowerCase();
+    if (type == 'pdf') return Icons.picture_as_pdf;
+    if (type == 'doc' || type == 'docx') return Icons.description;
+    if (type == 'xls' || type == 'xlsx') return Icons.table_chart;
+    if (type == 'ppt' || type == 'pptx') return Icons.slideshow;
+    if (type == 'jpg' || type == 'jpeg' || type == 'png' || type == 'gif') {
+      return Icons.image;
+    }
+    if (type == 'mp4' || type == 'avi' || type == 'mov') return Icons.video_file;
+    if (type == 'zip' || type == 'rar') return Icons.folder_zip;
+    return Icons.insert_drive_file;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
@@ -193,17 +236,40 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
               const SizedBox(height: AppTheme.spacingM),
               const Divider(),
               const SizedBox(height: AppTheme.spacingS),
+              const Row(
+                children: [
+                  Icon(Icons.attach_file, size: 16, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text(
+                    'Attachments:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacingS),
               Wrap(
                 spacing: AppTheme.spacingS,
                 runSpacing: AppTheme.spacingS,
                 children: widget.announcement.attachments.map((attachment) {
-                  return Chip(
-                    avatar: const Icon(Icons.attach_file, size: 16),
+                  return ActionChip(
+                    avatar: Icon(
+                      _getFileIcon(attachment.type),
+                      size: 18,
+                      color: AppTheme.primaryColor,
+                    ),
                     label: Text(
                       attachment.filename,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
                     ),
-                    onDeleted: null, // TODO: Add download functionality
+                    tooltip: 'Download ${attachment.filename} (${attachment.formattedSize})',
+                    onPressed: () => _downloadAttachment(attachment),
+                    backgroundColor: Colors.blue[50],
+                    side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
                   );
                 }).toList(),
               ),
