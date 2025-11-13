@@ -11,6 +11,9 @@ import '../../models/group_model.dart';
 import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/student_service.dart';
+import '../../providers/announcement_provider.dart';
+import '../../widgets/announcement_card.dart';
+import '../../widgets/announcement_form_dialog.dart';
 
 /// Course Space Screen with 3 Tabs: Stream, Classwork, People
 /// Based on PDF requirements (Interface requirement - 2 pts)
@@ -75,19 +78,35 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       // Get services from context
       final groupService = context.read<GroupService>();
       final studentService = context.read<StudentService>();
+      final announcementProvider = context.read<AnnouncementProvider>();
 
       // Load groups for this course
       _groups = await groupService.getGroupsByCourse(widget.course.id);
 
       // Find which group the current user belongs to (if they are a student)
+      List<String> studentGroupIds = [];
       if (widget.currentUserRole == AppConstants.roleStudent) {
         for (var group in _groups) {
           if (group.hasStudent(widget.currentUserId)) {
             _currentUserGroupId = group.id;
-            break;
+            studentGroupIds.add(group.id);
           }
         }
       }
+
+      // Load announcements based on role
+      if (widget.currentUserRole == AppConstants.roleInstructor) {
+        // Instructors see all announcements for the course
+        await announcementProvider.loadAnnouncementsByCourse(widget.course.id);
+      } else {
+        // Students see only announcements scoped to their groups
+        await announcementProvider.loadAnnouncementsForStudent(
+          courseId: widget.course.id,
+          studentId: widget.currentUserId,
+          studentGroupIds: studentGroupIds,
+        );
+      }
+      _announcements = announcementProvider.announcements;
 
       // Collect all unique student IDs from all groups in this course
       final Set<String> studentIds = {};
@@ -107,7 +126,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       // Sort students by name for better UX
       _students.sort((a, b) => a.fullName.compareTo(b.fullName));
 
-      // TODO: Load announcements, assignments, quizzes, and materials
+      // TODO: Load assignments, quizzes, and materials
       // These will be implemented in future iterations
 
       if (mounted) {
@@ -650,133 +669,128 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
   // Build Announcement Card
   Widget _buildAnnouncementCard(AnnouncementModel announcement) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      child: InkWell(
-        onTap: () {
-          // TODO: Navigate to announcement details with comments
-        },
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: AppTheme.primaryColor,
-                    radius: 20,
-                    child: Text(
-                      announcement.instructorName.substring(0, 1).toUpperCase(),
-                      style: TextStyle(
-                        color: AppTheme.textOnPrimaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacingM),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          announcement.instructorName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          AppConstants.formatDateTime(announcement.createdAt),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textSecondaryColor,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (widget.currentUserRole == AppConstants.roleInstructor)
-                    IconButton(
-                      icon: const Icon(Icons.more_vert),
-                      onPressed: () {
-                        // TODO: Show options menu
-                      },
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingM),
+    return AnnouncementCard(
+      announcement: announcement,
+      isInstructor: widget.currentUserRole == AppConstants.roleInstructor,
+      onEdit: widget.currentUserRole == AppConstants.roleInstructor
+          ? () => _showEditAnnouncementDialog(announcement)
+          : null,
+      onDelete: widget.currentUserRole == AppConstants.roleInstructor
+          ? () => _confirmDeleteAnnouncement(announcement)
+          : null,
+    );
+  }
 
-              // Title
-              Text(
-                announcement.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-
-              // Content preview
-              Text(
-                announcement.content,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-
-              // Attachments indicator
-              if (announcement.attachments.isNotEmpty) ...[
-                const SizedBox(height: AppTheme.spacingM),
-                Wrap(
-                  spacing: AppTheme.spacingS,
-                  children: announcement.attachments.map((attachment) {
-                    return Chip(
-                      avatar: Icon(
-                        Icons.attach_file,
-                        size: 16,
-                        color: AppTheme.primaryColor,
-                      ),
-                      label: Text(
-                        attachment.filename,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    );
-                  }).toList(),
-                ),
-              ],
-
-              // Footer
-              const Divider(height: AppTheme.spacingL),
-              Row(
-                children: [
-                  Icon(
-                    Icons.visibility,
-                    size: 16,
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                  const SizedBox(width: AppTheme.spacingXS),
-                  Text(
-                    '${announcement.viewCount} views',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textSecondaryColor,
-                        ),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () {
-                      // TODO: View comments
-                    },
-                    icon: const Icon(Icons.comment, size: 16),
-                    label: const Text('Comments'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+  // Show create announcement dialog
+  Future<void> _showCreateAnnouncementDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AnnouncementFormDialog(
+        groups: _groups,
+        courseId: widget.course.id,
       ),
     );
+
+    if (result != null && mounted) {
+      final announcementProvider = context.read<AnnouncementProvider>();
+      final announcement = await announcementProvider.createAnnouncement(
+        courseId: widget.course.id,
+        title: result['title'],
+        content: result['content'],
+        groupIds: result['groupIds'],
+        instructorId: widget.currentUserId,
+        instructorName: widget.course.instructorName,
+        attachmentFiles: result['attachmentFiles'],
+      );
+
+      if (announcement != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Announcement created successfully')),
+        );
+        await _loadData(); // Reload to show new announcement
+      } else if (mounted) {
+        final error = announcementProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to create announcement')),
+        );
+      }
+    }
+  }
+
+  // Show edit announcement dialog
+  Future<void> _showEditAnnouncementDialog(AnnouncementModel announcement) async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AnnouncementFormDialog(
+        announcement: announcement,
+        groups: _groups,
+        courseId: widget.course.id,
+      ),
+    );
+
+    if (result != null && mounted) {
+      final updatedAnnouncement = announcement.copyWith(
+        title: result['title'],
+        content: result['content'],
+        groupIds: result['groupIds'],
+      );
+
+      final success =
+          await context.read<AnnouncementProvider>().updateAnnouncement(updatedAnnouncement);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Announcement updated successfully')),
+        );
+        await _loadData();
+      } else if (mounted) {
+        final error = context.read<AnnouncementProvider>().error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to update announcement')),
+        );
+      }
+    }
+  }
+
+  // Confirm delete announcement
+  Future<void> _confirmDeleteAnnouncement(AnnouncementModel announcement) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Announcement'),
+        content: Text(
+          'Are you sure you want to delete "${announcement.title}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success =
+          await context.read<AnnouncementProvider>().deleteAnnouncement(announcement.id);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Announcement deleted successfully')),
+        );
+        await _loadData();
+      } else if (mounted) {
+        final error = context.read<AnnouncementProvider>().error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to delete announcement')),
+        );
+      }
+    }
   }
 
   // Build Assignment Card
@@ -1216,12 +1230,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 title: const Text('Create Announcement'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to create announcement
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Create announcement feature coming soon!'),
-                    ),
-                  );
+                  _showCreateAnnouncementDialog();
                 },
               ),
               ListTile(
