@@ -22,7 +22,9 @@ class SemesterProvider extends ChangeNotifier {
       ? _semesters
       : _semesters
           .where((semester) =>
-              semester.code.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              semester.code
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()) ||
               semester.name.toLowerCase().contains(_searchQuery.toLowerCase()))
           .toList();
 
@@ -42,7 +44,8 @@ class SemesterProvider extends ChangeNotifier {
       _semesters = await _semesterService.getAllSemesters();
       _currentSemester = _semesters.firstWhere(
         (s) => s.isCurrent,
-        orElse: () => _semesters.isNotEmpty ? _semesters.first : _createEmptySemester(),
+        orElse: () =>
+            _semesters.isNotEmpty ? _semesters.first : _createEmptySemester(),
       );
       _isLoading = false;
       notifyListeners();
@@ -205,7 +208,8 @@ class SemesterProvider extends ChangeNotifier {
 
   /// Check if semester code exists
   Future<bool> semesterCodeExists(String code, {String? excludeId}) async {
-    return await _semesterService.semesterCodeExists(code, excludeId: excludeId);
+    return await _semesterService.semesterCodeExists(code,
+        excludeId: excludeId);
   }
 
   /// Search semesters
@@ -250,10 +254,5 @@ class SemesterProvider extends ChangeNotifier {
       updatedAt: DateTime.now(),
       isCurrent: false,
     );
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

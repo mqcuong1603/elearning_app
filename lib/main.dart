@@ -67,15 +67,19 @@ class MyApp extends StatelessWidget {
             hiveService: hiveService,
           ),
         ),
-        ProxyProvider3<FirestoreService, HiveService, AuthService, CourseService>(
-          update: (_, firestoreService, hiveService, authService, __) => CourseService(
+        ProxyProvider3<FirestoreService, HiveService, AuthService,
+            CourseService>(
+          update: (_, firestoreService, hiveService, authService, __) =>
+              CourseService(
             firestoreService: firestoreService,
             hiveService: hiveService,
             authService: authService,
           ),
         ),
-        ProxyProvider3<FirestoreService, HiveService, AuthService, StudentService>(
-          update: (_, firestoreService, hiveService, authService, __) => StudentService(
+        ProxyProvider3<FirestoreService, HiveService, AuthService,
+            StudentService>(
+          update: (_, firestoreService, hiveService, authService, __) =>
+              StudentService(
             firestoreService: firestoreService,
             hiveService: hiveService,
             authService: authService,
