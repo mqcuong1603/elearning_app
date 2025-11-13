@@ -13,11 +13,13 @@ import 'services/course_service.dart';
 import 'services/student_service.dart';
 import 'services/group_service.dart';
 import 'services/announcement_service.dart';
+import 'services/assignment_service.dart';
 import 'providers/semester_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/group_provider.dart';
 import 'providers/announcement_provider.dart';
+import 'providers/assignment_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/instructor/instructor_dashboard_screen.dart';
 import 'screens/student/student_home_screen.dart';
@@ -104,6 +106,15 @@ class MyApp extends StatelessWidget {
             storageService: storageService,
           ),
         ),
+        ProxyProvider3<FirestoreService, HiveService, StorageService,
+            AssignmentService>(
+          update: (_, firestoreService, hiveService, storageService, __) =>
+              AssignmentService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+            storageService: storageService,
+          ),
+        ),
 
         // Providers (State Management)
         ChangeNotifierProxyProvider<SemesterService, SemesterProvider>(
@@ -140,6 +151,13 @@ class MyApp extends StatelessWidget {
           ),
           update: (_, announcementService, previous) => previous ??
               AnnouncementProvider(announcementService: announcementService),
+        ),
+        ChangeNotifierProxyProvider<AssignmentService, AssignmentProvider>(
+          create: (context) => AssignmentProvider(
+            assignmentService: context.read<AssignmentService>(),
+          ),
+          update: (_, assignmentService, previous) => previous ??
+              AssignmentProvider(assignmentService: assignmentService),
         ),
       ],
       child: MaterialApp(

@@ -12,8 +12,12 @@ import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/student_service.dart';
 import '../../providers/announcement_provider.dart';
+import '../../providers/assignment_provider.dart';
 import '../../widgets/announcement_card.dart';
 import '../../widgets/announcement_form_dialog.dart';
+import '../../widgets/assignment_form_dialog.dart';
+import '../student/assignment_submission_screen.dart';
+import '../instructor/assignment_tracking_screen.dart';
 
 /// Course Space Screen with 3 Tabs: Stream, Classwork, People
 /// Based on PDF requirements (Interface requirement - 2 pts)
@@ -79,6 +83,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       final groupService = context.read<GroupService>();
       final studentService = context.read<StudentService>();
       final announcementProvider = context.read<AnnouncementProvider>();
+      final assignmentProvider = context.read<AssignmentProvider>();
 
       // Load groups for this course
       _groups = await groupService.getGroupsByCourse(widget.course.id);
@@ -126,7 +131,21 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       // Sort students by name for better UX
       _students.sort((a, b) => a.fullName.compareTo(b.fullName));
 
-      // TODO: Load assignments, quizzes, and materials
+      // Load assignments based on role
+      if (widget.currentUserRole == AppConstants.roleInstructor) {
+        // Instructors see all assignments for the course
+        await assignmentProvider.loadAssignmentsByCourse(widget.course.id);
+      } else {
+        // Students see only assignments scoped to their groups
+        await assignmentProvider.loadAssignmentsForStudent(
+          courseId: widget.course.id,
+          studentId: widget.currentUserId,
+          studentGroupIds: studentGroupIds,
+        );
+      }
+      _assignments = assignmentProvider.assignments;
+
+      // TODO: Load quizzes and materials
       // These will be implemented in future iterations
 
       if (mounted) {
@@ -793,6 +812,49 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     }
   }
 
+  // Show create assignment dialog
+  Future<void> _showCreateAssignmentDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AssignmentFormDialog(
+        groups: _groups,
+        courseId: widget.course.id,
+      ),
+    );
+
+    if (result != null && mounted) {
+      final assignmentProvider = context.read<AssignmentProvider>();
+      final assignment = await assignmentProvider.createAssignment(
+        courseId: widget.course.id,
+        title: result['title'],
+        description: result['description'],
+        startDate: result['startDate'],
+        deadline: result['deadline'],
+        allowLateSubmission: result['allowLateSubmission'],
+        lateDeadline: result['lateDeadline'],
+        maxAttempts: result['maxAttempts'],
+        allowedFileFormats: result['allowedFileFormats'],
+        maxFileSize: result['maxFileSize'],
+        groupIds: result['groupIds'],
+        instructorId: widget.currentUserId,
+        instructorName: widget.course.instructorName,
+        attachmentFiles: result['attachmentFiles'],
+      );
+
+      if (assignment != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment created successfully')),
+        );
+        await _loadData(); // Reload to show new assignment
+      } else if (mounted) {
+        final error = assignmentProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to create assignment')),
+        );
+      }
+    }
+  }
+
   // Build Assignment Card
   Widget _buildAssignmentCard(AssignmentModel assignment) {
     Color statusColor = AppTheme.successColor;
@@ -820,7 +882,33 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       ),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to assignment details
+          if (widget.currentUserRole == AppConstants.roleInstructor) {
+            // Instructor: Navigate to tracking dashboard
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => AssignmentTrackingScreen(
+                  assignment: assignment,
+                  courseId: widget.course.id,
+                ),
+              ),
+            );
+          } else {
+            // Student: Navigate to submission screen
+            final currentUser = UserModel(
+              id: widget.currentUserId,
+              email: '',
+              fullName: '',
+              role: AppConstants.roleStudent,
+            );
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => AssignmentSubmissionScreen(
+                  assignment: assignment,
+                  student: currentUser,
+                ),
+              ),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         child: Padding(
@@ -1238,12 +1326,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 title: const Text('Create Assignment'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to create assignment
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Create assignment feature coming soon!'),
-                    ),
-                  );
+                  _showCreateAssignmentDialog();
                 },
               ),
               ListTile(
