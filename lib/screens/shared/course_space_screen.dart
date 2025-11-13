@@ -45,8 +45,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   // Data lists (will be populated from services later)
   List<AnnouncementModel> _announcements = [];
   List<AssignmentModel> _assignments = [];
-  List<QuizModel> _quizzes = [];
-  List<MaterialModel> _materials = [];
+  final List<QuizModel> _quizzes = [];
+  final List<MaterialModel> _materials = [];
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
 
@@ -249,7 +249,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     }
 
     // Combine all classwork items
-    final totalItems = _assignments.length + _quizzes.length + _materials.length;
+    final totalItems =
+        _assignments.length + _quizzes.length + _materials.length;
 
     if (totalItems == 0) {
       return _buildEmptyState(
@@ -314,7 +315,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.assignment, color: AppTheme.primaryColor, size: 20),
+                    Icon(Icons.assignment,
+                        color: AppTheme.primaryColor, size: 20),
                     const SizedBox(width: AppTheme.spacingS),
                     Text(
                       'Assignments',
@@ -490,13 +492,15 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.school, color: AppTheme.primaryColor, size: 20),
+                      Icon(Icons.school,
+                          color: AppTheme.primaryColor, size: 20),
                       const SizedBox(width: AppTheme.spacingS),
                       Text(
                         'Instructor',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
@@ -505,7 +509,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     leading: CircleAvatar(
                       backgroundColor: AppTheme.primaryColor,
                       child: Text(
-                        widget.course.instructorName.substring(0, 1).toUpperCase(),
+                        widget.course.instructorName
+                            .substring(0, 1)
+                            .toUpperCase(),
                         style: TextStyle(
                           color: AppTheme.textOnPrimaryColor,
                           fontWeight: FontWeight.bold,
@@ -545,14 +551,17 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.group, color: AppTheme.primaryColor, size: 20),
+                          Icon(Icons.group,
+                              color: AppTheme.primaryColor, size: 20),
                           const SizedBox(width: AppTheme.spacingS),
                           Text(
                             'Groups',
-                            style:
-                                Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                           const SizedBox(width: AppTheme.spacingS),
                           Container(
@@ -562,7 +571,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                             ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryLightColor,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusS),
                             ),
                             child: Text(
                               '${_groups.length}',
@@ -592,9 +602,10 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         padding: const EdgeInsets.all(AppTheme.spacingL),
                         child: Text(
                           'No groups created yet',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.textSecondaryColor,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
                         ),
                       ),
                     )
@@ -621,14 +632,17 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.people, color: AppTheme.primaryColor, size: 20),
+                          Icon(Icons.people,
+                              color: AppTheme.primaryColor, size: 20),
                           const SizedBox(width: AppTheme.spacingS),
                           Text(
                             'Students',
-                            style:
-                                Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                           const SizedBox(width: AppTheme.spacingS),
                           Container(
@@ -638,7 +652,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                             ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryLightColor,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusS),
                             ),
                             child: Text(
                               '${_students.length}',
@@ -667,9 +682,10 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         padding: const EdgeInsets.all(AppTheme.spacingL),
                         child: Text(
                           'No students enrolled yet',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.textSecondaryColor,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
                         ),
                       ),
                     )
@@ -738,7 +754,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   }
 
   // Show edit announcement dialog
-  Future<void> _showEditAnnouncementDialog(AnnouncementModel announcement) async {
+  Future<void> _showEditAnnouncementDialog(
+      AnnouncementModel announcement) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => AnnouncementFormDialog(
@@ -755,8 +772,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         groupIds: result['groupIds'],
       );
 
-      final success =
-          await context.read<AnnouncementProvider>().updateAnnouncement(updatedAnnouncement);
+      final success = await context
+          .read<AnnouncementProvider>()
+          .updateAnnouncement(updatedAnnouncement);
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -773,7 +791,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   }
 
   // Confirm delete announcement
-  Future<void> _confirmDeleteAnnouncement(AnnouncementModel announcement) async {
+  Future<void> _confirmDeleteAnnouncement(
+      AnnouncementModel announcement) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -796,8 +815,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     );
 
     if (confirmed == true && mounted) {
-      final success =
-          await context.read<AnnouncementProvider>().deleteAnnouncement(announcement.id);
+      final success = await context
+          .read<AnnouncementProvider>()
+          .deleteAnnouncement(announcement.id);
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1300,8 +1320,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       onPressed: () {
         _showAddContentDialog();
       },
-      child: const Icon(Icons.add),
       tooltip: 'Add Content',
+      child: const Icon(Icons.add),
     );
   }
 

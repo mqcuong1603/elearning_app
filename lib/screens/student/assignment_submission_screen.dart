@@ -18,10 +18,10 @@ class AssignmentSubmissionScreen extends StatefulWidget {
   final UserModel student;
 
   const AssignmentSubmissionScreen({
-    Key? key,
+    super.key,
     required this.assignment,
     required this.student,
-  }) : super(key: key);
+  });
 
   @override
   State<AssignmentSubmissionScreen> createState() =>
@@ -122,7 +122,8 @@ class _AssignmentSubmissionScreenState
   Future<void> _submitAssignment() async {
     if (_selectedFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one file to submit')),
+        const SnackBar(
+            content: Text('Please select at least one file to submit')),
       );
       return;
     }
@@ -474,7 +475,7 @@ class _AssignmentSubmissionScreenState
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -590,9 +591,8 @@ class _AssignmentSubmissionScreenState
                     title: Text(_selectedFileNames[index]),
                     trailing: IconButton(
                       icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => _removeFile(index),
+                      onPressed:
+                          _isSubmitting ? null : () => _removeFile(index),
                     ),
                     dense: true,
                   ),
@@ -615,7 +615,8 @@ class _AssignmentSubmissionScreenState
                           ),
                         )
                       : const Icon(Icons.send),
-                  label: Text(_isSubmitting ? 'Submitting...' : 'Submit Assignment'),
+                  label: Text(
+                      _isSubmitting ? 'Submitting...' : 'Submit Assignment'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.all(AppTheme.spacingM),
                     backgroundColor: Colors.green,
@@ -681,7 +682,7 @@ class _AssignmentSubmissionScreenState
             const Divider(),
             ..._submissions.map((submission) {
               return _buildSubmissionCard(submission);
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -740,7 +741,7 @@ class _AssignmentSubmissionScreenState
                     ),
                     dense: true,
                   );
-                }).toList(),
+                }),
 
                 // Grade and feedback
                 if (submission.isGraded) ...[

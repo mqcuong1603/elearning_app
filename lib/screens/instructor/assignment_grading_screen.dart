@@ -17,11 +17,11 @@ class AssignmentGradingScreen extends StatefulWidget {
   final String studentName;
 
   const AssignmentGradingScreen({
-    Key? key,
+    super.key,
     required this.assignment,
     required this.studentId,
     required this.studentName,
-  }) : super(key: key);
+  });
 
   @override
   State<AssignmentGradingScreen> createState() =>
@@ -70,7 +70,8 @@ class _AssignmentGradingScreenState extends State<AssignmentGradingScreen> {
         _submissions = provider.submissions;
         // Select the latest submission by default
         if (_submissions.isNotEmpty) {
-          _submissions.sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
+          _submissions
+              .sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
           _selectSubmission(_submissions.first);
         }
       });
@@ -382,7 +383,7 @@ class _AssignmentGradingScreenState extends State<AssignmentGradingScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
 
             // Current grade (if any)
             if (_selectedSubmission!.isGraded) ...[

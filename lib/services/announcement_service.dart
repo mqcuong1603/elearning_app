@@ -312,9 +312,9 @@ class AnnouncementService {
 
       // Calculate total downloads across all attachments
       int totalDownloads = 0;
-      announcement.downloadedBy.values.forEach((userList) {
+      for (var userList in announcement.downloadedBy.values) {
         totalDownloads += userList.length;
-      });
+      }
 
       return {
         'totalViews': announcement.viewCount,
@@ -440,7 +440,8 @@ class AnnouncementService {
 
       try {
         // Upload to storage
-        final storagePath = 'announcements/$courseId/$announcementId/${DateTime.now().millisecondsSinceEpoch}_$filename';
+        final storagePath =
+            'announcements/$courseId/$announcementId/${DateTime.now().millisecondsSinceEpoch}_$filename';
         final downloadUrl = await _storageService.uploadFile(
           file: file,
           storagePath: storagePath,
@@ -469,7 +470,8 @@ class AnnouncementService {
   }
 
   /// Private: Cache announcements
-  Future<void> _cacheAnnouncements(List<AnnouncementModel> announcements) async {
+  Future<void> _cacheAnnouncements(
+      List<AnnouncementModel> announcements) async {
     try {
       final announcementsJson = announcements.map((a) => a.toJson()).toList();
       await _hiveService.cacheWithExpiration(

@@ -15,12 +15,12 @@ class AnnouncementCard extends StatefulWidget {
   final bool isInstructor;
 
   const AnnouncementCard({
-    Key? key,
+    super.key,
     required this.announcement,
     this.onEdit,
     this.onDelete,
     this.isInstructor = false,
-  }) : super(key: key);
+  });
 
   @override
   State<AnnouncementCard> createState() => _AnnouncementCardState();
@@ -259,7 +259,8 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
                       backgroundColor: AppTheme.primaryColor,
                       child: Text(
                         currentUser.fullName[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ),
                     const SizedBox(width: AppTheme.spacingS),
@@ -362,7 +363,8 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  AppConstants.formatDateTime(comment.createdAt),
+                                  AppConstants.formatDateTime(
+                                      comment.createdAt),
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 11,
@@ -375,7 +377,7 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
             ],
           ],
         ),

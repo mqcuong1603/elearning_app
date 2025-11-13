@@ -15,11 +15,11 @@ class AssignmentFormDialog extends StatefulWidget {
   final String courseId;
 
   const AssignmentFormDialog({
-    Key? key,
+    super.key,
     this.assignment,
     required this.groups,
     required this.courseId,
-  }) : super(key: key);
+  });
 
   @override
   State<AssignmentFormDialog> createState() => _AssignmentFormDialogState();
@@ -43,9 +43,21 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
 
   // File format settings
   final List<String> _availableFormats = [
-    'pdf', 'doc', 'docx', 'txt', 'zip', 'rar',
-    'jpg', 'jpeg', 'png', 'gif',
-    'xls', 'xlsx', 'ppt', 'pptx', 'csv'
+    'pdf',
+    'doc',
+    'docx',
+    'txt',
+    'zip',
+    'rar',
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'xls',
+    'xlsx',
+    'ppt',
+    'pptx',
+    'csv'
   ];
   List<String> _selectedFormats = ['pdf', 'doc', 'docx'];
 
@@ -218,7 +230,8 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
       if (!_isForAllGroups && _selectedGroupIds.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please select at least one group or choose "All Groups"'),
+            content:
+                Text('Please select at least one group or choose "All Groups"'),
           ),
         );
         return;
@@ -244,7 +257,8 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
 
       // Parse values
       final maxAttempts = int.tryParse(_maxAttemptsController.text) ?? 3;
-      final maxFileSizeMB = double.tryParse(_maxFileSizeMBController.text) ?? 25.0;
+      final maxFileSizeMB =
+          double.tryParse(_maxFileSizeMBController.text) ?? 25.0;
       final maxFileSizeBytes = (maxFileSizeMB * 1024 * 1024).toInt();
 
       Navigator.of(context).pop({
@@ -441,7 +455,9 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                             return 'Please enter maximum attempts';
                           }
                           final attempts = int.tryParse(value);
-                          if (attempts == null || attempts < 0 || attempts > 10) {
+                          if (attempts == null ||
+                              attempts < 0 ||
+                              attempts > 10) {
                             return 'Enter a number between 0 and 10';
                           }
                           return null;
@@ -498,7 +514,8 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                                 }
                               });
                             },
-                            selectedColor: AppTheme.primaryColor.withOpacity(0.3),
+                            selectedColor:
+                                AppTheme.primaryColor.withOpacity(0.3),
                           );
                         }).toList(),
                       ),
@@ -516,8 +533,8 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
 
                       CheckboxListTile(
                         title: const Text('All Groups'),
-                        subtitle:
-                            const Text('Visible to all students in this course'),
+                        subtitle: const Text(
+                            'Visible to all students in this course'),
                         value: _isForAllGroups,
                         onChanged: (value) {
                           setState(() {
@@ -562,7 +579,7 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                               dense: true,
                               controlAffinity: ListTileControlAffinity.leading,
                             );
-                          }).toList(),
+                          }),
                       ],
                       const SizedBox(height: AppTheme.spacingL),
 
@@ -598,7 +615,8 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                               leading: const Icon(Icons.insert_drive_file),
                               title: Text(_attachmentNames[index]),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () => _removeAttachment(index),
                               ),
                             ),

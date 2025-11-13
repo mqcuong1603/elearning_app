@@ -13,11 +13,11 @@ class AnnouncementFormDialog extends StatefulWidget {
   final String courseId;
 
   const AnnouncementFormDialog({
-    Key? key,
+    super.key,
     this.announcement,
     required this.groups,
     required this.courseId,
-  }) : super(key: key);
+  });
 
   @override
   State<AnnouncementFormDialog> createState() => _AnnouncementFormDialogState();
@@ -67,8 +67,7 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
               .where((path) => path != null)
               .map((path) => File(path!))
               .toList();
-          _attachmentNames =
-              result.files.map((file) => file.name).toList();
+          _attachmentNames = result.files.map((file) => file.name).toList();
         });
       }
     } catch (e) {
@@ -93,7 +92,8 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
       if (!_isForAllGroups && _selectedGroupIds.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please select at least one group or choose "All Groups"'),
+            content:
+                Text('Please select at least one group or choose "All Groups"'),
           ),
         );
         return;
@@ -172,7 +172,8 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
 
                 CheckboxListTile(
                   title: const Text('All Groups'),
-                  subtitle: const Text('Visible to all students in this course'),
+                  subtitle:
+                      const Text('Visible to all students in this course'),
                   value: _isForAllGroups,
                   onChanged: (value) {
                     setState(() {
@@ -217,7 +218,7 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
                         },
                         controlAffinity: ListTileControlAffinity.leading,
                       );
-                    }).toList(),
+                    }),
                 ],
 
                 const SizedBox(height: AppTheme.spacingM),
@@ -261,7 +262,8 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
                     );
                   }),
 
-                if (isEditing && widget.announcement!.attachments.isNotEmpty) ...[
+                if (isEditing &&
+                    widget.announcement!.attachments.isNotEmpty) ...[
                   const SizedBox(height: AppTheme.spacingS),
                   const Text(
                     'Existing Attachments:',
@@ -284,7 +286,7 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
                         trailing: const Icon(Icons.check, color: Colors.green),
                       ),
                     );
-                  }).toList(),
+                  }),
                   const Text(
                     'Note: Existing attachments will be kept. Add new files above.',
                     style: TextStyle(

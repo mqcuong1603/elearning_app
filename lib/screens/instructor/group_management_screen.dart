@@ -14,7 +14,7 @@ import '../../config/app_constants.dart';
 import '../../config/app_theme.dart';
 
 class GroupManagementScreen extends StatefulWidget {
-  const GroupManagementScreen({Key? key}) : super(key: key);
+  const GroupManagementScreen({super.key});
 
   @override
   State<GroupManagementScreen> createState() => _GroupManagementScreenState();
@@ -24,7 +24,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCourseId;
   String? _selectedSemesterId;
-  String _sortBy = 'name';
+  final String _sortBy = 'name';
   bool _sortAscending = true;
 
   @override
@@ -75,11 +75,13 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
     if (courses.isEmpty) {
       final semesterName = _selectedSemesterId != null
-          ? semesterProvider.getSemesterById(_selectedSemesterId!)?.name ?? 'this semester'
+          ? semesterProvider.getSemesterById(_selectedSemesterId!)?.name ??
+              'this semester'
           : 'any semester';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No courses found in $semesterName. Please create a course first.'),
+          content: Text(
+              'No courses found in $semesterName. Please create a course first.'),
         ),
       );
       return;
@@ -235,18 +237,21 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
           if (success) {
             return null;
           } else {
-            return context.read<GroupProvider>().error ?? 'Failed to add student';
+            return context.read<GroupProvider>().error ??
+                'Failed to add student';
           }
         },
         onRemoveStudent: (studentId) async {
-          final success = await context.read<GroupProvider>().removeStudentFromGroup(
-                groupId: group.id,
-                studentId: studentId,
-              );
+          final success =
+              await context.read<GroupProvider>().removeStudentFromGroup(
+                    groupId: group.id,
+                    studentId: studentId,
+                  );
           if (success) {
             return null;
           } else {
-            return context.read<GroupProvider>().error ?? 'Failed to remove student';
+            return context.read<GroupProvider>().error ??
+                'Failed to remove student';
           }
         },
       ),
@@ -262,7 +267,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
       if (!mounted) return;
 
-      final importResult = await context.read<GroupProvider>().importGroupsFromCsv(result);
+      final importResult =
+          await context.read<GroupProvider>().importGroupsFromCsv(result);
 
       if (importResult != null && mounted) {
         _showImportResultDialog(importResult);
@@ -376,7 +382,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     },
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -445,7 +451,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     const SizedBox(width: AppTheme.spacingS),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedSemesterId,
+                        initialValue: _selectedSemesterId,
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 12,
@@ -465,7 +471,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                         onChanged: (value) {
                           setState(() {
                             _selectedSemesterId = value;
-                            _selectedCourseId = null; // Clear course filter when semester changes
+                            _selectedCourseId =
+                                null; // Clear course filter when semester changes
                           });
                           context.read<GroupProvider>().clearCourseFilter();
                         },
@@ -611,7 +618,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                         group: group,
                         onEdit: () => _showEditGroupDialog(group),
                         onDelete: () => _confirmDeleteGroup(group),
-                        onManageStudents: () => _showManageStudentsDialog(group),
+                        onManageStudents: () =>
+                            _showManageStudentsDialog(group),
                       );
                     },
                   ),
@@ -636,12 +644,12 @@ class _GroupCard extends StatelessWidget {
   final VoidCallback onManageStudents;
 
   const _GroupCard({
-    Key? key,
+    super.key,
     required this.group,
     required this.onEdit,
     required this.onDelete,
     required this.onManageStudents,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -752,14 +760,14 @@ class _ManageStudentsDialog extends StatefulWidget {
   final Future<String?> Function(String studentId) onRemoveStudent;
 
   const _ManageStudentsDialog({
-    Key? key,
+    super.key,
     required this.group,
     required this.course,
     required this.allStudents,
     required this.allGroupsInCourse,
     required this.onAddStudent,
     required this.onRemoveStudent,
-  }) : super(key: key);
+  });
 
   @override
   State<_ManageStudentsDialog> createState() => _ManageStudentsDialogState();
@@ -837,7 +845,9 @@ class _ManageStudentsDialogState extends State<_ManageStudentsDialog> {
 
     // Filter out students who are already in this group OR in other groups for this course
     final studentsNotInGroup = widget.allStudents
-        .where((s) => !_currentStudentIds.contains(s.id) && !studentsInOtherGroups.contains(s.id))
+        .where((s) =>
+            !_currentStudentIds.contains(s.id) &&
+            !studentsInOtherGroups.contains(s.id))
         .toList();
 
     return AlertDialog(

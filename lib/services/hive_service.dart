@@ -244,7 +244,8 @@ class HiveService {
       if (!_isInitialized) return;
       final cacheBox = _getBox(AppConstants.hiveBoxCache);
       if (cacheBox == null) return;
-      final expirationTime = DateTime.now().add(duration).millisecondsSinceEpoch;
+      final expirationTime =
+          DateTime.now().add(duration).millisecondsSinceEpoch;
 
       await cacheBox.put(
         key,
@@ -396,7 +397,7 @@ class HiveService {
         AppConstants.hiveBoxSettings,
       ]) {
         if (Hive.isBoxOpen(boxName)) {
-          await _getBox(boxName).compact();
+          await _getBox(boxName)?.compact();
         }
       }
       print('All boxes compacted');

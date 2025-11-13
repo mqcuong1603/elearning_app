@@ -18,10 +18,10 @@ class AssignmentTrackingScreen extends StatefulWidget {
   final String courseId;
 
   const AssignmentTrackingScreen({
-    Key? key,
+    super.key,
     required this.assignment,
     required this.courseId,
-  }) : super(key: key);
+  });
 
   @override
   State<AssignmentTrackingScreen> createState() =>
@@ -154,8 +154,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
               .compareTo(b['studentName'] as String);
           break;
         case 'status':
-          comparison =
-              (a['status'] as String).compareTo(b['status'] as String);
+          comparison = (a['status'] as String).compareTo(b['status'] as String);
           break;
         case 'grade':
           final gradeA = a['grade'] as double?;
@@ -435,7 +434,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
                 // Status filter
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _filterStatus,
+                    initialValue: _filterStatus,
                     decoration: const InputDecoration(
                       labelText: 'Filter by Status',
                       border: OutlineInputBorder(),
@@ -458,7 +457,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
                 // Sort by
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _sortBy,
+                    initialValue: _sortBy,
                     decoration: const InputDecoration(
                       labelText: 'Sort By',
                       border: OutlineInputBorder(),
@@ -469,7 +468,8 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
                       DropdownMenuItem(value: 'status', child: Text('Status')),
                       DropdownMenuItem(value: 'grade', child: Text('Grade')),
                       DropdownMenuItem(
-                          value: 'submitted_at', child: Text('Submission Date')),
+                          value: 'submitted_at',
+                          child: Text('Submission Date')),
                     ],
                     onChanged: (value) {
                       if (value != null) _onSortChanged(value);
@@ -481,9 +481,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
                 // Sort direction
                 IconButton(
                   icon: Icon(
-                    _sortAscending
-                        ? Icons.arrow_upward
-                        : Icons.arrow_downward,
+                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                   ),
                   onPressed: () {
                     setState(() {
@@ -634,7 +632,8 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
           Text(
             attemptCount > 0 ? '$attemptCount' : '-',
             style: TextStyle(
-              fontWeight: attemptCount > 1 ? FontWeight.bold : FontWeight.normal,
+              fontWeight:
+                  attemptCount > 1 ? FontWeight.bold : FontWeight.normal,
               color: attemptCount > 1 ? Colors.blue : null,
             ),
           ),
@@ -686,8 +685,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
                     }
                   },
                 ),
-              if (!hasSubmitted)
-                const Icon(Icons.remove, color: Colors.grey),
+              if (!hasSubmitted) const Icon(Icons.remove, color: Colors.grey),
             ],
           ),
         ),

@@ -8,11 +8,11 @@ class GroupFormDialog extends StatefulWidget {
   final String? preSelectedCourseId;
 
   const GroupFormDialog({
-    Key? key,
+    super.key,
     this.group,
     required this.courses,
     this.preSelectedCourseId,
-  }) : super(key: key);
+  });
 
   @override
   State<GroupFormDialog> createState() => _GroupFormDialogState();
@@ -83,7 +83,7 @@ class _GroupFormDialogState extends State<GroupFormDialog> {
 
               // Course Selection
               DropdownButtonFormField<String>(
-                value: _selectedCourseId,
+                initialValue: _selectedCourseId,
                 decoration: const InputDecoration(
                   labelText: 'Course',
                   border: OutlineInputBorder(),
