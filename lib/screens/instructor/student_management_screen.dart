@@ -219,7 +219,6 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       );
 
       // CsvImportDialog now handles showing the result, no need for a second dialog
-    }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
