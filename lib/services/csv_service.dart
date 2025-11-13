@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../config/app_constants.dart';
 
 /// CSV Service
@@ -22,12 +24,24 @@ class CsvService {
       }
 
       final file = result.files.first;
+      String csvString;
 
-      if (file.bytes == null) {
-        throw Exception('Could not read file');
+      // Handle different platforms
+      if (kIsWeb) {
+        // Web: Use bytes
+        if (file.bytes == null) {
+          throw Exception('Could not read file');
+        }
+        csvString = utf8.decode(file.bytes!);
+      } else {
+        // Desktop/Mobile: Use path
+        if (file.path == null) {
+          throw Exception('Could not get file path');
+        }
+        final fileContent = File(file.path!);
+        csvString = await fileContent.readAsString();
       }
 
-      final csvString = utf8.decode(file.bytes!);
       return parseCsvString(
         csvString: csvString,
         expectedHeaders: expectedHeaders,
@@ -57,7 +71,7 @@ class CsvService {
       // Validate headers
       if (!_validateHeaders(headers, expectedHeaders)) {
         throw Exception(
-          'Invalid CSV format. Expected headers: ${expectedHeaders.join(", ")}',
+          'Invalid CSV format. Expected headers: ${expectedHeaders.join(", ")}, but got: ${headers.join(", ")}',
         );
       }
 
@@ -90,11 +104,13 @@ class CsvService {
   /// Validate CSV headers
   bool _validateHeaders(List<String> actualHeaders, List<String> expectedHeaders) {
     if (actualHeaders.length != expectedHeaders.length) {
+      print('Header length mismatch: expected ${expectedHeaders.length}, got ${actualHeaders.length}');
       return false;
     }
 
     for (int i = 0; i < expectedHeaders.length; i++) {
       if (actualHeaders[i].toLowerCase() != expectedHeaders[i].toLowerCase()) {
+        print('Header mismatch at position $i: expected "${expectedHeaders[i]}", got "${actualHeaders[i]}"');
         return false;
       }
     }
