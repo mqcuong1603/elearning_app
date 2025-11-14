@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import '../models/material_model.dart';
-import '../models/attachment_model.dart';
+import '../models/announcement_model.dart'; // For AttachmentModel
 import '../config/app_theme.dart';
 
 /// Material Form Dialog
@@ -356,7 +356,7 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
                               isMarkedForRemoval ? Colors.red : Colors.green,
                         ),
                         title: Text(
-                          file.name,
+                          file.filename,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             decoration: isMarkedForRemoval

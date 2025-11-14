@@ -3,9 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/material_model.dart';
-import '../../models/user_model.dart';
 import '../../providers/material_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/material_form_dialog.dart';
@@ -41,8 +40,8 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
   }
 
   Future<void> _markAsViewed() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.user;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
 
     if (user != null) {
       final materialProvider =
@@ -74,16 +73,16 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
 
   Future<void> _downloadFile(String fileId, String fileUrl, String fileName) async {
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authService = Provider.of<AuthService>(context, listen: false);
       final materialProvider =
           Provider.of<MaterialProvider>(context, listen: false);
 
       // Track download
-      if (authProvider.user != null) {
+      if (authService.currentUser != null) {
         await materialProvider.trackDownload(
           materialId: _material.id,
           fileId: fileId,
-          userId: authProvider.user!.id,
+          userId: authService.currentUser!.id,
         );
       }
 
@@ -136,8 +135,8 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
   }
 
   Future<void> _editMaterial() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.user;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
 
     if (user == null) return;
 
@@ -238,8 +237,8 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
+    final authService = Provider.of<AuthService>(context);
+    final user = authService.currentUser;
     final isInstructor = user?.role == AppConstants.roleInstructor;
     final isOwner = user?.id == _material.instructorId;
 
@@ -265,7 +264,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
         onRefresh: _loadStats,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(AppTheme.paddingM),
+          padding: const EdgeInsets.all(AppTheme.spacingM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -303,7 +302,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
   Widget _buildHeader() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.paddingM),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -365,7 +364,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
   Widget _buildDescription() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.paddingM),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -390,7 +389,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
   Widget _buildFilesSection() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.paddingM),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -407,11 +406,11 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
-                  title: Text(file.name),
-                  subtitle: Text('${file.formattedSize} • ${DateFormat.yMMMd().format(file.uploadedAt)}'),
+                  title: Text(file.filename),
+                  subtitle: Text(file.formattedSize),
                   trailing: IconButton(
                     icon: const Icon(Icons.download),
-                    onPressed: () => _downloadFile(file.id, file.url, file.name),
+                    onPressed: () => _downloadFile(file.id, file.url, file.filename),
                     tooltip: 'Download',
                   ),
                 ),
@@ -426,7 +425,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
   Widget _buildLinksSection() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.paddingM),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -467,7 +466,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
     if (_isLoadingStats) {
       return const Card(
         child: Padding(
-          padding: EdgeInsets.all(AppTheme.paddingM),
+          padding: EdgeInsets.all(AppTheme.spacingM),
           child: Center(child: CircularProgressIndicator()),
         ),
       );
@@ -482,7 +481,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.paddingM),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -528,7 +527,7 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppTheme.paddingM),
+      padding: const EdgeInsets.all(AppTheme.spacingM),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),

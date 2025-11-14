@@ -1,6 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import '../models/material_model.dart';
-import '../models/attachment_model.dart';
+import '../models/announcement_model.dart'; // For AttachmentModel
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
 import 'hive_service.dart';
@@ -407,10 +407,10 @@ class MaterialService {
 
           final attachment = AttachmentModel(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
-            name: file.name,
+            filename: file.name,
             url: url,
             size: file.size,
-            uploadedAt: DateTime.now(),
+            type: file.extension ?? 'unknown',
           );
 
           attachments.add(attachment);
