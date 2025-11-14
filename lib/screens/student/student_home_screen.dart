@@ -258,10 +258,21 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     // Watch semester provider for real-time updates
     final semesterProvider = context.watch<SemesterProvider>();
     final semesters = semesterProvider.semesters;
-    final selectedSemester = semesters.firstWhere(
-      (s) => s.id == _selectedSemesterId,
-      orElse: () => semesterProvider.currentSemester ?? semesters.first,
-    );
+
+    // Safely get selected semester with null checks
+    SemesterModel? selectedSemester;
+    if (semesters.isNotEmpty && _selectedSemesterId != null) {
+      try {
+        selectedSemester = semesters.firstWhere(
+          (s) => s.id == _selectedSemesterId,
+        );
+      } catch (e) {
+        // If selected semester not found, use current semester
+        selectedSemester = semesterProvider.currentSemester;
+      }
+    } else if (semesters.isNotEmpty) {
+      selectedSemester = semesterProvider.currentSemester ?? semesters.first;
+    }
 
     return Scaffold(
       appBar: AppBar(
