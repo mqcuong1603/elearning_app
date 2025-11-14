@@ -701,7 +701,7 @@ class AnnouncementService {
 
       // Send email notifications to all students
       print('   📧 Sending email notifications...');
-      int emailsAttempted = 0;
+      int emailsSent = 0;
       int emailsSkipped = 0;
       for (final studentId in uniqueStudentIds) {
         try {
@@ -728,7 +728,7 @@ class AnnouncementService {
                 ''',
                 isHtml: true,
               );
-              emailsAttempted++;
+              emailsSent++;
             } else {
               print(
                   '      ⚠️  No email found for student: ${user.fullName} (ID: $studentId)');
@@ -744,7 +744,7 @@ class AnnouncementService {
           // Continue with other students
         }
       }
-      print('   📊 Email summary: $emailsAttempted attempted, $emailsSkipped skipped');
+      print('   📊 Email summary: $emailsSent sent, $emailsSkipped skipped');
 
       print('✅ Announcement notifications sent successfully');
     } catch (e) {
