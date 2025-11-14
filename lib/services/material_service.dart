@@ -10,7 +10,6 @@ import 'storage_service.dart';
 /// Handles all material-related operations including CRUD, file uploads, and view/download tracking
 class MaterialService {
   final FirestoreService _firestoreService;
-  final HiveService _hiveService;
   final StorageService _storageService;
 
   MaterialService({
@@ -18,7 +17,6 @@ class MaterialService {
     required HiveService hiveService,
     required StorageService storageService,
   })  : _firestoreService = firestoreService,
-        _hiveService = hiveService,
         _storageService = storageService;
 
   /// Get all materials
@@ -375,8 +373,6 @@ class MaterialService {
 
     for (final file in files) {
       try {
-        final fileName =
-            '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
         final path = '${AppConstants.storageMaterials}/$courseId';
 
         final url = await _storageService.uploadPlatformFile(
