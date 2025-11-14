@@ -1,9 +1,13 @@
 import 'package:file_picker/file_picker.dart';
 import '../models/announcement_model.dart';
+import '../models/user_model.dart';
+import '../models/course_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
 import 'hive_service.dart';
 import 'storage_service.dart';
+import 'notification_service.dart';
+import 'email_service.dart';
 
 /// Announcement Service
 /// Handles all announcement-related operations including CRUD, tracking, and file uploads
@@ -11,14 +15,20 @@ class AnnouncementService {
   final FirestoreService _firestoreService;
   final HiveService _hiveService;
   final StorageService _storageService;
+  final NotificationService _notificationService;
+  final EmailService _emailService;
 
   AnnouncementService({
     required FirestoreService firestoreService,
     required HiveService hiveService,
     required StorageService storageService,
+    required NotificationService notificationService,
+    required EmailService emailService,
   })  : _firestoreService = firestoreService,
         _hiveService = hiveService,
-        _storageService = storageService;
+        _storageService = storageService,
+        _notificationService = notificationService,
+        _emailService = emailService;
 
   /// Get all announcements
   Future<List<AnnouncementModel>> getAllAnnouncements() async {
@@ -202,6 +212,19 @@ class AnnouncementService {
 
       // Clear cache to force refresh
       await _clearAnnouncementsCache();
+
+      // NOTIFICATION TRIGGER: Send notifications to students in the groups
+      try {
+        await _sendAnnouncementNotifications(
+          announcementId: id,
+          announcementTitle: title,
+          courseId: courseId,
+          groupIds: groupIds,
+        );
+      } catch (e) {
+        print('Error sending announcement notifications: $e');
+        // Don't fail the announcement creation if notifications fail
+      }
 
       return createdAnnouncement;
     } catch (e) {
@@ -577,6 +600,100 @@ class AnnouncementService {
       );
     } catch (e) {
       print('Clear announcements cache error: $e');
+    }
+  }
+
+  /// Private: Send announcement notifications to students
+  Future<void> _sendAnnouncementNotifications({
+    required String announcementId,
+    required String announcementTitle,
+    required String courseId,
+    required List<String> groupIds,
+  }) async {
+    try {
+      // Get course details
+      final courseData = await _firestoreService.read(
+        collection: AppConstants.collectionCourses,
+        documentId: courseId,
+      );
+      if (courseData == null) return;
+
+      final course = CourseModel.fromJson(courseData);
+      final courseName = course.name;
+
+      // Get all students from the specified groups
+      final List<String> studentIds = [];
+      for (final groupId in groupIds) {
+        final groupData = await _firestoreService.read(
+          collection: AppConstants.collectionGroups,
+          documentId: groupId,
+        );
+        if (groupData != null) {
+          final studentIdsInGroup = List<String>.from(groupData['studentIds'] ?? []);
+          studentIds.addAll(studentIdsInGroup);
+        }
+      }
+
+      // Remove duplicates
+      final uniqueStudentIds = studentIds.toSet().toList();
+
+      if (uniqueStudentIds.isEmpty) {
+        print('No students found in groups, skipping notifications');
+        return;
+      }
+
+      print('Sending announcement notifications to ${uniqueStudentIds.length} students');
+
+      // Create in-app notifications for all students
+      await _notificationService.createNotificationsForUsers(
+        userIds: uniqueStudentIds,
+        type: AppConstants.notificationTypeAnnouncement,
+        title: 'New Announcement: $announcementTitle',
+        message: 'A new announcement has been posted in $courseName',
+        relatedId: announcementId,
+        relatedType: 'announcement',
+        data: {
+          'courseId': courseId,
+          'courseName': courseName,
+        },
+      );
+
+      // Send email notifications to all students
+      for (final studentId in uniqueStudentIds) {
+        try {
+          final userData = await _firestoreService.read(
+            collection: AppConstants.collectionUsers,
+            documentId: studentId,
+          );
+          if (userData != null) {
+            final user = UserModel.fromJson(userData);
+            if (user.email != null && user.email!.isNotEmpty) {
+              // Send email asynchronously (non-blocking)
+              _emailService.sendEmailAsync(
+                recipientEmail: user.email!,
+                recipientName: user.fullName,
+                subject: '[$courseName] New Announcement: $announcementTitle',
+                body: '''
+                  <h2>New Announcement</h2>
+                  <p>Hi ${user.fullName},</p>
+                  <p>A new announcement has been posted in <strong>$courseName</strong>:</p>
+                  <h3>$announcementTitle</h3>
+                  <p>Please log in to the E-Learning System to view the full announcement.</p>
+                ''',
+                isHtml: true,
+              );
+            }
+          }
+        } catch (e) {
+          print('Error sending email to student $studentId: $e');
+          // Continue with other students
+        }
+      }
+
+      print('Announcement notifications sent successfully');
+    } catch (e) {
+      print('Error sending announcement notifications: $e');
+      throw e;
     }
   }
 }
