@@ -15,6 +15,9 @@ import '../../services/group_service.dart';
 import '../../services/student_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/announcement_service.dart';
+import '../../services/assignment_service.dart';
+import '../../services/quiz_service.dart';
+import '../../services/material_service.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
 import '../../providers/quiz_provider.dart';
@@ -59,9 +62,6 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
   // Data lists (will be populated from services later)
   List<AnnouncementModel> _announcements = [];
-  List<AssignmentModel> _assignments = [];
-  List<QuizModel> _quizzes = [];
-  List<MaterialModel> _materials = [];
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
 
@@ -102,8 +102,6 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       final groupService = context.read<GroupService>();
       final studentService = context.read<StudentService>();
       final announcementProvider = context.read<AnnouncementProvider>();
-      final assignmentProvider = context.read<AssignmentProvider>();
-      final quizProvider = context.read<QuizProvider>();
 
       // Load groups for this course
       _groups = await groupService.getGroupsByCourse(widget.course.id);
@@ -151,78 +149,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       // Sort students by name for better UX
       _students.sort((a, b) => a.fullName.compareTo(b.fullName));
 
-      // Load assignments based on role
-      if (widget.currentUserRole == AppConstants.roleInstructor) {
-        // Instructors see all assignments for the course
-        await assignmentProvider.loadAssignmentsByCourse(widget.course.id);
-      } else {
-        // Students see only assignments scoped to their groups
-        await assignmentProvider.loadAssignmentsForStudent(
-          courseId: widget.course.id,
-          studentId: widget.currentUserId,
-          studentGroupIds: studentGroupIds,
-        );
-      }
-      _assignments = assignmentProvider.assignments;
-
-      // Load quizzes based on role
-      if (widget.currentUserRole == AppConstants.roleInstructor) {
-        // Instructors see all quizzes for the course
-        await quizProvider.loadQuizzesForCourse(widget.course.id);
-      } else {
-        // Students see only quizzes available to their groups
-        await quizProvider.loadAvailableQuizzes(
-          courseId: widget.course.id,
-          studentGroupIds: studentGroupIds,
-        );
-
-        // Load student's best submissions for each quiz
-        _quizSubmissions = {};
-        for (var quiz in quizProvider.quizzes) {
-          try {
-            final bestSubmission = await quizProvider.checkQuizEligibility(
-              quizId: quiz.id,
-              studentId: widget.currentUserId,
-              studentGroupIds: studentGroupIds,
-            );
-
-            // If student has taken the quiz, load their best submission
-            final attemptCount = await quizProvider.getAttemptCount(
-              quizId: quiz.id,
-              studentId: widget.currentUserId,
-            );
-
-            if (attemptCount > 0) {
-              final submissions = await quizProvider.checkQuizEligibility(
-                quizId: quiz.id,
-                studentId: widget.currentUserId,
-                studentGroupIds: studentGroupIds,
-              );
-              // Load student submissions directly from service
-              await quizProvider.loadStudentSubmissions(
-                quizId: quiz.id,
-                studentId: widget.currentUserId,
-              );
-
-              // Get the best submission
-              if (quizProvider.submissions.isNotEmpty) {
-                // Sort by score to get the best one
-                final sortedSubmissions = List<QuizSubmissionModel>.from(quizProvider.submissions)
-                  ..sort((a, b) => b.score.compareTo(a.score));
-                _quizSubmissions[quiz.id] = sortedSubmissions.first;
-              }
-            }
-          } catch (e) {
-            // Ignore errors for individual quiz submission loading
-          }
-        }
-      }
-      _quizzes = quizProvider.quizzes;
-
-      // Load materials (automatically visible to all students in the course)
-      final materialProvider = context.read<MaterialProvider>();
-      await materialProvider.loadMaterialsByCourse(widget.course.id);
-      _materials = materialProvider.materials;
+      // Note: Assignments, quizzes, and materials are now loaded via real-time streams
+      // in the Classwork tab using StreamBuilder
 
       if (mounted) {
         setState(() {
@@ -385,29 +313,100 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     );
   }
 
-  // Classwork Tab: Centralizes assignments, quizzes, and materials with search/sort
+  // Classwork Tab: Centralizes assignments, quizzes, and materials with search/sort (Real-time)
   Widget _buildClassworkTab() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final assignmentService = context.read<AssignmentService>();
+    final quizService = context.read<QuizService>();
+    final materialService = context.read<MaterialService>();
 
-    // Combine all classwork items
-    final totalItems =
-        _assignments.length + _quizzes.length + _materials.length;
+    return StreamBuilder<List<AssignmentModel>>(
+      stream: assignmentService.streamAssignmentsByCourse(widget.course.id),
+      builder: (context, assignmentSnapshot) {
+        return StreamBuilder<List<QuizModel>>(
+          stream: quizService.streamQuizzesForCourse(widget.course.id),
+          builder: (context, quizSnapshot) {
+            return StreamBuilder<List<MaterialModel>>(
+              stream: materialService.streamMaterialsByCourse(widget.course.id),
+              builder: (context, materialSnapshot) {
+                // Handle loading state
+                if (assignmentSnapshot.connectionState == ConnectionState.waiting ||
+                    quizSnapshot.connectionState == ConnectionState.waiting ||
+                    materialSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-    if (totalItems == 0) {
-      return _buildEmptyState(
-        icon: Icons.school,
-        message: 'No classwork yet',
-        description: widget.currentUserRole == AppConstants.roleInstructor
-            ? 'Add assignments, quizzes, or materials'
-            : 'Your instructor will add classwork here',
-      );
-    }
+                // Handle error state
+                if (assignmentSnapshot.hasError ||
+                    quizSnapshot.hasError ||
+                    materialSnapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error loading classwork: ${assignmentSnapshot.error ?? quizSnapshot.error ?? materialSnapshot.error}',
+                    ),
+                  );
+                }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: CustomScrollView(
+                // Get data from streams
+                var assignments = assignmentSnapshot.data ?? [];
+                var quizzes = quizSnapshot.data ?? [];
+                var materials = materialSnapshot.data ?? [];
+
+                // Filter based on role and groups
+                if (widget.currentUserRole == AppConstants.roleStudent && _groups.isNotEmpty) {
+                  // Get student's group IDs
+                  final studentGroupIds = _groups
+                      .where((group) => group.hasStudent(widget.currentUserId))
+                      .map((group) => group.id)
+                      .toList();
+
+                  // Filter assignments by student's groups
+                  assignments = assignments.where((assignment) {
+                    return assignment.isForAllGroups ||
+                        assignment.groupIds.any((groupId) => studentGroupIds.contains(groupId));
+                  }).toList();
+
+                  // Filter quizzes by student's groups and availability
+                  quizzes = quizzes.where((quiz) {
+                    // Check if quiz is available time-wise
+                    if (!quiz.isAvailable) return false;
+
+                    // Check if student is in the right group
+                    return quiz.isForAllGroups ||
+                        quiz.groupIds.any((groupId) => studentGroupIds.contains(groupId));
+                  }).toList();
+
+                  // Materials are visible to all students (no filtering needed)
+                }
+
+                // Combine all classwork items
+                final totalItems = assignments.length + quizzes.length + materials.length;
+
+                if (totalItems == 0) {
+                  return _buildEmptyState(
+                    icon: Icons.school,
+                    message: 'No classwork yet',
+                    description: widget.currentUserRole == AppConstants.roleInstructor
+                        ? 'Add assignments, quizzes, or materials'
+                        : 'Your instructor will add classwork here',
+                  );
+                }
+
+                return _buildClassworkContent(assignments, quizzes, materials);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Helper method to build classwork content (extracted from _buildClassworkTab)
+  Widget _buildClassworkContent(
+    List<AssignmentModel> assignments,
+    List<QuizModel> quizzes,
+    List<MaterialModel> materials,
+  ) {
+    return CustomScrollView(
         slivers: [
           // Search and filter bar
           SliverToBoxAdapter(
@@ -447,7 +446,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           ),
 
           // Assignments Section
-          if (_assignments.isNotEmpty) ...[
+          if (assignments.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -478,7 +477,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         borderRadius: BorderRadius.circular(AppTheme.radiusS),
                       ),
                       child: Text(
-                        '${_assignments.length}',
+                        '${assignments.length}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.primaryColor,
@@ -493,15 +492,15 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  return _buildAssignmentCard(_assignments[index]);
+                  return _buildAssignmentCard(assignments[index]);
                 },
-                childCount: _assignments.length,
+                childCount: assignments.length,
               ),
             ),
           ],
 
           // Quizzes Section
-          if (_quizzes.isNotEmpty) ...[
+          if (quizzes.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -531,7 +530,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         borderRadius: BorderRadius.circular(AppTheme.radiusS),
                       ),
                       child: Text(
-                        '${_quizzes.length}',
+                        '${quizzes.length}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.infoColor,
@@ -546,15 +545,15 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  return _buildQuizCard(_quizzes[index]);
+                  return _buildQuizCard(quizzes[index]);
                 },
-                childCount: _quizzes.length,
+                childCount: quizzes.length,
               ),
             ),
           ],
 
           // Materials Section
-          if (_materials.isNotEmpty) ...[
+          if (materials.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -584,7 +583,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         borderRadius: BorderRadius.circular(AppTheme.radiusS),
                       ),
                       child: Text(
-                        '${_materials.length}',
+                        '${materials.length}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.warningColor,
@@ -599,9 +598,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  return _buildMaterialCard(_materials[index]);
+                  return _buildMaterialCard(materials[index]);
                 },
-                childCount: _materials.length,
+                childCount: materials.length,
               ),
             ),
           ],

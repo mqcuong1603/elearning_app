@@ -362,6 +362,24 @@ class MaterialService {
     }
   }
 
+  /// Stream materials by course (real-time updates)
+  Stream<List<MaterialModel>> streamMaterialsByCourse(String courseId) {
+    return _firestoreService.streamQuery(
+      collection: AppConstants.collectionMaterials,
+      filters: [
+        QueryFilter(field: 'courseId', isEqualTo: courseId),
+      ],
+    ).map((data) {
+      final materials =
+          data.map((json) => MaterialModel.fromJson(json)).toList();
+
+      // Sort in memory by createdAt descending
+      materials.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return materials;
+    });
+  }
+
   // ==================== PRIVATE HELPER METHODS ====================
 
   /// Upload files to Firebase Storage

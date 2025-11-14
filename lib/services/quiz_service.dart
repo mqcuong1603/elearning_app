@@ -514,4 +514,22 @@ class QuizService {
       return {'canTake': false, 'reason': 'Error checking quiz availability'};
     }
   }
+
+  /// Stream quizzes for a course (real-time updates)
+  Stream<List<QuizModel>> streamQuizzesForCourse(String courseId) {
+    return _firestore
+        .collection(AppConstants.collectionQuizzes)
+        .where('courseId', isEqualTo: courseId)
+        .snapshots()
+        .map((snapshot) {
+      final quizzes = snapshot.docs
+          .map((doc) => QuizModel.fromJson(doc.data()))
+          .toList();
+
+      // Sort in memory to avoid requiring a composite index
+      quizzes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return quizzes;
+    });
+  }
 }
