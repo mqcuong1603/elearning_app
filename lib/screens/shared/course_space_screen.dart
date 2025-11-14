@@ -31,6 +31,7 @@ import '../student/quiz_taking_screen.dart';
 import './material_details_screen.dart';
 import './forum/forum_list_screen.dart';
 import './messaging/conversations_list_screen.dart';
+import './messaging/chat_screen.dart';
 
 /// Course Space Screen with 3 Tabs: Stream, Classwork, People
 /// Forum integrated into People tab, Messages accessible via AppBar
@@ -606,17 +607,25 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     ),
                     title: Text(widget.course.instructorName),
                     subtitle: const Text('Course Instructor'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.message),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ConversationsListScreen(),
-                          ),
-                        );
-                      },
-                      tooltip: 'Send message',
-                    ),
+                    // Students can message instructor, but instructor shouldn't see message icon for themselves
+                    trailing: widget.currentUserRole == AppConstants.roleStudent
+                        ? IconButton(
+                            icon: const Icon(Icons.message),
+                            onPressed: () {
+                              // Navigate directly to chat with instructor
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                    partnerId: widget.course.instructorId,
+                                    partnerName: widget.course.instructorName,
+                                    partnerRole: AppConstants.roleInstructor,
+                                  ),
+                                ),
+                              );
+                            },
+                            tooltip: 'Send message',
+                          )
+                        : null,
                   ),
                 ],
               ),
@@ -1534,23 +1543,140 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           ],
         ),
         subtitle: Text('${group.studentIds.length} students'),
-        trailing: widget.currentUserRole == AppConstants.roleInstructor
-            ? IconButton(
-                icon: const Icon(Icons.edit, size: 20),
-                onPressed: () {
-                  // TODO: Edit group
-                },
-              )
-            : null,
+        trailing: const Icon(Icons.chevron_right, size: 20),
         onTap: () {
-          // TODO: View group details
+          _showGroupDetailsDialog(group);
         },
+      ),
+    );
+  }
+
+  // Show Group Details Dialog
+  void _showGroupDetailsDialog(GroupModel group) {
+    // Get students in this group
+    final groupStudents = _students.where((student) {
+      return group.hasStudent(student.id);
+    }).toList();
+
+    // Sort students by name
+    groupStudents.sort((a, b) => a.fullName.compareTo(b.fullName));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.group, color: AppTheme.primaryColor),
+            const SizedBox(width: AppTheme.spacingS),
+            Expanded(
+              child: Text(
+                group.name,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${groupStudents.length} ${groupStudents.length == 1 ? 'Student' : 'Students'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              const Divider(),
+              Flexible(
+                child: groupStudents.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(AppTheme.spacingL),
+                        child: Center(
+                          child: Text(
+                            'No students in this group yet',
+                            style: TextStyle(color: AppTheme.textSecondaryColor),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: groupStudents.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final student = groupStudents[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: AppTheme.primaryColor,
+                              child: Text(
+                                student.fullName.substring(0, 1).toUpperCase(),
+                                style: TextStyle(
+                                  color: AppTheme.textOnPrimaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              student.fullName,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              'ID: ${student.studentId ?? "N/A"}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            trailing: widget.currentUserRole == AppConstants.roleInstructor
+                                ? IconButton(
+                                    icon: const Icon(Icons.message, size: 18),
+                                    onPressed: () {
+                                      Navigator.of(context).pop(); // Close dialog
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ChatScreen(
+                                            partnerId: student.id,
+                                            partnerName: student.fullName,
+                                            partnerRole: AppConstants.roleStudent,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    tooltip: 'Message ${student.fullName}',
+                                  )
+                                : null,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
 
   // Build Student List Tile
   Widget _buildStudentListTile(UserModel student) {
+    // Find which group this student belongs to
+    String? groupName;
+    for (var group in _groups) {
+      if (group.hasStudent(student.id)) {
+        groupName = group.name;
+        break;
+      }
+    }
+
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: AppTheme.primaryColor,
@@ -1563,13 +1689,37 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         ),
       ),
       title: Text(student.fullName),
-      subtitle: Text('ID: ${student.studentId ?? "N/A"}'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ID: ${student.studentId ?? "N/A"}'),
+          if (groupName != null)
+            Text(
+              'Group: $groupName',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
       trailing: widget.currentUserRole == AppConstants.roleInstructor
           ? IconButton(
               icon: const Icon(Icons.message, size: 20),
               onPressed: () {
-                // TODO: Send message to student
+                // Navigate directly to chat with student
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      partnerId: student.id,
+                      partnerName: student.fullName,
+                      partnerRole: AppConstants.roleStudent,
+                    ),
+                  ),
+                );
               },
+              tooltip: 'Send message to ${student.fullName}',
             )
           : null,
     );

@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../models/message_model.dart';
 import '../../../models/announcement_model.dart';
 import '../../../providers/message_provider.dart';
@@ -31,15 +34,25 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<PlatformFile> _selectedFiles = [];
+  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadConversation();
+    // Auto-refresh every 5 seconds to get new messages
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        _loadConversation();
+      }
+    });
   }
 
   void _loadConversation() {
+    if (!mounted) return;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final authService = context.read<AuthService>();
       final currentUser = authService.currentUser;
       if (currentUser != null) {
@@ -54,6 +67,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -450,10 +464,51 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _downloadAttachment(AttachmentModel attachment) async {
-    // This is a simplified version - in production, implement proper download
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening ${attachment.filename}...')),
-    );
-    // TODO: Implement actual file download/open functionality
+    try {
+      if (kIsWeb) {
+        // On web, open file in new browser tab
+        final url = Uri.parse(attachment.url);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Opening ${attachment.filename}...'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Could not open file');
+        }
+      } else {
+        // On mobile/desktop, open with url_launcher (will download or open with default app)
+        final url = Uri.parse(attachment.url);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Downloading ${attachment.filename}...'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Could not download file');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening file: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

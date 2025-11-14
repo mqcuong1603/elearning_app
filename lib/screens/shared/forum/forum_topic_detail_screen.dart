@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../models/course_model.dart';
 import '../../../models/forum_topic_model.dart';
 import '../../../models/forum_reply_model.dart';
@@ -33,15 +36,25 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
   String? _replyingToId;
   String? _replyingToAuthor;
   List<PlatformFile> _selectedFiles = [];
+  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadTopicAndReplies();
+    // Auto-refresh every 10 seconds to get new replies
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) {
+        _loadTopicAndReplies();
+      }
+    });
   }
 
   void _loadTopicAndReplies() {
+    if (!mounted) return;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final forumProvider = context.read<ForumProvider>();
       forumProvider.loadTopicById(widget.topicId);
       forumProvider.loadRepliesByTopic(widget.topicId);
@@ -50,6 +63,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _replyController.dispose();
     _replyFocusNode.dispose();
     super.dispose();
@@ -621,17 +635,49 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
   }
 
   Future<void> _downloadAttachment(AttachmentModel attachment) async {
-    final storageService = context.read<StorageService>();
     try {
-      // This is a simplified version - in production, implement proper download
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Opening ${attachment.filename}...')),
-      );
-      // TODO: Implement actual file download/open functionality
+      if (kIsWeb) {
+        // On web, open file in new browser tab
+        final url = Uri.parse(attachment.url);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Opening ${attachment.filename}...'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Could not open file');
+        }
+      } else {
+        // On mobile/desktop, open with url_launcher (will download or open with default app)
+        final url = Uri.parse(attachment.url);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Downloading ${attachment.filename}...'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          throw Exception('Could not download file');
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error downloading file: $e')),
+          SnackBar(
+            content: Text('Error opening file: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
