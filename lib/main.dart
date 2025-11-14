@@ -14,6 +14,7 @@ import 'services/student_service.dart';
 import 'services/group_service.dart';
 import 'services/announcement_service.dart';
 import 'services/assignment_service.dart';
+import 'services/material_service.dart';
 import 'services/quiz_service.dart';
 import 'services/question_service.dart';
 import 'providers/semester_provider.dart';
@@ -22,6 +23,7 @@ import 'providers/student_provider.dart';
 import 'providers/group_provider.dart';
 import 'providers/announcement_provider.dart';
 import 'providers/assignment_provider.dart';
+import 'providers/material_provider.dart';
 import 'providers/quiz_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/instructor/instructor_dashboard_screen.dart';
@@ -122,6 +124,15 @@ class MyApp extends StatelessWidget {
             storageService: storageService,
           ),
         ),
+        ProxyProvider3<FirestoreService, HiveService, StorageService,
+            MaterialService>(
+          update: (_, firestoreService, hiveService, storageService, __) =>
+              MaterialService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+            storageService: storageService,
+          ),
+        ),
         Provider<QuizService>(
           create: (_) => QuizService(),
         ),
@@ -171,6 +182,13 @@ class MyApp extends StatelessWidget {
           ),
           update: (_, assignmentService, previous) => previous ??
               AssignmentProvider(assignmentService: assignmentService),
+        ),
+        ChangeNotifierProxyProvider<MaterialService, MaterialProvider>(
+          create: (context) => MaterialProvider(
+            materialService: context.read<MaterialService>(),
+          ),
+          update: (_, materialService, previous) => previous ??
+              MaterialProvider(materialService: materialService),
         ),
         ChangeNotifierProvider<QuizProvider>(
           create: (context) => QuizProvider(),

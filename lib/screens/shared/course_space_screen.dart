@@ -17,14 +17,17 @@ import '../../services/auth_service.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
 import '../../providers/quiz_provider.dart';
+import '../../providers/material_provider.dart';
 import '../../widgets/announcement_card.dart';
 import '../../widgets/announcement_form_dialog.dart';
 import '../../widgets/assignment_form_dialog.dart';
+import '../../widgets/material_form_dialog.dart';
 import '../student/assignment_submission_screen.dart';
 import '../instructor/assignment_tracking_screen.dart';
 import '../instructor/quiz_management_screen.dart';
 import '../instructor/question_bank_screen.dart';
 import '../student/quiz_taking_screen.dart';
+import './material_details_screen.dart';
 
 /// Course Space Screen with 3 Tabs: Stream, Classwork, People
 /// Based on PDF requirements (Interface requirement - 2 pts)
@@ -52,7 +55,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   List<AnnouncementModel> _announcements = [];
   List<AssignmentModel> _assignments = [];
   List<QuizModel> _quizzes = [];
-  final List<MaterialModel> _materials = [];
+  List<MaterialModel> _materials = [];
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
 
@@ -210,8 +213,10 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       }
       _quizzes = quizProvider.quizzes;
 
-      // TODO: Load materials
-      // These will be implemented in future iterations
+      // Load materials (automatically visible to all students in the course)
+      final materialProvider = context.read<MaterialProvider>();
+      await materialProvider.loadMaterialsByCourse(widget.course.id);
+      _materials = materialProvider.materials;
 
       if (mounted) {
         setState(() {
@@ -997,6 +1002,46 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     }
   }
 
+  // Show Create Material Dialog
+  Future<void> _showCreateMaterialDialog() async {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null) return;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => MaterialFormDialog(
+        courseId: widget.course.id,
+      ),
+    );
+
+    if (result != null && mounted) {
+      final materialProvider = context.read<MaterialProvider>();
+      final materialId = await materialProvider.createMaterial(
+        courseId: widget.course.id,
+        title: result['title'],
+        description: result['description'],
+        instructorId: currentUser.id,
+        instructorName: currentUser.fullName,
+        files: result['newFiles'],
+        links: result['links'],
+      );
+
+      if (materialId != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Material created successfully')),
+        );
+        await _loadData(); // Reload to show new material
+      } else if (mounted) {
+        final error = materialProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to create material')),
+        );
+      }
+    }
+  }
+
   // Build Assignment Card
   Widget _buildAssignmentCard(AssignmentModel assignment) {
     Color statusColor = AppTheme.successColor;
@@ -1280,7 +1325,11 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       ),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to material details
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MaterialDetailsScreen(material: material),
+            ),
+          ).then((_) => _loadData()); // Reload data when returning
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         child: Padding(
@@ -1568,12 +1617,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 title: const Text('Add Material'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to add material
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Add material feature coming soon!'),
-                    ),
-                  );
+                  _showCreateMaterialDialog();
                 },
               ),
             ],
