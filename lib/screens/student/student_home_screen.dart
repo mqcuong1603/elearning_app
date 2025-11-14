@@ -287,7 +287,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          _buildHomeTab(currentUser),
+          _buildHomeTab(currentUser, semesters, selectedSemester),
           _buildDashboardTab(currentUser),
           _buildForumTab(currentUser),
           _buildMessagingTab(currentUser),
@@ -328,7 +328,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildHomeTab(dynamic currentUser) {
+  Widget _buildHomeTab(dynamic currentUser, List<SemesterModel> semesters,
+      SemesterModel? selectedSemester) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       child: Column(
@@ -497,8 +498,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     // Calculate assignment stats
     final now = DateTime.now();
     final openAssignments = _allAssignments.where((a) => a.isOpen).toList();
-    final closedAssignments =
-        _allAssignments.where((a) => a.isClosed).toList();
     final upcomingAssignments = _allAssignments.where((a) => a.isUpcoming).toList();
 
     final upcomingDueThisWeek = _allAssignments.where((a) {
@@ -603,7 +602,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             else
               ...upcomingDueThisWeek.take(5).map((assignment) {
                 final daysUntil = assignment.deadline.difference(now).inDays;
-                final hoursUntil = assignment.deadline.difference(now).inHours;
 
                 String timeText;
                 Color timeColor;
