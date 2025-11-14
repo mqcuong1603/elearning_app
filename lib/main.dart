@@ -138,22 +138,34 @@ class MyApp extends StatelessWidget {
             hiveService: hiveService,
           ),
         ),
-        ProxyProvider3<FirestoreService, HiveService, StorageService,
-            AnnouncementService>(
-          update: (_, firestoreService, hiveService, storageService, __) =>
+        ProxyProvider2<FirestoreService, HiveService, NotificationService>(
+          update: (_, firestoreService, hiveService, __) => NotificationService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+          ),
+        ),
+        ProxyProvider5<FirestoreService, HiveService, StorageService,
+            NotificationService, EmailService, AnnouncementService>(
+          update: (_, firestoreService, hiveService, storageService,
+                  notificationService, emailService, __) =>
               AnnouncementService(
             firestoreService: firestoreService,
             hiveService: hiveService,
             storageService: storageService,
+            notificationService: notificationService,
+            emailService: emailService,
           ),
         ),
-        ProxyProvider3<FirestoreService, HiveService, StorageService,
-            AssignmentService>(
-          update: (_, firestoreService, hiveService, storageService, __) =>
+        ProxyProvider5<FirestoreService, HiveService, StorageService,
+            NotificationService, EmailService, AssignmentService>(
+          update: (_, firestoreService, hiveService, storageService,
+                  notificationService, emailService, __) =>
               AssignmentService(
             firestoreService: firestoreService,
             hiveService: hiveService,
             storageService: storageService,
+            notificationService: notificationService,
+            emailService: emailService,
           ),
         ),
         ProxyProvider3<FirestoreService, HiveService, StorageService,
@@ -187,12 +199,6 @@ class MyApp extends StatelessWidget {
             firestoreService: firestoreService,
             hiveService: hiveService,
             storageService: storageService,
-          ),
-        ),
-        ProxyProvider2<FirestoreService, HiveService, NotificationService>(
-          update: (_, firestoreService, hiveService, __) => NotificationService(
-            firestoreService: firestoreService,
-            hiveService: hiveService,
           ),
         ),
         ProxyProvider2<NotificationService, EmailService, DeadlineMonitoringService>(
@@ -380,7 +386,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Faculty of Information Technology',
               style: TextStyle(
                 fontSize: 16,
-                color: AppTheme.textOnPrimaryColor.withOpacity(0.9),
+                color: AppTheme.textOnPrimaryColor.withValues(alpha: 0.9),
               ),
             ),
             const SizedBox(height: 48),
