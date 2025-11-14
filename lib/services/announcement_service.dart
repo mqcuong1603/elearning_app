@@ -611,40 +611,57 @@ class AnnouncementService {
     required List<String> groupIds,
   }) async {
     try {
+      print('📢 Starting announcement notification process');
+      print('   Announcement: $announcementTitle');
+      print('   Course ID: $courseId');
+      print('   Group IDs to notify: $groupIds');
+
       // Get course details
       final courseData = await _firestoreService.read(
         collection: AppConstants.collectionCourses,
         documentId: courseId,
       );
-      if (courseData == null) return;
+      if (courseData == null) {
+        print('❌ Course not found, aborting notifications');
+        return;
+      }
 
       final course = CourseModel.fromJson(courseData);
       final courseName = course.name;
+      print('   Course Name: $courseName');
 
       // Get all students from the specified groups
       final List<String> studentIds = [];
       for (final groupId in groupIds) {
+        print('   📋 Fetching group: $groupId');
         final groupData = await _firestoreService.read(
           collection: AppConstants.collectionGroups,
           documentId: groupId,
         );
         if (groupData != null) {
+          print('   ✅ Group found: ${groupData['name']}');
           final studentIdsInGroup = List<String>.from(groupData['studentIds'] ?? []);
+          print('   👥 Students in group: ${studentIdsInGroup.length} (${studentIdsInGroup.join(', ')})');
           studentIds.addAll(studentIdsInGroup);
+        } else {
+          print('   ⚠️  Group not found: $groupId');
         }
       }
 
       // Remove duplicates
       final uniqueStudentIds = studentIds.toSet().toList();
+      print('   📊 Total unique students to notify: ${uniqueStudentIds.length}');
 
       if (uniqueStudentIds.isEmpty) {
-        print('No students found in groups, skipping notifications');
+        print('❌ No students found in groups, skipping notifications');
+        print('   💡 TIP: Make sure students are added to the selected groups');
         return;
       }
 
-      print('Sending announcement notifications to ${uniqueStudentIds.length} students');
+      print('✅ Sending announcement notifications to ${uniqueStudentIds.length} students');
 
       // Create in-app notifications for all students
+      print('   📱 Creating in-app notifications...');
       await _notificationService.createNotificationsForUsers(
         userIds: uniqueStudentIds,
         type: AppConstants.notificationTypeAnnouncement,
@@ -657,8 +674,12 @@ class AnnouncementService {
           'courseName': courseName,
         },
       );
+      print('   ✅ In-app notifications created');
 
       // Send email notifications to all students
+      print('   📧 Sending email notifications...');
+      int emailsSent = 0;
+      int emailsSkipped = 0;
       for (final studentId in uniqueStudentIds) {
         try {
           final userData = await _firestoreService.read(
@@ -668,6 +689,7 @@ class AnnouncementService {
           if (userData != null) {
             final user = UserModel.fromJson(userData);
             if (user.email != null && user.email!.isNotEmpty) {
+              print('      📨 Sending email to: ${user.fullName} <${user.email}>');
               // Send email asynchronously (non-blocking)
               _emailService.sendEmailAsync(
                 recipientEmail: user.email!,
@@ -682,15 +704,24 @@ class AnnouncementService {
                 ''',
                 isHtml: true,
               );
+              emailsSent++;
+            } else {
+              print('      ⚠️  No email found for student: ${user.fullName} (ID: $studentId)');
+              emailsSkipped++;
             }
+          } else {
+            print('      ⚠️  User data not found for student ID: $studentId');
+            emailsSkipped++;
           }
         } catch (e) {
-          print('Error sending email to student $studentId: $e');
+          print('      ❌ Error sending email to student $studentId: $e');
+          emailsSkipped++;
           // Continue with other students
         }
       }
+      print('   📊 Email summary: $emailsSent sent, $emailsSkipped skipped');
 
-      print('Announcement notifications sent successfully');
+      print('✅ Announcement notifications sent successfully');
     } catch (e) {
       print('Error sending announcement notifications: $e');
       throw e;
