@@ -33,14 +33,10 @@ class MaterialService {
       final materials =
           data.map((json) => MaterialModel.fromJson(json)).toList();
 
-      // Cache materials
-      await _cacheMaterials(materials);
-
       return materials;
     } catch (e) {
       print('Get all materials error: $e');
-      // Try to get from cache if online fetch fails
-      return _getCachedMaterials();
+      return [];
     }
   }
 
@@ -104,9 +100,9 @@ class MaterialService {
   /// Get material by ID
   Future<MaterialModel?> getMaterialById(String id) async {
     try {
-      final data = await _firestoreService.getDocument(
+      final data = await _firestoreService.read(
         collection: AppConstants.collectionMaterials,
-        id: id,
+        documentId: id,
       );
 
       if (data == null) return null;
@@ -150,14 +146,10 @@ class MaterialService {
         downloadedBy: {},
       );
 
-      final id = await _firestoreService.addDocument(
+      final id = await _firestoreService.create(
         collection: AppConstants.collectionMaterials,
         data: material.toJson(),
       );
-
-      // Update cache
-      final materialWithId = material.copyWith(id: id);
-      await _addToCache(materialWithId);
 
       return id;
     } catch (e) {
@@ -182,10 +174,10 @@ class MaterialService {
             (f) => f.id == fileId,
             orElse: () => AttachmentModel(
               id: '',
-              name: '',
+              filename: '',
               url: '',
               size: 0,
-              uploadedAt: DateTime.now(),
+              type: '',
             ),
           );
 
@@ -208,14 +200,11 @@ class MaterialService {
         updatedAt: DateTime.now(),
       );
 
-      await _firestoreService.updateDocument(
+      await _firestoreService.update(
         collection: AppConstants.collectionMaterials,
-        id: material.id,
+        documentId: material.id,
         data: updatedMaterial.toJson(),
       );
-
-      // Update cache
-      await _updateCache(updatedMaterial);
     } catch (e) {
       print('Update material error: $e');
       rethrow;
@@ -233,19 +222,16 @@ class MaterialService {
           try {
             await _storageService.deleteFile(file.url);
           } catch (e) {
-            print('Error deleting file ${file.name}: $e');
+            print('Error deleting file ${file.filename}: $e');
           }
         }
       }
 
       // Delete document from Firestore
-      await _firestoreService.deleteDocument(
+      await _firestoreService.delete(
         collection: AppConstants.collectionMaterials,
-        id: materialId,
+        documentId: materialId,
       );
-
-      // Remove from cache
-      await _removeFromCache(materialId);
     } catch (e) {
       print('Delete material error: $e');
       rethrow;
@@ -269,14 +255,11 @@ class MaterialService {
       // Add user to viewedBy list
       final updatedViewedBy = List<String>.from(material.viewedBy)..add(userId);
 
-      await _firestoreService.updateDocument(
+      await _firestoreService.update(
         collection: AppConstants.collectionMaterials,
-        id: materialId,
+        documentId: materialId,
         data: {'viewedBy': updatedViewedBy},
       );
-
-      // Update cache
-      await _updateCache(material.copyWith(viewedBy: updatedViewedBy));
     } catch (e) {
       print('Mark material as viewed error: $e');
     }
@@ -309,14 +292,11 @@ class MaterialService {
         updatedDownloadedBy[fileId] = [userId];
       }
 
-      await _firestoreService.updateDocument(
+      await _firestoreService.update(
         collection: AppConstants.collectionMaterials,
-        id: materialId,
+        documentId: materialId,
         data: {'downloadedBy': updatedDownloadedBy},
       );
-
-      // Update cache
-      await _updateCache(material.copyWith(downloadedBy: updatedDownloadedBy));
     } catch (e) {
       print('Track download error: $e');
     }
@@ -394,100 +374,30 @@ class MaterialService {
     final attachments = <AttachmentModel>[];
 
     for (final file in files) {
-      if (file.bytes != null) {
-        try {
-          final fileName =
-              '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
-          final path = '${AppConstants.storageMaterials}/$courseId/$fileName';
+      try {
+        final fileName =
+            '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+        final path = '${AppConstants.storageMaterials}/$courseId';
 
-          final url = await _storageService.uploadFile(
-            path: path,
-            bytes: file.bytes!,
-          );
+        final url = await _storageService.uploadPlatformFile(
+          file: file,
+          storagePath: path,
+        );
 
-          final attachment = AttachmentModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            filename: file.name,
-            url: url,
-            size: file.size,
-            type: file.extension ?? 'unknown',
-          );
+        final attachment = AttachmentModel(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          filename: file.name,
+          url: url,
+          size: file.size,
+          type: file.extension ?? 'unknown',
+        );
 
-          attachments.add(attachment);
-        } catch (e) {
-          print('Error uploading file ${file.name}: $e');
-        }
+        attachments.add(attachment);
+      } catch (e) {
+        print('Error uploading file ${file.name}: $e');
       }
     }
 
     return attachments;
-  }
-
-  /// Cache materials locally
-  Future<void> _cacheMaterials(List<MaterialModel> materials) async {
-    try {
-      final box = await _hiveService.openBox(AppConstants.hiveBoxMaterials);
-      for (final material in materials) {
-        await box.put(material.id, material.toJson());
-      }
-    } catch (e) {
-      print('Cache materials error: $e');
-    }
-  }
-
-  /// Get cached materials
-  Future<List<MaterialModel>> _getCachedMaterials() async {
-    try {
-      final box = await _hiveService.openBox(AppConstants.hiveBoxMaterials);
-      final materials = <MaterialModel>[];
-
-      for (final key in box.keys) {
-        try {
-          final json = box.get(key) as Map<dynamic, dynamic>;
-          final materialJson = Map<String, dynamic>.from(json);
-          materials.add(MaterialModel.fromJson(materialJson));
-        } catch (e) {
-          print('Error parsing cached material: $e');
-        }
-      }
-
-      // Sort by createdAt descending
-      materials.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-      return materials;
-    } catch (e) {
-      print('Get cached materials error: $e');
-      return [];
-    }
-  }
-
-  /// Add material to cache
-  Future<void> _addToCache(MaterialModel material) async {
-    try {
-      final box = await _hiveService.openBox(AppConstants.hiveBoxMaterials);
-      await box.put(material.id, material.toJson());
-    } catch (e) {
-      print('Add to cache error: $e');
-    }
-  }
-
-  /// Update material in cache
-  Future<void> _updateCache(MaterialModel material) async {
-    try {
-      final box = await _hiveService.openBox(AppConstants.hiveBoxMaterials);
-      await box.put(material.id, material.toJson());
-    } catch (e) {
-      print('Update cache error: $e');
-    }
-  }
-
-  /// Remove material from cache
-  Future<void> _removeFromCache(String materialId) async {
-    try {
-      final box = await _hiveService.openBox(AppConstants.hiveBoxMaterials);
-      await box.delete(materialId);
-    } catch (e) {
-      print('Remove from cache error: $e');
-    }
   }
 }
