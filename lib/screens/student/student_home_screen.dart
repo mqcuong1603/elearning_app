@@ -5,8 +5,13 @@ import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../providers/course_provider.dart';
 import '../../providers/semester_provider.dart';
+import '../../providers/assignment_provider.dart';
+import '../../providers/quiz_provider.dart';
+import '../../providers/group_provider.dart';
 import '../../models/course_model.dart';
 import '../../models/semester_model.dart';
+import '../../models/assignment_model.dart';
+import '../../models/quiz_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
 import '../shared/messaging/conversations_list_screen.dart';
@@ -25,6 +30,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   bool _isLoadingCourses = true;
   List<SemesterModel> _semesters = [];
   SemesterModel? _selectedSemester;
+
+  // Dashboard data
+  List<AssignmentModel> _allAssignments = [];
+  List<QuizModel> _allQuizzes = [];
+  bool _isLoadingDashboard = false;
+  List<String> _studentGroupIds = [];
 
   @override
   void initState() {
@@ -90,6 +101,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           _enrolledCourses = courses;
           _isLoadingCourses = false;
         });
+
+        // Load dashboard data after courses are loaded
+        await _loadDashboardData();
       }
     } catch (e) {
       if (mounted) {
@@ -102,6 +116,74 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             backgroundColor: AppTheme.errorColor,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _loadDashboardData() async {
+    if (!mounted) return;
+
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null || _enrolledCourses.isEmpty) return;
+
+    setState(() {
+      _isLoadingDashboard = true;
+    });
+
+    try {
+      final groupProvider = context.read<GroupProvider>();
+      final assignmentProvider = context.read<AssignmentProvider>();
+      final quizProvider = context.read<QuizProvider>();
+
+      // Get student's group IDs from all enrolled courses
+      Set<String> groupIds = {};
+      for (var course in _enrolledCourses) {
+        await groupProvider.loadGroupsByCourse(course.id);
+        for (var group in groupProvider.groups) {
+          if (group.studentIds.contains(currentUser.id)) {
+            groupIds.add(group.id);
+          }
+        }
+      }
+
+      _studentGroupIds = groupIds.toList();
+
+      // Load all assignments and quizzes for enrolled courses
+      List<AssignmentModel> allAssignments = [];
+      List<QuizModel> allQuizzes = [];
+
+      for (var course in _enrolledCourses) {
+        // Load assignments for this course
+        await assignmentProvider.loadAssignmentsForStudent(
+          courseId: course.id,
+          studentId: currentUser.id,
+          studentGroupIds: _studentGroupIds,
+        );
+        allAssignments.addAll(assignmentProvider.assignments);
+
+        // Load quizzes for this course
+        await quizProvider.loadAvailableQuizzes(
+          courseId: course.id,
+          studentGroupIds: _studentGroupIds,
+        );
+        allQuizzes.addAll(quizProvider.quizzes);
+      }
+
+      if (mounted) {
+        setState(() {
+          _allAssignments = allAssignments;
+          _allQuizzes = allQuizzes;
+          _isLoadingDashboard = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingDashboard = false;
+        });
+        print('Error loading dashboard data: $e');
       }
     }
   }
@@ -407,6 +489,23 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildDashboardTab(dynamic currentUser) {
+    // Calculate assignment stats
+    final now = DateTime.now();
+    final openAssignments = _allAssignments.where((a) => a.isOpen).toList();
+    final closedAssignments =
+        _allAssignments.where((a) => a.isClosed).toList();
+    final upcomingAssignments = _allAssignments.where((a) => a.isUpcoming).toList();
+
+    final upcomingDueThisWeek = _allAssignments.where((a) {
+      final daysUntilDue = a.deadline.difference(now).inDays;
+      return daysUntilDue >= 0 && daysUntilDue <= 7 && a.isOpen;
+    }).toList();
+
+    final totalQuizzes = _allQuizzes.length;
+
+    // Sort upcoming by due date
+    upcomingDueThisWeek.sort((a, b) => a.deadline.compareTo(b.deadline));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       child: Column(
@@ -421,75 +520,154 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const SizedBox(height: AppTheme.spacingL),
 
           // Quick Stats
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.assignment_turned_in,
-                  title: 'Completed',
-                  value: '0',
-                  color: AppTheme.successColor,
-                ),
+          if (_isLoadingDashboard)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppTheme.spacingXL),
+                child: CircularProgressIndicator(),
               ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.pending_actions,
-                  title: 'Pending',
-                  value: '0',
-                  color: AppTheme.warningColor,
+            )
+          else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.assignment,
+                    title: 'Open',
+                    value: '${openAssignments.length}',
+                    color: AppTheme.successColor,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.schedule,
-                  title: 'Upcoming',
-                  value: '0',
-                  color: AppTheme.infoColor,
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.pending_actions,
+                    title: 'Upcoming',
+                    value: '${upcomingAssignments.length}',
+                    color: AppTheme.warningColor,
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.star,
-                  title: 'Avg Score',
-                  value: '-',
-                  color: AppTheme.primaryColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingL),
-
-          // Upcoming Deadlines
-          Text(
-            'Upcoming Deadlines',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingL),
-              child: Center(
-                child: Text(
-                  'No upcoming deadlines',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                ),
-              ),
+              ],
             ),
-          ),
+            const SizedBox(height: AppTheme.spacingM),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.schedule,
+                    title: 'Due This Week',
+                    value: '${upcomingDueThisWeek.length}',
+                    color: AppTheme.infoColor,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.quiz,
+                    title: 'Total Quizzes',
+                    value: '$totalQuizzes',
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+
+            // Upcoming Deadlines
+            Text(
+              'Upcoming Deadlines',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            if (upcomingDueThisWeek.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTheme.spacingL),
+                  child: Center(
+                    child: Text(
+                      'No upcoming deadlines this week',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...upcomingDueThisWeek.take(5).map((assignment) {
+                final daysUntil = assignment.deadline.difference(now).inDays;
+                final hoursUntil = assignment.deadline.difference(now).inHours;
+
+                String timeText;
+                Color timeColor;
+                if (daysUntil == 0) {
+                  timeText = 'Due today';
+                  timeColor = AppTheme.errorColor;
+                } else if (daysUntil == 1) {
+                  timeText = 'Due tomorrow';
+                  timeColor = AppTheme.warningColor;
+                } else if (daysUntil <= 3) {
+                  timeText = 'Due in $daysUntil days';
+                  timeColor = AppTheme.warningColor;
+                } else {
+                  timeText = 'Due in $daysUntil days';
+                  timeColor = AppTheme.textSecondaryColor;
+                }
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.assignment,
+                      color: timeColor,
+                    ),
+                    title: Text(
+                      assignment.title,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      _getCourseName(assignment.courseId),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingS,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: timeColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                      ),
+                      child: Text(
+                        timeText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: timeColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+          ],
         ],
       ),
     );
+  }
+
+  String _getCourseName(String courseId) {
+    try {
+      final course =
+          _enrolledCourses.firstWhere((c) => c.id == courseId);
+      return course.name;
+    } catch (e) {
+      return 'Unknown Course';
+    }
   }
 
   Widget _buildForumTab(dynamic currentUser) {

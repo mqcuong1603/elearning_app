@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../providers/course_provider.dart';
 import '../../providers/semester_provider.dart';
+import '../../providers/assignment_provider.dart';
+import '../../providers/quiz_provider.dart';
+import '../../providers/group_provider.dart';
 import '../../models/course_model.dart';
+import '../../models/semester_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
 import '../debug/enrollment_debug_screen.dart';
@@ -27,42 +32,69 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
   List<CourseModel> _instructorCourses = [];
   bool _isLoadingCourses = true;
 
+  // Semester selection
+  List<SemesterModel> _semesters = [];
+  SemesterModel? _selectedSemester;
+
+  // Dashboard metrics
+  int _totalGroups = 0;
+  int _totalStudents = 0;
+  int _totalAssignments = 0;
+  int _totalQuizzes = 0;
+  bool _isLoadingMetrics = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadInstructorCourses();
+      _loadSemesters();
     });
+  }
+
+  Future<void> _loadSemesters() async {
+    if (!mounted) return;
+
+    try {
+      final semesterProvider = context.read<SemesterProvider>();
+      await semesterProvider.loadSemesters();
+
+      if (mounted) {
+        setState(() {
+          _semesters = semesterProvider.semesters;
+          _selectedSemester = semesterProvider.currentSemester;
+        });
+
+        // Load courses and metrics for current semester
+        if (_selectedSemester != null) {
+          await _loadInstructorCourses();
+        }
+      }
+    } catch (e) {
+      print('Error loading semesters: $e');
+    }
   }
 
   Future<void> _loadInstructorCourses() async {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
 
-    if (currentUser == null) return;
+    if (currentUser == null || _selectedSemester == null) return;
 
     setState(() => _isLoadingCourses = true);
 
     try {
       final courseProvider = context.read<CourseProvider>();
-      final semesterProvider = context.read<SemesterProvider>();
 
-      // Load semesters if not loaded
-      if (semesterProvider.semesters.isEmpty) {
-        await semesterProvider.loadSemesters();
-      }
+      // Load courses for selected semester
+      await courseProvider.loadCoursesBySemester(_selectedSemester!.id);
 
-      // Get current semester
-      final currentSemester = semesterProvider.currentSemester;
-      if (currentSemester != null) {
-        // Load courses for current semester
-        await courseProvider.loadCoursesBySemester(currentSemester.id);
+      // Filter only courses taught by this instructor
+      _instructorCourses = courseProvider.courses
+          .where((course) => course.instructorId == currentUser.id)
+          .toList();
 
-        // Filter only courses taught by this instructor
-        _instructorCourses = courseProvider.courses
-            .where((course) => course.instructorId == currentUser.id)
-            .toList();
-      }
+      // Load metrics after courses are loaded
+      await _loadDashboardMetrics();
     } catch (e) {
       print('Load instructor courses error: $e');
     } finally {
@@ -70,6 +102,67 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
         setState(() => _isLoadingCourses = false);
       }
     }
+  }
+
+  Future<void> _loadDashboardMetrics() async {
+    if (!mounted || _instructorCourses.isEmpty) return;
+
+    setState(() => _isLoadingMetrics = true);
+
+    try {
+      final groupProvider = context.read<GroupProvider>();
+      final assignmentProvider = context.read<AssignmentProvider>();
+      final quizProvider = context.read<QuizProvider>();
+
+      int totalGroups = 0;
+      Set<String> uniqueStudentIds = {};
+      int totalAssignments = 0;
+      int totalQuizzes = 0;
+
+      for (var course in _instructorCourses) {
+        // Load groups for this course
+        await groupProvider.loadGroupsByCourse(course.id);
+        totalGroups += groupProvider.groups.length;
+
+        // Collect unique student IDs
+        for (var group in groupProvider.groups) {
+          uniqueStudentIds.addAll(group.studentIds);
+        }
+
+        // Load assignments for this course
+        await assignmentProvider.loadAssignmentsByCourse(course.id);
+        totalAssignments += assignmentProvider.assignments.length;
+
+        // Load quizzes for this course
+        await quizProvider.loadQuizzesForCourse(course.id);
+        totalQuizzes += quizProvider.quizzes.length;
+      }
+
+      if (mounted) {
+        setState(() {
+          _totalGroups = totalGroups;
+          _totalStudents = uniqueStudentIds.length;
+          _totalAssignments = totalAssignments;
+          _totalQuizzes = totalQuizzes;
+          _isLoadingMetrics = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading dashboard metrics: $e');
+      if (mounted) {
+        setState(() => _isLoadingMetrics = false);
+      }
+    }
+  }
+
+  Future<void> _onSemesterChanged(SemesterModel? semester) async {
+    if (semester == null || semester.id == _selectedSemester?.id) return;
+
+    setState(() {
+      _selectedSemester = semester;
+    });
+
+    await _loadInstructorCourses();
   }
 
   Future<void> _handleLogout() async {
@@ -203,62 +296,108 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
             ),
             const SizedBox(height: AppTheme.spacingL),
 
+            // Semester Switcher
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Overview',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                if (_semesters.isNotEmpty) _buildSemesterSwitcher(),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+
             // Quick Stats
-            Text(
-              'Overview',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: AppTheme.spacingM),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    icon: Icons.class_,
-                    title: 'Courses',
-                    value: '0',
-                    color: AppTheme.primaryColor,
-                  ),
+            if (_isLoadingMetrics)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppTheme.spacingXL),
+                  child: CircularProgressIndicator(),
                 ),
-                const SizedBox(width: AppTheme.spacingM),
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    icon: Icons.group,
-                    title: 'Students',
-                    value: '0',
-                    color: AppTheme.successColor,
+              )
+            else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      icon: Icons.class_,
+                      title: 'Courses',
+                      value: '${_instructorCourses.length}',
+                      color: AppTheme.primaryColor,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingM),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    icon: Icons.assignment,
-                    title: 'Assignments',
-                    value: '0',
-                    color: AppTheme.warningColor,
+                  const SizedBox(width: AppTheme.spacingM),
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      icon: Icons.groups,
+                      title: 'Groups',
+                      value: '$_totalGroups',
+                      color: AppTheme.infoColor,
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppTheme.spacingM),
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    icon: Icons.quiz,
-                    title: 'Quizzes',
-                    value: '0',
-                    color: AppTheme.infoColor,
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      icon: Icons.group,
+                      title: 'Students',
+                      value: '$_totalStudents',
+                      color: AppTheme.successColor,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: AppTheme.spacingM),
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      icon: Icons.assignment,
+                      title: 'Assignments',
+                      value: '$_totalAssignments',
+                      color: AppTheme.warningColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      icon: Icons.quiz,
+                      title: 'Quizzes',
+                      value: '$_totalQuizzes',
+                      color: Colors.purple,
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spacingM),
+                  const Expanded(child: SizedBox()), // Empty space
+                ],
+              ),
+            ],
             const SizedBox(height: AppTheme.spacingL),
+
+            // Progress Charts
+            if (!_isLoadingMetrics && _instructorCourses.isNotEmpty) ...[
+              Text(
+                'Progress Overview',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              _buildProgressCharts(),
+              const SizedBox(height: AppTheme.spacingL),
+            ],
 
             // My Courses Section
             Row(
@@ -589,6 +728,223 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSemesterSwitcher() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingS,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryLightColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusS),
+        border: Border.all(
+          color: AppTheme.primaryColor.withOpacity(0.2),
+        ),
+      ),
+      child: DropdownButton<SemesterModel>(
+        value: _selectedSemester,
+        underline: const SizedBox.shrink(),
+        icon: Icon(
+          Icons.arrow_drop_down,
+          color: AppTheme.primaryColor,
+        ),
+        style: TextStyle(
+          fontSize: 14,
+          color: AppTheme.primaryColor,
+          fontWeight: FontWeight.w600,
+        ),
+        dropdownColor: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusS),
+        items: _semesters.map((SemesterModel semester) {
+          return DropdownMenuItem<SemesterModel>(
+            value: semester,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 14,
+                  color: AppTheme.primaryColor,
+                ),
+                const SizedBox(width: AppTheme.spacingXS),
+                Text(
+                  semester.name,
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: semester.isCurrent
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+                if (semester.isCurrent) ...[
+                  const SizedBox(width: AppTheme.spacingXS),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      'Current',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: _onSemesterChanged,
+      ),
+    );
+  }
+
+  Widget _buildProgressCharts() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingL),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Resource Distribution',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            SizedBox(
+              height: 200,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildPieChart(),
+                  ),
+                  const SizedBox(width: AppTheme.spacingL),
+                  Expanded(
+                    child: _buildChartLegend(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPieChart() {
+    final total = _totalAssignments + _totalQuizzes + _instructorCourses.length + _totalGroups;
+    if (total == 0) {
+      return Center(
+        child: Text(
+          'No data available',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textSecondaryColor,
+              ),
+        ),
+      );
+    }
+
+    return PieChart(
+      PieChartData(
+        sectionsSpace: 2,
+        centerSpaceRadius: 50,
+        sections: [
+          PieChartSectionData(
+            value: _instructorCourses.length.toDouble(),
+            title: '${_instructorCourses.length}',
+            color: AppTheme.primaryColor,
+            radius: 50,
+            titleStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          PieChartSectionData(
+            value: _totalGroups.toDouble(),
+            title: '$_totalGroups',
+            color: AppTheme.infoColor,
+            radius: 50,
+            titleStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          PieChartSectionData(
+            value: _totalAssignments.toDouble(),
+            title: '$_totalAssignments',
+            color: AppTheme.warningColor,
+            radius: 50,
+            titleStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          PieChartSectionData(
+            value: _totalQuizzes.toDouble(),
+            title: '$_totalQuizzes',
+            color: Colors.purple,
+            radius: 50,
+            titleStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartLegend() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLegendItem('Courses', _instructorCourses.length, AppTheme.primaryColor),
+        const SizedBox(height: AppTheme.spacingS),
+        _buildLegendItem('Groups', _totalGroups, AppTheme.infoColor),
+        const SizedBox(height: AppTheme.spacingS),
+        _buildLegendItem('Assignments', _totalAssignments, AppTheme.warningColor),
+        const SizedBox(height: AppTheme.spacingS),
+        _buildLegendItem('Quizzes', _totalQuizzes, Colors.purple),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(String label, int value, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: AppTheme.spacingS),
+        Expanded(
+          child: Text(
+            '$label: $value',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
     );
   }
 }
