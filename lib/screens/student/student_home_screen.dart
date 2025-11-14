@@ -28,8 +28,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   int _selectedIndex = 0;
   List<CourseModel> _enrolledCourses = [];
   bool _isLoadingCourses = true;
-  List<SemesterModel> _semesters = [];
-  SemesterModel? _selectedSemester;
+  String? _selectedSemesterId;
 
   // Dashboard data
   List<AssignmentModel> _allAssignments = [];
@@ -54,14 +53,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       await semesterProvider.loadSemesters();
 
       if (mounted) {
-        setState(() {
-          _semesters = semesterProvider.semesters;
-          // Set current semester as default
-          _selectedSemester = semesterProvider.currentSemester;
-        });
-
-        // Load courses for the current semester
-        if (_selectedSemester != null) {
+        // Set current semester as default
+        final currentSemester = semesterProvider.currentSemester;
+        if (currentSemester != null) {
+          setState(() {
+            _selectedSemesterId = currentSemester.id;
+          });
           await _loadEnrolledCourses();
         }
       }
@@ -83,7 +80,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
 
-    if (currentUser == null || _selectedSemester == null) return;
+    if (currentUser == null || _selectedSemesterId == null) return;
 
     setState(() {
       _isLoadingCourses = true;
@@ -93,7 +90,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       final courseProvider = context.read<CourseProvider>();
       final courses = await courseProvider.loadCoursesForStudentBySemester(
         currentUser.id,
-        _selectedSemester!.id,
+        _selectedSemesterId!,
       );
 
       if (mounted) {
@@ -189,17 +186,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Future<void> _onSemesterChanged(SemesterModel? semester) async {
-    if (semester == null || semester.id == _selectedSemester?.id) return;
+    if (semester == null || semester.id == _selectedSemesterId) return;
 
     setState(() {
-      _selectedSemester = semester;
+      _selectedSemesterId = semester.id;
     });
 
     await _loadEnrolledCourses();
   }
 
-  bool get _isCurrentSemester {
-    return _selectedSemester?.isCurrent ?? false;
+  bool _isCurrentSemester(SemesterModel? semester) {
+    return semester?.isCurrent ?? false;
   }
 
   Future<void> _handleLogout() async {
@@ -257,6 +254,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
     final currentUser = authService.currentUser;
+
+    // Watch semester provider for real-time updates
+    final semesterProvider = context.watch<SemesterProvider>();
+    final semesters = semesterProvider.semesters;
+    final selectedSemester = semesters.firstWhere(
+      (s) => s.id == _selectedSemesterId,
+      orElse: () => semesterProvider.currentSemester ?? semesters.first,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -396,12 +401,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
               ),
               // Semester Switcher
-              if (_semesters.isNotEmpty)
-                _buildSemesterSwitcher(),
+              if (semesters.isNotEmpty)
+                _buildSemesterSwitcher(semesters, selectedSemester),
             ],
           ),
           // Read-only mode indicator for past semesters
-          if (!_isCurrentSemester && _selectedSemester != null) ...[
+          if (!_isCurrentSemester(selectedSemester)) ...[
             const SizedBox(height: AppTheme.spacingS),
             Container(
               padding: const EdgeInsets.symmetric(
@@ -481,7 +486,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           else
             ...List.generate(_enrolledCourses.length, (index) {
               final course = _enrolledCourses[index];
-              return _buildCourseCard(course, currentUser);
+              return _buildCourseCard(course, currentUser, selectedSemester);
             }),
         ],
       ),
@@ -799,7 +804,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildCourseCard(CourseModel course, dynamic currentUser) {
+  Widget _buildCourseCard(
+      CourseModel course, dynamic currentUser, SemesterModel? selectedSemester) {
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
       child: InkWell(
@@ -812,7 +818,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 course: course,
                 currentUserId: currentUser?.id ?? '',
                 currentUserRole: AppConstants.roleStudent,
-                isReadOnly: !_isCurrentSemester,
+                isReadOnly: !_isCurrentSemester(selectedSemester),
               ),
             ),
           );
@@ -936,7 +942,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildSemesterSwitcher() {
+  Widget _buildSemesterSwitcher(
+      List<SemesterModel> semesters, SemesterModel? selectedSemester) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingS,
@@ -950,7 +957,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         ),
       ),
       child: DropdownButton<SemesterModel>(
-        value: _selectedSemester,
+        value: selectedSemester,
         underline: const SizedBox.shrink(),
         icon: Icon(
           Icons.arrow_drop_down,
@@ -963,7 +970,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         ),
         dropdownColor: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusS),
-        items: _semesters.map((SemesterModel semester) {
+        items: semesters.map((SemesterModel semester) {
           return DropdownMenuItem<SemesterModel>(
             value: semester,
             child: Row(

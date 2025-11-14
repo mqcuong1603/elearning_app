@@ -33,8 +33,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
   bool _isLoadingCourses = true;
 
   // Semester selection
-  List<SemesterModel> _semesters = [];
-  SemesterModel? _selectedSemester;
+  String? _selectedSemesterId;
 
   // Dashboard metrics
   int _totalGroups = 0;
@@ -59,13 +58,12 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
       await semesterProvider.loadSemesters();
 
       if (mounted) {
-        setState(() {
-          _semesters = semesterProvider.semesters;
-          _selectedSemester = semesterProvider.currentSemester;
-        });
-
-        // Load courses and metrics for current semester
-        if (_selectedSemester != null) {
+        // Set current semester as default
+        final currentSemester = semesterProvider.currentSemester;
+        if (currentSemester != null) {
+          setState(() {
+            _selectedSemesterId = currentSemester.id;
+          });
           await _loadInstructorCourses();
         }
       }
@@ -78,7 +76,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
 
-    if (currentUser == null || _selectedSemester == null) return;
+    if (currentUser == null || _selectedSemesterId == null) return;
 
     setState(() => _isLoadingCourses = true);
 
@@ -86,7 +84,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
       final courseProvider = context.read<CourseProvider>();
 
       // Load courses for selected semester
-      await courseProvider.loadCoursesBySemester(_selectedSemester!.id);
+      await courseProvider.loadCoursesBySemester(_selectedSemesterId!);
 
       // Filter only courses taught by this instructor
       _instructorCourses = courseProvider.courses
@@ -156,10 +154,10 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
   }
 
   Future<void> _onSemesterChanged(SemesterModel? semester) async {
-    if (semester == null || semester.id == _selectedSemester?.id) return;
+    if (semester == null || semester.id == _selectedSemesterId) return;
 
     setState(() {
-      _selectedSemester = semester;
+      _selectedSemesterId = semester.id;
     });
 
     await _loadInstructorCourses();
@@ -220,6 +218,14 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
     final currentUser = authService.currentUser;
+
+    // Watch semester provider for real-time updates
+    final semesterProvider = context.watch<SemesterProvider>();
+    final semesters = semesterProvider.semesters;
+    final selectedSemester = semesters.firstWhere(
+      (s) => s.id == _selectedSemesterId,
+      orElse: () => semesterProvider.currentSemester ?? semesters.first,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -306,7 +312,8 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                 ),
-                if (_semesters.isNotEmpty) _buildSemesterSwitcher(),
+                if (semesters.isNotEmpty)
+                  _buildSemesterSwitcher(semesters, selectedSemester),
               ],
             ),
             const SizedBox(height: AppTheme.spacingM),
@@ -731,7 +738,8 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
     );
   }
 
-  Widget _buildSemesterSwitcher() {
+  Widget _buildSemesterSwitcher(
+      List<SemesterModel> semesters, SemesterModel? selectedSemester) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingS,
@@ -745,7 +753,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
         ),
       ),
       child: DropdownButton<SemesterModel>(
-        value: _selectedSemester,
+        value: selectedSemester,
         underline: const SizedBox.shrink(),
         icon: Icon(
           Icons.arrow_drop_down,
@@ -758,7 +766,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
         ),
         dropdownColor: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusS),
-        items: _semesters.map((SemesterModel semester) {
+        items: semesters.map((SemesterModel semester) {
           return DropdownMenuItem<SemesterModel>(
             value: semester,
             child: Row(
