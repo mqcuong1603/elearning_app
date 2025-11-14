@@ -87,7 +87,7 @@ class QuizService {
       if (_notificationService != null) {
         try {
           // Get student IDs from groups
-          final studentIds = await _getStudentIdsFromGroups(groupIds);
+          final studentIds = await _getStudentIdsFromGroups(groupIds, courseId);
 
           if (studentIds.isNotEmpty) {
             await _notificationService!.createNotificationsForUsers(
@@ -586,11 +586,23 @@ class QuizService {
   }
 
   /// Get student IDs from group IDs
-  Future<List<String>> _getStudentIdsFromGroups(List<String> groupIds) async {
+  Future<List<String>> _getStudentIdsFromGroups(List<String> groupIds, String courseId) async {
     try {
       final Set<String> studentIds = {};
 
-      for (final groupId in groupIds) {
+      // Determine which groups to notify
+      List<String> targetGroupIds = groupIds;
+
+      // If groupIds is empty, it means "All Groups" - fetch all groups for this course
+      if (groupIds.isEmpty) {
+        final groupsSnapshot = await _firestore
+            .collection(AppConstants.collectionGroups)
+            .where('courseId', isEqualTo: courseId)
+            .get();
+        targetGroupIds = groupsSnapshot.docs.map((doc) => doc.id).toList();
+      }
+
+      for (final groupId in targetGroupIds) {
         final groupDoc = await _firestore
             .collection(AppConstants.collectionGroups)
             .doc(groupId)

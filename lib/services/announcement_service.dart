@@ -633,9 +633,25 @@ class AnnouncementService {
       final courseName = course.name;
       print('   Course Name: $courseName');
 
-      // Get all students from the specified groups
+      // Determine which groups to notify
+      List<String> targetGroupIds = groupIds;
+
+      // If groupIds is empty, it means "All Groups" - fetch all groups for this course
+      if (groupIds.isEmpty) {
+        print('   🌐 "All Groups" selected - fetching all groups for this course');
+        final allGroupsData = await _firestoreService.query(
+          collection: AppConstants.collectionGroups,
+          filters: [
+            QueryFilter(field: 'courseId', isEqualTo: courseId),
+          ],
+        );
+        targetGroupIds = allGroupsData.map((g) => g['id'] as String).toList();
+        print('   📋 Found ${targetGroupIds.length} groups in course');
+      }
+
+      // Get all students from the target groups
       final List<String> studentIds = [];
-      for (final groupId in groupIds) {
+      for (final groupId in targetGroupIds) {
         print('   📋 Fetching group: $groupId');
         final groupData = await _firestoreService.read(
           collection: AppConstants.collectionGroups,
