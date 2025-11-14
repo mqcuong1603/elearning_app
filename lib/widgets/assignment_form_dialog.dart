@@ -1,11 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import '../models/assignment_model.dart';
 import '../models/group_model.dart';
+import '../models/announcement_model.dart'; // For AttachmentModel
 import '../config/app_theme.dart';
-import '../config/app_constants.dart';
 
 /// Assignment Form Dialog
 /// Used for creating and editing assignments with comprehensive settings
@@ -38,8 +38,9 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
   DateTime? _lateDeadline;
   List<String> _selectedGroupIds = [];
   bool _isForAllGroups = true;
-  List<File> _attachmentFiles = [];
+  List<PlatformFile> _attachmentFiles = [];
   List<String> _attachmentNames = [];
+  List<AttachmentModel> _existingAttachments = [];
 
   // File format settings
   final List<String> _availableFormats = [
@@ -79,6 +80,7 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
       _selectedFormats = List.from(widget.assignment!.allowedFileFormats);
       _selectedGroupIds = List.from(widget.assignment!.groupIds);
       _isForAllGroups = widget.assignment!.isForAllGroups;
+      _existingAttachments = List.from(widget.assignment!.attachments);
     } else {
       // Default values for new assignment
       _maxAttemptsController.text = '3';
@@ -197,14 +199,12 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.any,
+        withData: kIsWeb, // Load file bytes on web
       );
 
-      if (result != null) {
+      if (result != null && result.files.isNotEmpty) {
         setState(() {
-          _attachmentFiles = result.paths
-              .where((path) => path != null)
-              .map((path) => File(path!))
-              .toList();
+          _attachmentFiles = result.files;
           _attachmentNames = result.files.map((file) => file.name).toList();
         });
       }
@@ -221,6 +221,12 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
     setState(() {
       _attachmentFiles.removeAt(index);
       _attachmentNames.removeAt(index);
+    });
+  }
+
+  void _removeExistingAttachment(int index) {
+    setState(() {
+      _existingAttachments.removeAt(index);
     });
   }
 
@@ -273,6 +279,7 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
         'maxFileSize': maxFileSizeBytes,
         'groupIds': _isForAllGroups ? <String>[] : _selectedGroupIds,
         'attachmentFiles': _attachmentFiles,
+        'existingAttachments': _existingAttachments,
       });
     }
   }
@@ -607,17 +614,63 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                         label: const Text('Add Files'),
                       ),
 
+                      // Display existing attachments (when editing)
+                      if (_existingAttachments.isNotEmpty) ...[
+                        const SizedBox(height: AppTheme.spacingM),
+                        const Text(
+                          'Current Attachments:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spacingS),
+                        ...List.generate(_existingAttachments.length, (index) {
+                          final attachment = _existingAttachments[index];
+                          return Card(
+                            color: Colors.blue[50],
+                            child: ListTile(
+                              leading: const Icon(Icons.cloud_done,
+                                  color: Colors.blue),
+                              title: Text(attachment.filename),
+                              subtitle: Text(attachment.formattedSize),
+                              trailing: IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () =>
+                                    _removeExistingAttachment(index),
+                                tooltip: 'Remove attachment',
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+
+                      // Display newly selected files
                       if (_attachmentNames.isNotEmpty) ...[
                         const SizedBox(height: AppTheme.spacingM),
+                        const Text(
+                          'New Files to Upload:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spacingS),
                         ...List.generate(_attachmentNames.length, (index) {
                           return Card(
+                            color: Colors.green[50],
                             child: ListTile(
-                              leading: const Icon(Icons.insert_drive_file),
+                              leading: const Icon(Icons.upload_file,
+                                  color: Colors.green),
                               title: Text(_attachmentNames[index]),
                               trailing: IconButton(
                                 icon:
                                     const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () => _removeAttachment(index),
+                                tooltip: 'Remove file',
                               ),
                             ),
                           );

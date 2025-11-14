@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +9,6 @@ import '../../models/assignment_submission_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/assignment_provider.dart';
 import '../../config/app_theme.dart';
-import '../../config/app_constants.dart';
 
 /// Student Assignment Submission Screen
 /// Allows students to view assignment details, submit work, and view submission history
@@ -30,7 +29,7 @@ class AssignmentSubmissionScreen extends StatefulWidget {
 
 class _AssignmentSubmissionScreenState
     extends State<AssignmentSubmissionScreen> {
-  List<File> _selectedFiles = [];
+  List<PlatformFile> _selectedFiles = [];
   List<String> _selectedFileNames = [];
   List<AssignmentSubmissionModel> _submissions = [];
   bool _isSubmitting = false;
@@ -63,25 +62,24 @@ class _AssignmentSubmissionScreenState
         allowMultiple: true,
         type: FileType.custom,
         allowedExtensions: widget.assignment.allowedFileFormats,
+        withData: kIsWeb, // Load file bytes on web
       );
 
-      if (result != null) {
+      if (result != null && result.files.isNotEmpty) {
         // Validate file sizes
         final invalidFiles = <String>[];
-        final validFiles = <File>[];
+        final validFiles = <PlatformFile>[];
         final validFileNames = <String>[];
 
         for (final platformFile in result.files) {
-          if (platformFile.path != null) {
-            final file = File(platformFile.path!);
-            final fileSize = await file.length();
+          // Get file size - works for both web (bytes) and mobile (path)
+          final fileSize = platformFile.size;
 
-            if (fileSize > widget.assignment.maxFileSize) {
-              invalidFiles.add(platformFile.name);
-            } else {
-              validFiles.add(file);
-              validFileNames.add(platformFile.name);
-            }
+          if (fileSize > widget.assignment.maxFileSize) {
+            invalidFiles.add(platformFile.name);
+          } else {
+            validFiles.add(platformFile);
+            validFileNames.add(platformFile.name);
           }
         }
 

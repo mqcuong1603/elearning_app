@@ -14,12 +14,25 @@ import 'services/student_service.dart';
 import 'services/group_service.dart';
 import 'services/announcement_service.dart';
 import 'services/assignment_service.dart';
+import 'services/material_service.dart';
+import 'services/quiz_service.dart';
+import 'services/question_service.dart';
+import 'services/forum_service.dart';
+import 'services/message_service.dart';
+import 'services/notification_service.dart';
+import 'services/email_service.dart';
+import 'services/deadline_monitoring_service.dart';
 import 'providers/semester_provider.dart';
+import 'providers/notification_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/group_provider.dart';
 import 'providers/announcement_provider.dart';
 import 'providers/assignment_provider.dart';
+import 'providers/material_provider.dart';
+import 'providers/quiz_provider.dart';
+import 'providers/forum_provider.dart';
+import 'providers/message_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/instructor/instructor_dashboard_screen.dart';
 import 'screens/student/student_home_screen.dart';
@@ -41,6 +54,17 @@ void main() async {
     // Initialize Hive for offline caching
     await HiveService.instance.initialize();
     print('Hive initialized successfully');
+
+    // Configure Email Service for notifications
+    final emailService = EmailService();
+    emailService.configureSMTP(
+      smtpHost: 'smtp.gmail.com',
+      smtpPort: 587,
+      senderEmail: 'cuongcfvipss4@gmail.com',
+      senderPassword: 'vspazecbnujrpwev',
+      senderName: 'E-Learning System',
+    );
+    print('Email service configured successfully');
   } catch (e) {
     print('Initialization error: $e');
   }
@@ -70,6 +94,19 @@ class MyApp extends StatelessWidget {
         ),
         Provider<CsvService>(
           create: (_) => CsvService(),
+        ),
+        Provider<EmailService>(
+          create: (_) {
+            final emailService = EmailService();
+            emailService.configureSMTP(
+              smtpHost: 'smtp.gmail.com',
+              smtpPort: 587,
+              senderEmail: 'cuongcfvipss4@gmail.com',
+              senderPassword: 'vspazecbnujrpwev',
+              senderName: 'E-Learning System',
+            );
+            return emailService;
+          },
         ),
         ProxyProvider2<FirestoreService, HiveService, SemesterService>(
           update: (_, firestoreService, hiveService, __) => SemesterService(
@@ -101,23 +138,83 @@ class MyApp extends StatelessWidget {
             hiveService: hiveService,
           ),
         ),
-        ProxyProvider3<FirestoreService, HiveService, StorageService,
-            AnnouncementService>(
-          update: (_, firestoreService, hiveService, storageService, __) =>
+        ProxyProvider2<FirestoreService, HiveService, NotificationService>(
+          update: (_, firestoreService, hiveService, __) => NotificationService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+          ),
+        ),
+        ProxyProvider5<FirestoreService, HiveService, StorageService,
+            NotificationService, EmailService, AnnouncementService>(
+          update: (_, firestoreService, hiveService, storageService,
+                  notificationService, emailService, __) =>
               AnnouncementService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+            storageService: storageService,
+            notificationService: notificationService,
+            emailService: emailService,
+          ),
+        ),
+        ProxyProvider5<FirestoreService, HiveService, StorageService,
+            NotificationService, EmailService, AssignmentService>(
+          update: (_, firestoreService, hiveService, storageService,
+                  notificationService, emailService, __) =>
+              AssignmentService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+            storageService: storageService,
+            notificationService: notificationService,
+            emailService: emailService,
+          ),
+        ),
+        ProxyProvider3<FirestoreService, HiveService, StorageService,
+            MaterialService>(
+          update: (_, firestoreService, hiveService, storageService, __) =>
+              MaterialService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+            storageService: storageService,
+          ),
+        ),
+        Provider<QuizService>(
+          create: (_) => QuizService(),
+        ),
+        Provider<QuestionService>(
+          create: (_) => QuestionService(),
+        ),
+        ProxyProvider3<FirestoreService, HiveService, StorageService,
+            ForumService>(
+          update: (_, firestoreService, hiveService, storageService, __) =>
+              ForumService(
             firestoreService: firestoreService,
             hiveService: hiveService,
             storageService: storageService,
           ),
         ),
         ProxyProvider3<FirestoreService, HiveService, StorageService,
-            AssignmentService>(
+            MessageService>(
           update: (_, firestoreService, hiveService, storageService, __) =>
-              AssignmentService(
+              MessageService(
             firestoreService: firestoreService,
             hiveService: hiveService,
             storageService: storageService,
           ),
+        ),
+        ProxyProvider2<NotificationService, EmailService, DeadlineMonitoringService>(
+          update: (_, notificationService, emailService, previous) {
+            if (previous != null) {
+              return previous;
+            }
+            final service = DeadlineMonitoringService(
+              notificationService: notificationService,
+              emailService: emailService,
+            );
+            // Start monitoring deadlines
+            service.startMonitoring();
+            return service;
+          },
+          dispose: (_, service) => service.dispose(),
         ),
 
         // Providers (State Management)
@@ -162,6 +259,37 @@ class MyApp extends StatelessWidget {
           ),
           update: (_, assignmentService, previous) => previous ??
               AssignmentProvider(assignmentService: assignmentService),
+        ),
+        ChangeNotifierProxyProvider<MaterialService, MaterialProvider>(
+          create: (context) => MaterialProvider(
+            materialService: context.read<MaterialService>(),
+          ),
+          update: (_, materialService, previous) => previous ??
+              MaterialProvider(materialService: materialService),
+        ),
+        ChangeNotifierProvider<QuizProvider>(
+          create: (context) => QuizProvider(),
+        ),
+        ChangeNotifierProxyProvider<ForumService, ForumProvider>(
+          create: (context) => ForumProvider(
+            forumService: context.read<ForumService>(),
+          ),
+          update: (_, forumService, previous) =>
+              previous ?? ForumProvider(forumService: forumService),
+        ),
+        ChangeNotifierProxyProvider<MessageService, MessageProvider>(
+          create: (context) => MessageProvider(
+            messageService: context.read<MessageService>(),
+          ),
+          update: (_, messageService, previous) =>
+              previous ?? MessageProvider(messageService: messageService),
+        ),
+        ChangeNotifierProxyProvider<NotificationService, NotificationProvider>(
+          create: (context) => NotificationProvider(
+            notificationService: context.read<NotificationService>(),
+          ),
+          update: (_, notificationService, previous) => previous ??
+              NotificationProvider(notificationService: notificationService),
         ),
       ],
       child: MaterialApp(
@@ -258,7 +386,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Faculty of Information Technology',
               style: TextStyle(
                 fontSize: 16,
-                color: AppTheme.textOnPrimaryColor.withOpacity(0.9),
+                color: AppTheme.textOnPrimaryColor.withValues(alpha: 0.9),
               ),
             ),
             const SizedBox(height: 48),

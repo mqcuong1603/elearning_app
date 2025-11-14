@@ -2,25 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../models/course_model.dart';
 import '../../models/announcement_model.dart';
 import '../../models/assignment_model.dart';
 import '../../models/quiz_model.dart';
+import '../../models/quiz_submission_model.dart';
 import '../../models/material_model.dart';
 import '../../models/group_model.dart';
 import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/student_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/announcement_service.dart';
+import '../../services/assignment_service.dart';
+import '../../services/quiz_service.dart';
+import '../../services/material_service.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
+import '../../providers/material_provider.dart';
 import '../../widgets/announcement_card.dart';
 import '../../widgets/announcement_form_dialog.dart';
 import '../../widgets/assignment_form_dialog.dart';
+import '../../widgets/material_form_dialog.dart';
 import '../student/assignment_submission_screen.dart';
 import '../instructor/assignment_tracking_screen.dart';
+import '../instructor/quiz_management_screen.dart';
+import '../instructor/question_bank_screen.dart';
+import '../student/quiz_taking_screen.dart';
+import './material_details_screen.dart';
+import './forum/forum_list_screen.dart';
+import './messaging/conversations_list_screen.dart';
+import './messaging/chat_screen.dart';
 
 /// Course Space Screen with 3 Tabs: Stream, Classwork, People
+/// Forum integrated into People tab, Messages accessible via AppBar
 /// Based on PDF requirements (Interface requirement - 2 pts)
 class CourseSpaceScreen extends StatefulWidget {
   final CourseModel course;
@@ -43,12 +59,11 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   late TabController _tabController;
 
   // Data lists (will be populated from services later)
-  List<AnnouncementModel> _announcements = [];
-  List<AssignmentModel> _assignments = [];
-  final List<QuizModel> _quizzes = [];
-  final List<MaterialModel> _materials = [];
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
+
+  // Track quiz submissions for students (quizId -> best submission)
+  final Map<String, QuizSubmissionModel> _quizSubmissions = {};
 
   // Track which group the current user belongs to (for students)
   String? _currentUserGroupId;
@@ -83,8 +98,6 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       // Get services from context
       final groupService = context.read<GroupService>();
       final studentService = context.read<StudentService>();
-      final announcementProvider = context.read<AnnouncementProvider>();
-      final assignmentProvider = context.read<AssignmentProvider>();
 
       // Load groups for this course
       _groups = await groupService.getGroupsByCourse(widget.course.id);
@@ -100,19 +113,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         }
       }
 
-      // Load announcements based on role
-      if (widget.currentUserRole == AppConstants.roleInstructor) {
-        // Instructors see all announcements for the course
-        await announcementProvider.loadAnnouncementsByCourse(widget.course.id);
-      } else {
-        // Students see only announcements scoped to their groups
-        await announcementProvider.loadAnnouncementsForStudent(
-          courseId: widget.course.id,
-          studentId: widget.currentUserId,
-          studentGroupIds: studentGroupIds,
-        );
-      }
-      _announcements = announcementProvider.announcements;
+      // Note: Announcements are now loaded via real-time streams in the Stream tab
 
       // Collect all unique student IDs from all groups in this course
       final Set<String> studentIds = {};
@@ -132,22 +133,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       // Sort students by name for better UX
       _students.sort((a, b) => a.fullName.compareTo(b.fullName));
 
-      // Load assignments based on role
-      if (widget.currentUserRole == AppConstants.roleInstructor) {
-        // Instructors see all assignments for the course
-        await assignmentProvider.loadAssignmentsByCourse(widget.course.id);
-      } else {
-        // Students see only assignments scoped to their groups
-        await assignmentProvider.loadAssignmentsForStudent(
-          courseId: widget.course.id,
-          studentId: widget.currentUserId,
-          studentGroupIds: studentGroupIds,
-        );
-      }
-      _assignments = assignmentProvider.assignments;
-
-      // TODO: Load quizzes and materials
-      // These will be implemented in future iterations
+      // Note: Assignments, quizzes, and materials are now loaded via real-time streams
+      // in the Classwork tab using StreamBuilder
 
       if (mounted) {
         setState(() {
@@ -189,6 +176,19 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.message),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ConversationsListScreen(),
+                ),
+              );
+            },
+            tooltip: 'Messages',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.textOnPrimaryColor,
@@ -213,262 +213,394 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     );
   }
 
-  // Stream Tab: Displays recent announcements with comment threads
+  // Stream Tab: Displays recent announcements with comment threads (REAL-TIME)
   Widget _buildStreamTab() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final announcementService = context.read<AnnouncementService>();
 
-    if (_announcements.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.campaign,
-        message: 'No announcements yet',
-        description: widget.currentUserRole == AppConstants.roleInstructor
-            ? 'Create your first announcement to get started'
-            : 'Your instructor will post announcements here',
-      );
-    }
+    return StreamBuilder<List<AnnouncementModel>>(
+      stream: announcementService.streamAnnouncementsByCourse(widget.course.id),
+      builder: (context, snapshot) {
+        // Handle loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        itemCount: _announcements.length,
-        itemBuilder: (context, index) {
-          final announcement = _announcements[index];
-          return _buildAnnouncementCard(announcement);
-        },
-      ),
+        // Handle error state
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${snapshot.error}'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => setState(() {}), // Trigger rebuild
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Get announcements from stream
+        var announcements = snapshot.data ?? [];
+
+        // Filter announcements based on user role and group membership
+        if (widget.currentUserRole == AppConstants.roleStudent) {
+          // Students should only see announcements for their groups
+          announcements = announcements.where((announcement) {
+            if (announcement.isForAllGroups) {
+              return true; // Visible to all students
+            }
+            // Check if announcement is for any of the student's groups
+            return announcement.groupIds.any((groupId) => _groups.any(
+                (g) => g.id == groupId && g.hasStudent(widget.currentUserId)));
+          }).toList();
+        }
+
+        // Show empty state if no announcements
+        if (announcements.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: _loadData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height - 200,
+                child: _buildEmptyState(
+                  icon: Icons.campaign,
+                  message: 'No announcements yet',
+                  description:
+                      widget.currentUserRole == AppConstants.roleInstructor
+                          ? 'Create your first announcement to get started'
+                          : 'Your instructor will post announcements here',
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Display announcements with pull-to-refresh
+        return RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            itemCount: announcements.length,
+            itemBuilder: (context, index) {
+              final announcement = announcements[index];
+              return _buildAnnouncementCard(announcement);
+            },
+          ),
+        );
+      },
     );
   }
 
-  // Classwork Tab: Centralizes assignments, quizzes, and materials with search/sort
+  // Classwork Tab: Centralizes assignments, quizzes, and materials with search/sort (Real-time)
   Widget _buildClassworkTab() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final assignmentService = context.read<AssignmentService>();
+    final quizService = context.read<QuizService>();
+    final materialService = context.read<MaterialService>();
 
-    // Combine all classwork items
-    final totalItems =
-        _assignments.length + _quizzes.length + _materials.length;
+    return StreamBuilder<List<AssignmentModel>>(
+      stream: assignmentService.streamAssignmentsByCourse(widget.course.id),
+      builder: (context, assignmentSnapshot) {
+        return StreamBuilder<List<QuizModel>>(
+          stream: quizService.streamQuizzesForCourse(widget.course.id),
+          builder: (context, quizSnapshot) {
+            return StreamBuilder<List<MaterialModel>>(
+              stream: materialService.streamMaterialsByCourse(widget.course.id),
+              builder: (context, materialSnapshot) {
+                // Handle loading state
+                if (assignmentSnapshot.connectionState ==
+                        ConnectionState.waiting ||
+                    quizSnapshot.connectionState == ConnectionState.waiting ||
+                    materialSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-    if (totalItems == 0) {
-      return _buildEmptyState(
-        icon: Icons.school,
-        message: 'No classwork yet',
-        description: widget.currentUserRole == AppConstants.roleInstructor
-            ? 'Add assignments, quizzes, or materials'
-            : 'Your instructor will add classwork here',
-      );
-    }
+                // Handle error state
+                if (assignmentSnapshot.hasError ||
+                    quizSnapshot.hasError ||
+                    materialSnapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error loading classwork: ${assignmentSnapshot.error ?? quizSnapshot.error ?? materialSnapshot.error}',
+                    ),
+                  );
+                }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: CustomScrollView(
-        slivers: [
-          // Search and filter bar
+                // Get data from streams
+                var assignments = assignmentSnapshot.data ?? [];
+                var quizzes = quizSnapshot.data ?? [];
+                var materials = materialSnapshot.data ?? [];
+
+                // Filter based on role and groups
+                if (widget.currentUserRole == AppConstants.roleStudent &&
+                    _groups.isNotEmpty) {
+                  // Get student's group IDs
+                  final studentGroupIds = _groups
+                      .where((group) => group.hasStudent(widget.currentUserId))
+                      .map((group) => group.id)
+                      .toList();
+
+                  // Filter assignments by student's groups
+                  assignments = assignments.where((assignment) {
+                    return assignment.isForAllGroups ||
+                        assignment.groupIds.any(
+                            (groupId) => studentGroupIds.contains(groupId));
+                  }).toList();
+
+                  // Filter quizzes by student's groups and availability
+                  quizzes = quizzes.where((quiz) {
+                    // Check if quiz is available time-wise
+                    if (!quiz.isAvailable) return false;
+
+                    // Check if student is in the right group
+                    return quiz.isForAllGroups ||
+                        quiz.groupIds.any(
+                            (groupId) => studentGroupIds.contains(groupId));
+                  }).toList();
+
+                  // Materials are visible to all students (no filtering needed)
+                }
+
+                // Combine all classwork items
+                final totalItems =
+                    assignments.length + quizzes.length + materials.length;
+
+                if (totalItems == 0) {
+                  return _buildEmptyState(
+                    icon: Icons.school,
+                    message: 'No classwork yet',
+                    description:
+                        widget.currentUserRole == AppConstants.roleInstructor
+                            ? 'Add assignments, quizzes, or materials'
+                            : 'Your instructor will add classwork here',
+                  );
+                }
+
+                return _buildClassworkContent(assignments, quizzes, materials);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Helper method to build classwork content (extracted from _buildClassworkTab)
+  Widget _buildClassworkContent(
+    List<AssignmentModel> assignments,
+    List<QuizModel> quizzes,
+    List<MaterialModel> materials,
+  ) {
+    return CustomScrollView(
+      slivers: [
+        // Search and filter bar
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search classwork...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingM,
+                        vertical: AppTheme.spacingS,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      // TODO: Implement search
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingS),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: () {
+                    _showFilterDialog();
+                  },
+                  tooltip: 'Filter & Sort',
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Assignments Section
+        if (assignments.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+              ),
               child: Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search classwork...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                  Icon(Icons.assignment,
+                      color: AppTheme.primaryColor, size: 20),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Text(
+                    'Assignments',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacingM,
-                          vertical: AppTheme.spacingS,
-                        ),
-                      ),
-                      onChanged: (value) {
-                        // TODO: Implement search
-                      },
-                    ),
                   ),
                   const SizedBox(width: AppTheme.spacingS),
-                  IconButton(
-                    icon: const Icon(Icons.filter_list),
-                    onPressed: () {
-                      _showFilterDialog();
-                    },
-                    tooltip: 'Filter & Sort',
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingS,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      '${assignments.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-
-          // Assignments Section
-          if (_assignments.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.spacingM,
-                  AppTheme.spacingM,
-                  AppTheme.spacingM,
-                  AppTheme.spacingS,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.assignment,
-                        color: AppTheme.primaryColor, size: 20),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      'Assignments',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingS,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryLightColor,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusS),
-                      ),
-                      child: Text(
-                        '${_assignments.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return _buildAssignmentCard(assignments[index]);
+              },
+              childCount: assignments.length,
             ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildAssignmentCard(_assignments[index]);
-                },
-                childCount: _assignments.length,
-              ),
-            ),
-          ],
-
-          // Quizzes Section
-          if (_quizzes.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.spacingM,
-                  AppTheme.spacingL,
-                  AppTheme.spacingM,
-                  AppTheme.spacingS,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.quiz, color: AppTheme.infoColor, size: 20),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      'Quizzes',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingS,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.infoLightColor,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusS),
-                      ),
-                      child: Text(
-                        '${_quizzes.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.infoColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildQuizCard(_quizzes[index]);
-                },
-                childCount: _quizzes.length,
-              ),
-            ),
-          ],
-
-          // Materials Section
-          if (_materials.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.spacingM,
-                  AppTheme.spacingL,
-                  AppTheme.spacingM,
-                  AppTheme.spacingS,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.folder, color: AppTheme.warningColor, size: 20),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      'Materials',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingS,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.warningLightColor,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusS),
-                      ),
-                      child: Text(
-                        '${_materials.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.warningColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildMaterialCard(_materials[index]);
-                },
-                childCount: _materials.length,
-              ),
-            ),
-          ],
-
-          // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppTheme.spacingXL),
           ),
         ],
-      ),
+
+        // Quizzes Section
+        if (quizzes.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingL,
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.quiz, color: AppTheme.infoColor, size: 20),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Text(
+                    'Quizzes',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingS,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.infoLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      '${quizzes.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.infoColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return _buildQuizCard(quizzes[index]);
+              },
+              childCount: quizzes.length,
+            ),
+          ),
+        ],
+
+        // Materials Section
+        if (materials.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingL,
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.folder, color: AppTheme.warningColor, size: 20),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Text(
+                    'Materials',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingS,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      '${materials.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.warningColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return _buildMaterialCard(materials[index]);
+              },
+              childCount: materials.length,
+            ),
+          ),
+        ],
+
+        // Bottom padding
+        const SliverToBoxAdapter(
+          child: SizedBox(height: AppTheme.spacingXL),
+        ),
+      ],
     );
   }
 
@@ -520,20 +652,87 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     ),
                     title: Text(widget.course.instructorName),
                     subtitle: const Text('Course Instructor'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.message),
-                      onPressed: () {
-                        // TODO: Open private message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Messaging feature coming soon!'),
-                          ),
-                        );
-                      },
-                      tooltip: 'Send message',
-                    ),
+                    // Students can message instructor, but instructor shouldn't see message icon for themselves
+                    trailing: widget.currentUserRole == AppConstants.roleStudent
+                        ? IconButton(
+                            icon: const Icon(Icons.message),
+                            onPressed: () {
+                              // Navigate directly to chat with instructor
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                    partnerId: widget.course.instructorId,
+                                    partnerName: widget.course.instructorName,
+                                    partnerRole: AppConstants.roleInstructor,
+                                  ),
+                                ),
+                              );
+                            },
+                            tooltip: 'Send message',
+                          )
+                        : null,
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingM),
+
+          // Forum Section
+          Card(
+            child: InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ForumListScreen(course: widget.course),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(AppTheme.radiusM),
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacingM),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppTheme.spacingM),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                      ),
+                      child: const Icon(
+                        Icons.forum,
+                        color: Colors.purple,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingM),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Course Forum',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: AppTheme.spacingXS),
+                          Text(
+                            'Discuss course topics with classmates',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textSecondaryColor,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
               ),
             ),
           ),
@@ -740,9 +939,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       );
 
       if (announcement != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Announcement created successfully')),
-        );
+        // Snackbar removed - real-time stream will show the announcement instantly
         await _loadData(); // Reload to show new announcement
       } else if (mounted) {
         final error = announcementProvider.error;
@@ -772,14 +969,27 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         groupIds: result['groupIds'],
       );
 
-      final success = await context
-          .read<AnnouncementProvider>()
-          .updateAnnouncement(updatedAnnouncement);
+      final newAttachmentFiles =
+          result['attachmentFiles'] as List<PlatformFile>?;
+
+      bool success;
+      if (newAttachmentFiles != null && newAttachmentFiles.isNotEmpty) {
+        // Use the method that handles file uploads
+        success = await context
+            .read<AnnouncementProvider>()
+            .updateAnnouncementWithFiles(
+              announcement: updatedAnnouncement,
+              newAttachmentFiles: newAttachmentFiles,
+            );
+      } else {
+        // No new files, just update basic info
+        success = await context
+            .read<AnnouncementProvider>()
+            .updateAnnouncement(updatedAnnouncement);
+      }
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Announcement updated successfully')),
-        );
+        // Snackbar removed - real-time stream will show the update instantly
         await _loadData();
       } else if (mounted) {
         final error = context.read<AnnouncementProvider>().error;
@@ -833,6 +1043,49 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     }
   }
 
+  // Confirm and delete assignment
+  Future<void> _confirmDeleteAssignment(AssignmentModel assignment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Assignment'),
+        content: Text(
+          'Are you sure you want to delete "${assignment.title}"?\n\n'
+          'This will also delete all student submissions and cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await context
+          .read<AssignmentProvider>()
+          .deleteAssignment(assignment.id);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment deleted successfully')),
+        );
+        await _loadData();
+      } else if (mounted) {
+        final error = context.read<AssignmentProvider>().error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to delete assignment')),
+        );
+      }
+    }
+  }
+
   // Show create assignment dialog
   Future<void> _showCreateAssignmentDialog() async {
     final result = await showDialog<Map<String, dynamic>>(
@@ -863,14 +1116,50 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       );
 
       if (assignment != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Assignment created successfully')),
-        );
+        // Snackbar removed - real-time stream will show the assignment instantly
         await _loadData(); // Reload to show new assignment
       } else if (mounted) {
         final error = assignmentProvider.error;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error ?? 'Failed to create assignment')),
+        );
+      }
+    }
+  }
+
+  // Show Create Material Dialog
+  Future<void> _showCreateMaterialDialog() async {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null) return;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => MaterialFormDialog(
+        courseId: widget.course.id,
+      ),
+    );
+
+    if (result != null && mounted) {
+      final materialProvider = context.read<MaterialProvider>();
+      final materialId = await materialProvider.createMaterial(
+        courseId: widget.course.id,
+        title: result['title'],
+        description: result['description'],
+        instructorId: currentUser.id,
+        instructorName: currentUser.fullName,
+        files: result['newFiles'],
+        links: result['links'],
+      );
+
+      if (materialId != null && mounted) {
+        // Snackbar removed - real-time stream will show the material instantly
+        await _loadData(); // Reload to show new material
+      } else if (mounted) {
+        final error = materialProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to create material')),
         );
       }
     }
@@ -988,7 +1277,29 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              // Add action buttons for instructors
+              if (widget.currentUserRole == AppConstants.roleInstructor) ...[
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      _confirmDeleteAssignment(assignment);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ] else
+                const Icon(Icons.chevron_right),
             ],
           ),
         ),
@@ -1002,7 +1313,17 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     String statusText = 'Available';
     IconData statusIcon = Icons.check_circle;
 
-    if (quiz.isClosed) {
+    // Check if student has completed this quiz
+    final submission = widget.currentUserRole == AppConstants.roleStudent
+        ? _quizSubmissions[quiz.id]
+        : null;
+
+    if (submission != null) {
+      // Student has completed the quiz
+      statusColor = Colors.purple;
+      statusText = 'Completed • ${submission.formattedScore}';
+      statusIcon = Icons.check_circle;
+    } else if (quiz.isClosed) {
       statusColor = AppTheme.errorColor;
       statusText = 'Closed';
       statusIcon = Icons.cancel;
@@ -1019,7 +1340,41 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       ),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to quiz details
+          if (widget.currentUserRole == AppConstants.roleInstructor) {
+            // Instructors go to quiz management
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(
+                    builder: (_) => QuizManagementScreen(
+                      courseId: widget.course.id,
+                      courseName: widget.course.name,
+                    ),
+                  ),
+                )
+                .then((_) => _loadData());
+          } else {
+            // Students can take the quiz if it's available
+            if (quiz.isAvailable) {
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      builder: (_) => QuizTakingScreen(
+                        quizId: quiz.id,
+                        courseId: widget.course.id,
+                      ),
+                    ),
+                  )
+                  .then((_) => _loadData());
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(quiz.isUpcoming
+                      ? 'Quiz will be available on ${quiz.openDate}'
+                      : 'Quiz is closed'),
+                ),
+              );
+            }
+          }
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         child: Padding(
@@ -1067,13 +1422,14 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                                   ),
                         ),
                         const SizedBox(width: AppTheme.spacingS),
-                        Text(
-                          '${quiz.totalQuestions} questions • ${quiz.durationMinutes} min',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textSecondaryColor,
-                                  ),
-                        ),
+                        if (submission == null)
+                          Text(
+                            '${quiz.totalQuestions} questions • ${quiz.durationMinutes} min',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textSecondaryColor,
+                                    ),
+                          ),
                       ],
                     ),
                   ],
@@ -1096,7 +1452,13 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       ),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to material details
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (_) => MaterialDetailsScreen(material: material),
+                ),
+              )
+              .then((_) => _loadData()); // Reload data when returning
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         child: Padding(
@@ -1229,23 +1591,145 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           ],
         ),
         subtitle: Text('${group.studentIds.length} students'),
-        trailing: widget.currentUserRole == AppConstants.roleInstructor
-            ? IconButton(
-                icon: const Icon(Icons.edit, size: 20),
-                onPressed: () {
-                  // TODO: Edit group
-                },
-              )
-            : null,
+        trailing: const Icon(Icons.chevron_right, size: 20),
         onTap: () {
-          // TODO: View group details
+          _showGroupDetailsDialog(group);
         },
+      ),
+    );
+  }
+
+  // Show Group Details Dialog
+  void _showGroupDetailsDialog(GroupModel group) {
+    // Get students in this group
+    final groupStudents = _students.where((student) {
+      return group.hasStudent(student.id);
+    }).toList();
+
+    // Sort students by name
+    groupStudents.sort((a, b) => a.fullName.compareTo(b.fullName));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.group, color: AppTheme.primaryColor),
+            const SizedBox(width: AppTheme.spacingS),
+            Expanded(
+              child: Text(
+                group.name,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${groupStudents.length} ${groupStudents.length == 1 ? 'Student' : 'Students'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              const Divider(),
+              Flexible(
+                child: groupStudents.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(AppTheme.spacingL),
+                        child: Center(
+                          child: Text(
+                            'No students in this group yet',
+                            style:
+                                TextStyle(color: AppTheme.textSecondaryColor),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: groupStudents.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final student = groupStudents[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: AppTheme.primaryColor,
+                              child: Text(
+                                student.fullName.substring(0, 1).toUpperCase(),
+                                style: TextStyle(
+                                  color: AppTheme.textOnPrimaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              student.fullName,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              'ID: ${student.studentId ?? "N/A"}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            trailing: widget.currentUserRole ==
+                                    AppConstants.roleInstructor
+                                ? IconButton(
+                                    icon: const Icon(Icons.message, size: 18),
+                                    onPressed: () {
+                                      Navigator.of(context)
+                                          .pop(); // Close dialog
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ChatScreen(
+                                            partnerId: student.id,
+                                            partnerName: student.fullName,
+                                            partnerRole:
+                                                AppConstants.roleStudent,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    tooltip: 'Message ${student.fullName}',
+                                  )
+                                : null,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
 
   // Build Student List Tile
   Widget _buildStudentListTile(UserModel student) {
+    // Find which group this student belongs to
+    String? groupName;
+    for (var group in _groups) {
+      if (group.hasStudent(student.id)) {
+        groupName = group.name;
+        break;
+      }
+    }
+
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: AppTheme.primaryColor,
@@ -1258,13 +1742,37 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         ),
       ),
       title: Text(student.fullName),
-      subtitle: Text('ID: ${student.studentId ?? "N/A"}'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ID: ${student.studentId ?? "N/A"}'),
+          if (groupName != null)
+            Text(
+              'Group: $groupName',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
       trailing: widget.currentUserRole == AppConstants.roleInstructor
           ? IconButton(
               icon: const Icon(Icons.message, size: 20),
               onPressed: () {
-                // TODO: Send message to student
+                // Navigate directly to chat with student
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      partnerId: student.id,
+                      partnerName: student.fullName,
+                      partnerRole: AppConstants.roleStudent,
+                    ),
+                  ),
+                );
               },
+              tooltip: 'Send message to ${student.fullName}',
             )
           : null,
     );
@@ -1351,13 +1859,32 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.quiz),
-                title: const Text('Create Quiz'),
+                title: const Text('Manage Quizzes'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to create quiz
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Create quiz feature coming soon!'),
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                          builder: (_) => QuizManagementScreen(
+                            courseId: widget.course.id,
+                            courseName: widget.course.name,
+                          ),
+                        ),
+                      )
+                      .then((_) => _loadData()); // Reload data when returning
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.quiz_outlined),
+                title: const Text('Question Bank'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => QuestionBankScreen(
+                        courseId: widget.course.id,
+                        courseName: widget.course.name,
+                      ),
                     ),
                   );
                 },
@@ -1367,12 +1894,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 title: const Text('Add Material'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navigate to add material
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Add material feature coming soon!'),
-                    ),
-                  );
+                  _showCreateMaterialDialog();
                 },
               ),
             ],

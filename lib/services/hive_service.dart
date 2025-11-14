@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../config/app_constants.dart';
+import '../models/notification_model.dart';
 
 /// Hive Service
 /// Handles offline caching and local data storage
@@ -435,5 +436,75 @@ class HiveService {
     }
 
     return info;
+  }
+
+  // ==================== NOTIFICATION-SPECIFIC METHODS ====================
+
+  /// Save a notification to Hive cache
+  Future<void> saveNotification(NotificationModel notification) async {
+    await save(
+      boxName: AppConstants.hiveBoxNotifications,
+      key: notification.id,
+      value: notification.toJson(),
+    );
+  }
+
+  /// Get a notification by ID from Hive cache
+  Future<NotificationModel?> getNotificationById(String notificationId) async {
+    final data = get(
+      boxName: AppConstants.hiveBoxNotifications,
+      key: notificationId,
+    );
+    if (data == null) return null;
+    return NotificationModel.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  /// Get all notifications for a user from Hive cache
+  Future<List<NotificationModel>> getNotifications({String? userId}) async {
+    try {
+      final allValues = getAllValues(AppConstants.hiveBoxNotifications);
+      final notifications = <NotificationModel>[];
+
+      for (final value in allValues) {
+        try {
+          final notification =
+              NotificationModel.fromJson(Map<String, dynamic>.from(value));
+          if (userId == null || notification.userId == userId) {
+            notifications.add(notification);
+          }
+        } catch (e) {
+          // Skip invalid entries
+          print('Error parsing notification: $e');
+        }
+      }
+
+      return notifications;
+    } catch (e) {
+      print('Error getting notifications from cache: $e');
+      return [];
+    }
+  }
+
+  /// Delete a notification from Hive cache
+  Future<void> deleteNotification(String notificationId) async {
+    await delete(
+      boxName: AppConstants.hiveBoxNotifications,
+      key: notificationId,
+    );
+  }
+
+  /// Clear all notifications for a user from Hive cache
+  Future<void> clearNotifications(String userId) async {
+    try {
+      final allNotifications = await getNotifications(userId: userId);
+      final keysToDelete =
+          allNotifications.map((notification) => notification.id).toList();
+      await deleteAll(
+        boxName: AppConstants.hiveBoxNotifications,
+        keys: keysToDelete,
+      );
+    } catch (e) {
+      print('Error clearing notifications: $e');
+    }
   }
 }

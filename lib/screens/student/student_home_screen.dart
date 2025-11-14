@@ -7,6 +7,8 @@ import '../../providers/course_provider.dart';
 import '../../models/course_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
+import '../shared/messaging/conversations_list_screen.dart';
+import './all_forums_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -148,11 +150,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         children: [
           _buildHomeTab(currentUser),
           _buildDashboardTab(currentUser),
-          _buildForumTab(),
+          _buildForumTab(currentUser),
+          _buildMessagingTab(currentUser),
           _buildProfileTab(currentUser),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
@@ -171,6 +175,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.forum),
             label: 'Forum',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.message),
+            label: 'Messages',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
@@ -404,26 +412,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildForumTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.forum,
-            size: 64,
-            color: AppTheme.textDisabledColor,
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          Text(
-            'Forum feature coming soon!',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textSecondaryColor,
-                ),
-          ),
-        ],
-      ),
-    );
+  Widget _buildForumTab(dynamic currentUser) {
+    return const AllForumsScreen();
+  }
+
+  Widget _buildMessagingTab(dynamic currentUser) {
+    return const ConversationsListScreen();
   }
 
   Widget _buildProfileTab(dynamic currentUser) {

@@ -1,14 +1,16 @@
-import 'dart:io';
 import 'package:csv/csv.dart';
-import 'package:path/path.dart' as path;
+import 'package:file_picker/file_picker.dart';
 import '../models/assignment_model.dart';
 import '../models/assignment_submission_model.dart';
 import '../models/announcement_model.dart'; // For AttachmentModel
 import '../models/user_model.dart';
+import '../models/course_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
 import 'hive_service.dart';
 import 'storage_service.dart';
+import 'notification_service.dart';
+import 'email_service.dart';
 
 /// Assignment Service
 /// Handles all assignment-related operations including CRUD, submissions, grading, and tracking
@@ -16,14 +18,20 @@ class AssignmentService {
   final FirestoreService _firestoreService;
   final HiveService _hiveService;
   final StorageService _storageService;
+  final NotificationService _notificationService;
+  final EmailService _emailService;
 
   AssignmentService({
     required FirestoreService firestoreService,
     required HiveService hiveService,
     required StorageService storageService,
+    required NotificationService notificationService,
+    required EmailService emailService,
   })  : _firestoreService = firestoreService,
         _hiveService = hiveService,
-        _storageService = storageService;
+        _storageService = storageService,
+        _notificationService = notificationService,
+        _emailService = emailService;
 
   // ============================================================
   // ASSIGNMENT CRUD OPERATIONS
@@ -160,7 +168,7 @@ class AssignmentService {
     required List<String> groupIds,
     required String instructorId,
     required String instructorName,
-    List<File>? attachmentFiles,
+    List<PlatformFile>? attachmentFiles,
   }) async {
     try {
       final now = DateTime.now();
@@ -205,6 +213,20 @@ class AssignmentService {
       // Clear cache to force refresh
       await _clearAssignmentsCache();
 
+      // NOTIFICATION TRIGGER: Send notifications to students
+      try {
+        await _sendAssignmentCreatedNotifications(
+          assignmentId: id,
+          assignmentTitle: title,
+          courseId: courseId,
+          groupIds: groupIds,
+          deadline: deadline,
+        );
+      } catch (e) {
+        print('Error sending assignment notifications: $e');
+        // Don't fail the assignment creation if notifications fail
+      }
+
       return createdAssignment;
     } catch (e) {
       print('Create assignment error: $e');
@@ -227,6 +249,19 @@ class AssignmentService {
       print('Update assignment error: $e');
       throw Exception('Failed to update assignment: ${e.toString()}');
     }
+  }
+
+  /// Upload attachments for an existing assignment (public wrapper)
+  Future<List<AttachmentModel>> uploadAttachmentsForAssignment({
+    required List<PlatformFile> files,
+    required String courseId,
+    required String assignmentId,
+  }) async {
+    return await _uploadAttachments(
+      files: files,
+      courseId: courseId,
+      assignmentId: assignmentId,
+    );
   }
 
   /// Delete assignment
@@ -422,7 +457,7 @@ class AssignmentService {
     required String assignmentId,
     required String studentId,
     required String studentName,
-    required List<File> files,
+    required List<PlatformFile> files,
     required bool isLate,
   }) async {
     try {
@@ -454,13 +489,13 @@ class AssignmentService {
 
       // Validate files
       for (final file in files) {
-        final filename = path.basename(file.path);
+        final filename = file.name;
         if (!assignment.isValidFileFormat(filename)) {
           throw Exception(
               'Invalid file format: $filename. Allowed formats: ${assignment.allowedFileFormats.join(", ")}');
         }
 
-        final fileSize = await file.length();
+        final fileSize = file.size;
         if (fileSize > assignment.maxFileSize) {
           throw Exception(
               'File size exceeds maximum allowed size: ${assignment.formattedMaxFileSize}');
@@ -492,7 +527,21 @@ class AssignmentService {
         data: submission.toJson(),
       );
 
-      return submission.copyWith(id: id);
+      final createdSubmission = submission.copyWith(id: id);
+
+      // NOTIFICATION TRIGGER: Send submission confirmation
+      try {
+        await _sendAssignmentSubmissionConfirmation(
+          assignmentId: assignmentId,
+          studentId: studentId,
+          submittedAt: createdSubmission.submittedAt,
+        );
+      } catch (e) {
+        print('Error sending submission confirmation: $e');
+        // Don't fail the submission if notifications fail
+      }
+
+      return createdSubmission;
     } catch (e) {
       print('Submit assignment error: $e');
       throw Exception('Failed to submit assignment: ${e.toString()}');
@@ -530,6 +579,19 @@ class AssignmentService {
         documentId: submissionId,
         data: updatedSubmission.toJson(),
       );
+
+      // NOTIFICATION TRIGGER: Send grading feedback
+      try {
+        await _sendGradingFeedbackNotification(
+          submission: updatedSubmission,
+          assignmentId: submission.assignmentId,
+          grade: grade,
+          feedback: feedback,
+        );
+      } catch (e) {
+        print('Error sending grading feedback notification: $e');
+        // Don't fail the grading if notifications fail
+      }
     } catch (e) {
       print('Grade submission error: $e');
       throw Exception('Failed to grade submission: ${e.toString()}');
@@ -584,10 +646,12 @@ class AssignmentService {
       // Group submissions by student ID
       final submissionsByStudent = <String, List<AssignmentSubmissionModel>>{};
       for (final submission in submissions) {
-        submissionsByStudent.putIfAbsent(
-          submission.studentId,
-          () => [],
-        ).add(submission);
+        submissionsByStudent
+            .putIfAbsent(
+              submission.studentId,
+              () => [],
+            )
+            .add(submission);
       }
 
       // Count statistics
@@ -666,10 +730,12 @@ class AssignmentService {
       // Group submissions by student ID
       final submissionsByStudent = <String, List<AssignmentSubmissionModel>>{};
       for (final submission in submissions) {
-        submissionsByStudent.putIfAbsent(
-          submission.studentId,
-          () => [],
-        ).add(submission);
+        submissionsByStudent
+            .putIfAbsent(
+              submission.studentId,
+              () => [],
+            )
+            .add(submission);
       }
 
       // Build status list for each student
@@ -835,7 +901,7 @@ class AssignmentService {
 
   /// Upload assignment attachments to storage
   Future<List<AttachmentModel>> _uploadAttachments({
-    required List<File> files,
+    required List<PlatformFile> files,
     required String courseId,
     required String assignmentId,
   }) async {
@@ -844,21 +910,21 @@ class AssignmentService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = path.basename(file.path);
+      final filename = file.name;
       final extension = filename.split('.').last.toLowerCase();
 
       try {
         // Upload to storage - use directory path only
         final storagePath = 'assignments/$courseId/$assignmentId';
-        final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
-        final downloadUrl = await _storageService.uploadFile(
+        final timestampedFilename =
+            '${DateTime.now().millisecondsSinceEpoch}_$filename';
+        final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
-          storagePath: storagePath,
-          filename: timestampedFilename,
+          storagePath: '$storagePath/$timestampedFilename',
         );
 
         // Get file size
-        final fileSize = await file.length();
+        final fileSize = file.size;
 
         // Create attachment model
         final attachment = AttachmentModel(
@@ -878,7 +944,8 @@ class AssignmentService {
 
     // Log warning if some files failed
     if (failedFiles.isNotEmpty) {
-      print('Warning: Some attachment files failed to upload: ${failedFiles.join(", ")}');
+      print(
+          'Warning: Some attachment files failed to upload: ${failedFiles.join(", ")}');
     }
 
     return attachments;
@@ -886,7 +953,7 @@ class AssignmentService {
 
   /// Upload submission files to storage
   Future<List<AttachmentModel>> _uploadSubmissionFiles({
-    required List<File> files,
+    required List<PlatformFile> files,
     required String assignmentId,
     required String studentId,
     required int attemptNumber,
@@ -896,22 +963,22 @@ class AssignmentService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = path.basename(file.path);
+      final filename = file.name;
       final extension = filename.split('.').last.toLowerCase();
 
       try {
         // Upload to storage - use directory path only
         final storagePath =
             'submissions/$assignmentId/$studentId/attempt_$attemptNumber';
-        final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
-        final downloadUrl = await _storageService.uploadFile(
+        final timestampedFilename =
+            '${DateTime.now().millisecondsSinceEpoch}_$filename';
+        final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
-          storagePath: storagePath,
-          filename: timestampedFilename,
+          storagePath: '$storagePath/$timestampedFilename',
         );
 
         // Get file size
-        final fileSize = await file.length();
+        final fileSize = file.size;
 
         // Create file model
         final submissionFile = AttachmentModel(
@@ -965,8 +1032,8 @@ class AssignmentService {
       final cached = _hiveService.getCached(key: 'all_assignments');
       if (cached != null && cached is List) {
         return cached
-            .map(
-                (json) => AssignmentModel.fromJson(json as Map<String, dynamic>))
+            .map((json) =>
+                AssignmentModel.fromJson(json as Map<String, dynamic>))
             .toList();
       }
       return [];
@@ -985,6 +1052,243 @@ class AssignmentService {
       );
     } catch (e) {
       print('Clear assignments cache error: $e');
+    }
+  }
+
+  // ==================== NOTIFICATION HELPERS ====================
+
+  /// Private: Send notifications when assignment is created
+  Future<void> _sendAssignmentCreatedNotifications({
+    required String assignmentId,
+    required String assignmentTitle,
+    required String courseId,
+    required List<String> groupIds,
+    required DateTime deadline,
+  }) async {
+    try {
+      // Get course details
+      final courseData = await _firestoreService.read(
+        collection: AppConstants.collectionCourses,
+        documentId: courseId,
+      );
+      if (courseData == null) return;
+
+      final course = CourseModel.fromJson(courseData);
+      final courseName = course.name;
+
+      // Determine which groups to notify
+      List<String> targetGroupIds = groupIds;
+
+      // If groupIds is empty, it means "All Groups" - fetch all groups for this course
+      if (groupIds.isEmpty) {
+        final allGroupsData = await _firestoreService.query(
+          collection: AppConstants.collectionGroups,
+          filters: [
+            QueryFilter(field: 'courseId', isEqualTo: courseId),
+          ],
+        );
+        targetGroupIds = allGroupsData.map((g) => g['id'] as String).toList();
+      }
+
+      // Get all students from the target groups
+      final List<String> studentIds = [];
+      for (final groupId in targetGroupIds) {
+        final groupData = await _firestoreService.read(
+          collection: AppConstants.collectionGroups,
+          documentId: groupId,
+        );
+        if (groupData != null) {
+          final studentIdsInGroup =
+              List<String>.from(groupData['studentIds'] ?? []);
+          studentIds.addAll(studentIdsInGroup);
+        }
+      }
+
+      final uniqueStudentIds = studentIds.toSet().toList();
+      if (uniqueStudentIds.isEmpty) return;
+
+      // Create in-app notifications
+      await _notificationService.createNotificationsForUsers(
+        userIds: uniqueStudentIds,
+        type: AppConstants.notificationTypeAssignment,
+        title: 'New Assignment: $assignmentTitle',
+        message: 'A new assignment has been posted in $courseName',
+        relatedId: assignmentId,
+        relatedType: 'assignment',
+        data: {
+          'courseId': courseId,
+          'courseName': courseName,
+          'deadline': deadline.toIso8601String(),
+        },
+      );
+
+      // Send email notifications
+      for (final studentId in uniqueStudentIds) {
+        try {
+          final userData = await _firestoreService.read(
+            collection: AppConstants.collectionUsers,
+            documentId: studentId,
+          );
+          if (userData != null) {
+            final user = UserModel.fromJson(userData);
+            if (user.email.isNotEmpty) {
+              _emailService.sendEmailAsync(
+                recipientEmail: user.email,
+                recipientName: user.fullName,
+                subject: '[$courseName] New Assignment: $assignmentTitle',
+                body: '''
+                  <h2>New Assignment Posted</h2>
+                  <p>Hi ${user.fullName},</p>
+                  <p>A new assignment has been posted in <strong>$courseName</strong>:</p>
+                  <h3>$assignmentTitle</h3>
+                  <p><strong>Deadline:</strong> ${deadline.toString().split('.')[0]}</p>
+                  <p>Please log in to the E-Learning System to view details and submit your work.</p>
+                ''',
+                isHtml: true,
+              );
+            }
+          }
+        } catch (e) {
+          print('Error sending email to student $studentId: $e');
+        }
+      }
+    } catch (e) {
+      print('Error in _sendAssignmentCreatedNotifications: $e');
+      rethrow;
+    }
+  }
+
+  /// Private: Send submission confirmation notification
+  Future<void> _sendAssignmentSubmissionConfirmation({
+    required String assignmentId,
+    required String studentId,
+    required DateTime submittedAt,
+  }) async {
+    try {
+      // Get assignment details
+      final assignmentData = await _firestoreService.read(
+        collection: AppConstants.collectionAssignments,
+        documentId: assignmentId,
+      );
+      if (assignmentData == null) return;
+
+      final assignment = AssignmentModel.fromJson(assignmentData);
+
+      // Get course details
+      final courseData = await _firestoreService.read(
+        collection: AppConstants.collectionCourses,
+        documentId: assignment.courseId,
+      );
+      if (courseData == null) return;
+
+      final course = CourseModel.fromJson(courseData);
+
+      // Get student details
+      final userData = await _firestoreService.read(
+        collection: AppConstants.collectionUsers,
+        documentId: studentId,
+      );
+      if (userData == null) return;
+
+      final user = UserModel.fromJson(userData);
+
+      // Create in-app notification
+      await _notificationService.createNotification(
+        userId: studentId,
+        type: AppConstants.notificationTypeAssignment,
+        title: 'Assignment Submitted',
+        message: 'Your submission for "${assignment.title}" has been received',
+        relatedId: assignmentId,
+        relatedType: 'assignment',
+        data: {
+          'courseId': assignment.courseId,
+          'courseName': course.name,
+          'submittedAt': submittedAt.toIso8601String(),
+        },
+      );
+
+      // Send email confirmation
+      if (user.email.isNotEmpty) {
+        await _emailService.sendAssignmentSubmissionConfirmationEmail(
+          recipientEmail: user.email,
+          recipientName: user.fullName,
+          courseName: course.name,
+          assignmentTitle: assignment.title,
+          submissionTime: submittedAt,
+        );
+      }
+    } catch (e) {
+      print('Error in _sendAssignmentSubmissionConfirmation: $e');
+      rethrow;
+    }
+  }
+
+  /// Private: Send grading feedback notification
+  Future<void> _sendGradingFeedbackNotification({
+    required AssignmentSubmissionModel submission,
+    required String assignmentId,
+    required double grade,
+    required String feedback,
+  }) async {
+    try {
+      // Get assignment details
+      final assignmentData = await _firestoreService.read(
+        collection: AppConstants.collectionAssignments,
+        documentId: assignmentId,
+      );
+      if (assignmentData == null) return;
+
+      final assignment = AssignmentModel.fromJson(assignmentData);
+
+      // Get course details
+      final courseData = await _firestoreService.read(
+        collection: AppConstants.collectionCourses,
+        documentId: assignment.courseId,
+      );
+      if (courseData == null) return;
+
+      final course = CourseModel.fromJson(courseData);
+
+      // Get student details
+      final userData = await _firestoreService.read(
+        collection: AppConstants.collectionUsers,
+        documentId: submission.studentId,
+      );
+      if (userData == null) return;
+
+      final user = UserModel.fromJson(userData);
+
+      // Create in-app notification
+      await _notificationService.createNotification(
+        userId: submission.studentId,
+        type: AppConstants.notificationTypeGrade,
+        title: 'Assignment Graded',
+        message:
+            'Your assignment "${assignment.title}" has been graded: ${grade.toStringAsFixed(1)}',
+        relatedId: assignmentId,
+        relatedType: 'assignment',
+        data: {
+          'courseId': assignment.courseId,
+          'courseName': course.name,
+          'grade': grade,
+          'feedback': feedback,
+        },
+      );
+
+      // Send email with feedback
+      if (user.email.isNotEmpty) {
+        await _emailService.sendFeedbackEmail(
+          recipientEmail: user.email,
+          recipientName: user.fullName,
+          courseName: course.name,
+          assignmentTitle: assignment.title,
+          grade: grade,
+          feedback: feedback,
+        );
+      }
+    } catch (e) {
+      print('Error in _sendGradingFeedbackNotification: $e');
+      rethrow;
     }
   }
 }

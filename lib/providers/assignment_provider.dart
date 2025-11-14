@@ -1,8 +1,9 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/assignment_model.dart';
 import '../models/assignment_submission_model.dart';
 import '../models/user_model.dart';
+import '../models/announcement_model.dart'; // For AttachmentModel
 import '../services/assignment_service.dart';
 
 /// Assignment Provider
@@ -123,7 +124,7 @@ class AssignmentProvider extends ChangeNotifier {
     required List<String> groupIds,
     required String instructorId,
     required String instructorName,
-    List<File>? attachmentFiles,
+    List<PlatformFile>? attachmentFiles,
   }) async {
     try {
       _error = null;
@@ -157,6 +158,25 @@ class AssignmentProvider extends ChangeNotifier {
       _error = e.toString();
       notifyListeners();
       return null;
+    }
+  }
+
+  /// Upload attachments for editing an assignment
+  Future<List<AttachmentModel>> uploadAttachmentsForEdit({
+    required List<PlatformFile> files,
+    required String courseId,
+    required String assignmentId,
+  }) async {
+    try {
+      return await _assignmentService.uploadAttachmentsForAssignment(
+        files: files,
+        courseId: courseId,
+        assignmentId: assignmentId,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -269,7 +289,7 @@ class AssignmentProvider extends ChangeNotifier {
     required String assignmentId,
     required String studentId,
     required String studentName,
-    required List<File> files,
+    required List<PlatformFile> files,
     required bool isLate,
   }) async {
     try {

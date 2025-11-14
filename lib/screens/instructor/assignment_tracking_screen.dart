@@ -1,14 +1,17 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../models/assignment_model.dart';
 import '../../models/user_model.dart';
+import '../../models/group_model.dart';
+import '../../models/announcement_model.dart'; // For AttachmentModel
 import '../../providers/assignment_provider.dart';
 import '../../services/group_service.dart';
 import '../../services/student_service.dart';
 import '../../config/app_theme.dart';
+import '../../widgets/assignment_form_dialog.dart';
+import '../../utils/csv_download.dart' as csv_helper;
 import 'assignment_grading_screen.dart';
 
 /// Instructor Assignment Tracking Dashboard
@@ -38,6 +41,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
   List<Map<String, dynamic>> _filteredStatus = [];
   Map<String, dynamic>? _stats;
   bool _isLoading = false;
+  List<GroupModel> _groups = [];
 
   @override
   void initState() {
@@ -67,6 +71,7 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
 
       // Get all groups in the course
       final groups = await groupService.getGroupsByCourse(widget.courseId);
+      _groups = groups;
 
       // Collect all unique student IDs from all groups
       final Set<String> studentIds = {};
@@ -227,19 +232,22 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
         throw Exception('Failed to generate CSV');
       }
 
-      // Save to file
-      final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final filename =
           'assignment_${widget.assignment.id}_grades_$timestamp.csv';
-      final file = File('${directory.path}/$filename');
-      await file.writeAsString(csvString);
+
+      // Download CSV using platform-specific implementation
+      final filePath = await csv_helper.downloadCsv(csvString, filename);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('CSV exported successfully to $filename'),
-            duration: const Duration(seconds: 5),
+            content: Text(
+              filePath != null
+                ? 'CSV exported successfully to $filename'
+                : 'CSV exported successfully',
+            ),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'OK',
               onPressed: () {},
@@ -284,6 +292,122 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
         _filterStatus = filter;
         _applyFilters();
       });
+    }
+  }
+
+  Future<void> _showEditAssignmentDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AssignmentFormDialog(
+        assignment: widget.assignment,
+        groups: _groups,
+        courseId: widget.courseId,
+      ),
+    );
+
+    if (result != null && mounted) {
+      final assignmentProvider = context.read<AssignmentProvider>();
+
+      // Upload new attachment files if any
+      List<PlatformFile> newFiles = result['attachmentFiles'] ?? [];
+      List<AttachmentModel> existingAttachments = result['existingAttachments'] ?? [];
+
+      // Merge existing and new attachments
+      List<AttachmentModel> allAttachments = List.from(existingAttachments);
+
+      // Upload new files and add to attachments list
+      if (newFiles.isNotEmpty) {
+        try {
+          // We need to upload new files through the service
+          // For now, we'll use the provider's internal service
+          final uploadedAttachments = await assignmentProvider.uploadAttachmentsForEdit(
+            files: newFiles,
+            courseId: widget.courseId,
+            assignmentId: widget.assignment.id,
+          );
+          allAttachments.addAll(uploadedAttachments);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error uploading attachments: $e')),
+            );
+            return;
+          }
+        }
+      }
+
+      // Create updated assignment
+      final updatedAssignment = widget.assignment.copyWith(
+        title: result['title'],
+        description: result['description'],
+        startDate: result['startDate'],
+        deadline: result['deadline'],
+        allowLateSubmission: result['allowLateSubmission'],
+        lateDeadline: result['lateDeadline'],
+        maxAttempts: result['maxAttempts'],
+        allowedFileFormats: result['allowedFileFormats'],
+        maxFileSize: result['maxFileSize'],
+        groupIds: result['groupIds'],
+        attachments: allAttachments,
+      );
+
+      final success = await assignmentProvider.updateAssignment(updatedAssignment);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment updated successfully')),
+        );
+        // Pop back to previous screen since assignment was updated
+        Navigator.of(context).pop(true);
+      } else if (mounted) {
+        final error = assignmentProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to update assignment')),
+        );
+      }
+    }
+  }
+
+  // Confirm and delete assignment
+  Future<void> _confirmDeleteAssignment() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Assignment'),
+        content: Text(
+          'Are you sure you want to delete "${widget.assignment.title}"?\n\n'
+          'This will also delete all student submissions and cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final assignmentProvider = context.read<AssignmentProvider>();
+      final success = await assignmentProvider.deleteAssignment(widget.assignment.id);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment deleted successfully')),
+        );
+        // Pop back to course screen since assignment was deleted
+        Navigator.of(context).pop(true);
+      } else if (mounted) {
+        final error = assignmentProvider.error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to delete assignment')),
+        );
+      }
     }
   }
 
@@ -713,6 +837,17 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
         title: Text('Track: ${widget.assignment.title}'),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _showEditAssignmentDialog,
+            tooltip: 'Edit Assignment',
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _confirmDeleteAssignment,
+            tooltip: 'Delete Assignment',
+            color: Colors.red,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,

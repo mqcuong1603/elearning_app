@@ -7,7 +7,6 @@ import '../../providers/semester_provider.dart';
 import '../../models/group_model.dart';
 import '../../models/course_model.dart';
 import '../../models/user_model.dart';
-import '../../models/semester_model.dart';
 import '../../widgets/group_form_dialog.dart';
 import '../../services/csv_service.dart';
 import '../../config/app_constants.dart';
@@ -644,7 +643,6 @@ class _GroupCard extends StatelessWidget {
   final VoidCallback onManageStudents;
 
   const _GroupCard({
-    super.key,
     required this.group,
     required this.onEdit,
     required this.onDelete,
@@ -760,7 +758,6 @@ class _ManageStudentsDialog extends StatefulWidget {
   final Future<String?> Function(String studentId) onRemoveStudent;
 
   const _ManageStudentsDialog({
-    super.key,
     required this.group,
     required this.course,
     required this.allStudents,

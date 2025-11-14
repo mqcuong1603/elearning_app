@@ -1,9 +1,13 @@
-import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import '../models/announcement_model.dart';
+import '../models/user_model.dart';
+import '../models/course_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
 import 'hive_service.dart';
 import 'storage_service.dart';
+import 'notification_service.dart';
+import 'email_service.dart';
 
 /// Announcement Service
 /// Handles all announcement-related operations including CRUD, tracking, and file uploads
@@ -11,14 +15,20 @@ class AnnouncementService {
   final FirestoreService _firestoreService;
   final HiveService _hiveService;
   final StorageService _storageService;
+  final NotificationService _notificationService;
+  final EmailService _emailService;
 
   AnnouncementService({
     required FirestoreService firestoreService,
     required HiveService hiveService,
     required StorageService storageService,
+    required NotificationService notificationService,
+    required EmailService emailService,
   })  : _firestoreService = firestoreService,
         _hiveService = hiveService,
-        _storageService = storageService;
+        _storageService = storageService,
+        _notificationService = notificationService,
+        _emailService = emailService;
 
   /// Get all announcements
   Future<List<AnnouncementModel>> getAllAnnouncements() async {
@@ -144,27 +154,18 @@ class AnnouncementService {
     required List<String> groupIds,
     required String instructorId,
     required String instructorName,
-    List<File>? attachmentFiles,
+    List<PlatformFile>? attachmentFiles,
   }) async {
     try {
       final now = DateTime.now();
 
-      // Upload attachments if any
-      List<AttachmentModel> attachments = [];
-      if (attachmentFiles != null && attachmentFiles.isNotEmpty) {
-        attachments = await _uploadAttachments(
-          files: attachmentFiles,
-          courseId: courseId,
-          announcementId: '', // Will be updated after creation
-        );
-      }
-
+      // Create announcement first without attachments
       final announcement = AnnouncementModel(
         id: '', // Will be set by Firestore
         courseId: courseId,
         title: title,
         content: content,
-        attachments: attachments,
+        attachments: [], // Empty initially
         groupIds: groupIds,
         instructorId: instructorId,
         instructorName: instructorName,
@@ -175,15 +176,56 @@ class AnnouncementService {
         comments: [],
       );
 
+      // Create announcement in Firestore to get ID
       final id = await _firestoreService.create(
         collection: AppConstants.collectionAnnouncements,
         data: announcement.toJson(),
       );
 
-      final createdAnnouncement = announcement.copyWith(id: id);
+      // Now upload attachments with the proper announcement ID
+      List<AttachmentModel> attachments = [];
+      if (attachmentFiles != null && attachmentFiles.isNotEmpty) {
+        print(
+            'Uploading ${attachmentFiles.length} attachments for announcement $id');
+        attachments = await _uploadAttachments(
+          files: attachmentFiles,
+          courseId: courseId,
+          announcementId: id,
+        );
+        print('Successfully uploaded ${attachments.length} attachments');
+
+        // Update announcement with attachments
+        if (attachments.isNotEmpty) {
+          print('Updating announcement with attachments');
+          await _firestoreService.update(
+            collection: AppConstants.collectionAnnouncements,
+            documentId: id,
+            data: {'attachments': attachments.map((a) => a.toJson()).toList()},
+          );
+          print('Announcement updated with attachments');
+        }
+      }
+
+      final createdAnnouncement = announcement.copyWith(
+        id: id,
+        attachments: attachments,
+      );
 
       // Clear cache to force refresh
       await _clearAnnouncementsCache();
+
+      // NOTIFICATION TRIGGER: Send notifications to students in the groups
+      try {
+        await _sendAnnouncementNotifications(
+          announcementId: id,
+          announcementTitle: title,
+          courseId: courseId,
+          groupIds: groupIds,
+        );
+      } catch (e) {
+        print('Error sending announcement notifications: $e');
+        // Don't fail the announcement creation if notifications fail
+      }
 
       return createdAnnouncement;
     } catch (e) {
@@ -205,6 +247,53 @@ class AnnouncementService {
       await _clearAnnouncementsCache();
     } catch (e) {
       print('Update announcement error: $e');
+      throw Exception('Failed to update announcement: ${e.toString()}');
+    }
+  }
+
+  /// Update announcement with new attachments
+  Future<AnnouncementModel> updateAnnouncementWithFiles({
+    required AnnouncementModel announcement,
+    List<PlatformFile>? newAttachmentFiles,
+  }) async {
+    try {
+      // Upload new attachments if any
+      List<AttachmentModel> newAttachments = [];
+      if (newAttachmentFiles != null && newAttachmentFiles.isNotEmpty) {
+        print(
+            'Uploading ${newAttachmentFiles.length} new attachments for announcement ${announcement.id}');
+        newAttachments = await _uploadAttachments(
+          files: newAttachmentFiles,
+          courseId: announcement.courseId,
+          announcementId: announcement.id,
+        );
+        print('Successfully uploaded ${newAttachments.length} new attachments');
+      }
+
+      // Combine existing and new attachments
+      final allAttachments = [
+        ...announcement.attachments,
+        ...newAttachments,
+      ];
+
+      // Update announcement with combined attachments
+      final updatedAnnouncement = announcement.copyWith(
+        attachments: allAttachments,
+        updatedAt: DateTime.now(),
+      );
+
+      await _firestoreService.update(
+        collection: AppConstants.collectionAnnouncements,
+        documentId: announcement.id,
+        data: updatedAnnouncement.toJson(),
+      );
+
+      // Clear cache to force refresh
+      await _clearAnnouncementsCache();
+
+      return updatedAnnouncement;
+    } catch (e) {
+      print('Update announcement with files error: $e');
       throw Exception('Failed to update announcement: ${e.toString()}');
     }
   }
@@ -427,7 +516,7 @@ class AnnouncementService {
 
   /// Upload attachments to storage
   Future<List<AttachmentModel>> _uploadAttachments({
-    required List<File> files,
+    required List<PlatformFile> files,
     required String courseId,
     required String announcementId,
   }) async {
@@ -435,20 +524,19 @@ class AnnouncementService {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final filename = file.path.split('/').last;
+      final filename = file.name;
       final extension = filename.split('.').last.toLowerCase();
 
       try {
         // Upload to storage
-        final storagePath =
-            'announcements/$courseId/$announcementId/${DateTime.now().millisecondsSinceEpoch}_$filename';
-        final downloadUrl = await _storageService.uploadFile(
+        final storagePath = 'announcements/$courseId/$announcementId';
+        final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
           storagePath: storagePath,
         );
 
         // Get file size
-        final fileSize = await file.length();
+        final fileSize = file.size;
 
         // Create attachment model
         final attachment = AttachmentModel(
@@ -460,12 +548,16 @@ class AnnouncementService {
         );
 
         attachments.add(attachment);
+        print(
+            'Successfully added attachment: $filename (${attachment.formattedSize})');
       } catch (e) {
-        print('Failed to upload attachment $filename: $e');
-        // Continue with other files
+        print('ERROR: Failed to upload attachment $filename: $e');
+        // Continue with other files - don't throw, just log and skip
       }
     }
 
+    print(
+        'Total attachments uploaded: ${attachments.length} of ${files.length}');
     return attachments;
   }
 
@@ -511,6 +603,153 @@ class AnnouncementService {
       );
     } catch (e) {
       print('Clear announcements cache error: $e');
+    }
+  }
+
+  /// Private: Send announcement notifications to students
+  Future<void> _sendAnnouncementNotifications({
+    required String announcementId,
+    required String announcementTitle,
+    required String courseId,
+    required List<String> groupIds,
+  }) async {
+    try {
+      print('📢 Starting announcement notification process');
+      print('   Announcement: $announcementTitle');
+      print('   Course ID: $courseId');
+      print('   Group IDs to notify: $groupIds');
+
+      // Get course details
+      final courseData = await _firestoreService.read(
+        collection: AppConstants.collectionCourses,
+        documentId: courseId,
+      );
+      if (courseData == null) {
+        print('❌ Course not found, aborting notifications');
+        return;
+      }
+
+      final course = CourseModel.fromJson(courseData);
+      final courseName = course.name;
+      print('   Course Name: $courseName');
+
+      // Determine which groups to notify
+      List<String> targetGroupIds = groupIds;
+
+      // If groupIds is empty, it means "All Groups" - fetch all groups for this course
+      if (groupIds.isEmpty) {
+        print('   🌐 "All Groups" selected - fetching all groups for this course');
+        final allGroupsData = await _firestoreService.query(
+          collection: AppConstants.collectionGroups,
+          filters: [
+            QueryFilter(field: 'courseId', isEqualTo: courseId),
+          ],
+        );
+        targetGroupIds = allGroupsData.map((g) => g['id'] as String).toList();
+        print('   📋 Found ${targetGroupIds.length} groups in course');
+      }
+
+      // Get all students from the target groups
+      final List<String> studentIds = [];
+      for (final groupId in targetGroupIds) {
+        print('   📋 Fetching group: $groupId');
+        final groupData = await _firestoreService.read(
+          collection: AppConstants.collectionGroups,
+          documentId: groupId,
+        );
+        if (groupData != null) {
+          print('   ✅ Group found: ${groupData['name']}');
+          final studentIdsInGroup =
+              List<String>.from(groupData['studentIds'] ?? []);
+          print(
+              '   👥 Students in group: ${studentIdsInGroup.length} (${studentIdsInGroup.join(', ')})');
+          studentIds.addAll(studentIdsInGroup);
+        } else {
+          print('   ⚠️  Group not found: $groupId');
+        }
+      }
+
+      // Remove duplicates
+      final uniqueStudentIds = studentIds.toSet().toList();
+      print(
+          '   📊 Total unique students to notify: ${uniqueStudentIds.length}');
+
+      if (uniqueStudentIds.isEmpty) {
+        print('❌ No students found in groups, skipping notifications');
+        print('   💡 TIP: Make sure students are added to the selected groups');
+        return;
+      }
+
+      print(
+          '✅ Sending announcement notifications to ${uniqueStudentIds.length} students');
+
+      // Create in-app notifications for all students
+      print('   📱 Creating in-app notifications...');
+      await _notificationService.createNotificationsForUsers(
+        userIds: uniqueStudentIds,
+        type: AppConstants.notificationTypeAnnouncement,
+        title: 'New Announcement: $announcementTitle',
+        message: 'A new announcement has been posted in $courseName',
+        relatedId: announcementId,
+        relatedType: 'announcement',
+        data: {
+          'courseId': courseId,
+          'courseName': courseName,
+        },
+      );
+      print('   ✅ In-app notifications created');
+
+      // Send email notifications to all students
+      print('   📧 Sending email notifications...');
+      int emailsSent = 0;
+      int emailsSkipped = 0;
+      for (final studentId in uniqueStudentIds) {
+        try {
+          final userData = await _firestoreService.read(
+            collection: AppConstants.collectionUsers,
+            documentId: studentId,
+          );
+          if (userData != null) {
+            final user = UserModel.fromJson(userData);
+            if (user.email.isNotEmpty) {
+              print(
+                  '      📨 Sending email to: ${user.fullName} <${user.email}>');
+              // Send email asynchronously (non-blocking)
+              _emailService.sendEmailAsync(
+                recipientEmail: user.email,
+                recipientName: user.fullName,
+                subject: '[$courseName] New Announcement: $announcementTitle',
+                body: '''
+                  <h2>New Announcement</h2>
+                  <p>Hi ${user.fullName},</p>
+                  <p>A new announcement has been posted in <strong>$courseName</strong>:</p>
+                  <h3>$announcementTitle</h3>
+                  <p>Please log in to the E-Learning System to view the full announcement.</p>
+                ''',
+                isHtml: true,
+              );
+              emailsSent++;
+            } else {
+              print(
+                  '      ⚠️  No email found for student: ${user.fullName} (ID: $studentId)');
+              emailsSkipped++;
+            }
+          } else {
+            print('      ⚠️  User data not found for student ID: $studentId');
+            emailsSkipped++;
+          }
+        } catch (e) {
+          print('      ❌ Error sending email to student $studentId: $e');
+          emailsSkipped++;
+          // Continue with other students
+        }
+      }
+      print('   📊 Email summary: $emailsSent sent, $emailsSkipped skipped');
+
+      print('✅ Announcement notifications sent successfully');
+    } catch (e) {
+      print('Error sending announcement notifications: $e');
+      rethrow;
     }
   }
 }

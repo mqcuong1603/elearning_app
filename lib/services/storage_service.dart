@@ -1,12 +1,45 @@
 import 'dart:io';
+import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import '../config/app_constants.dart';
 
 /// Storage Service
 /// Handles file uploads and downloads with Firebase Storage
 class StorageService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  late final FirebaseStorage _storage;
+
+  StorageService() {
+    // Get the storage bucket from Firebase options
+    // This avoids hardcoding and ensures we use the configured bucket
+    try {
+      final app = Firebase.app();
+      final storageBucket = app.options.storageBucket;
+
+      if (storageBucket != null && storageBucket.isNotEmpty) {
+        // Use explicit bucket to avoid .appspot.com vs .firebasestorage.app conversion issues
+        _storage = FirebaseStorage.instanceFor(bucket: storageBucket);
+        print('🔧 StorageService initialized with bucket: $storageBucket');
+      } else {
+        // Fallback to default instance
+        _storage = FirebaseStorage.instance;
+        print('⚠️  StorageService using default instance (no bucket specified in config)');
+      }
+    } catch (e) {
+      print('⚠️  Error initializing StorageService: $e');
+      _storage = FirebaseStorage.instance;
+    }
+  }
+
+  /// Check if running on desktop platform (Windows, macOS, Linux)
+  bool get _isDesktop {
+    if (kIsWeb) return false;
+    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  }
 
   /// Upload a file to Firebase Storage
   /// Returns the download URL
@@ -61,9 +94,13 @@ class StorageService {
       // Upload file with metadata
       final uploadTask = ref.putFile(file, metadata);
 
-      // Listen to upload progress on the main thread
-      if (onProgress != null) {
-        uploadTask.snapshotEvents.listen(
+      // Listen to upload progress
+      // NOTE: On desktop platforms (Windows/macOS/Linux), Firebase Storage has a bug
+      // where snapshotEvents send messages from background threads, causing errors.
+      // We skip the progress listener on desktop platforms to avoid this issue.
+      StreamSubscription<TaskSnapshot>? progressSubscription;
+      if (onProgress != null && !_isDesktop) {
+        progressSubscription = uploadTask.snapshotEvents.listen(
           (snapshot) {
             if (snapshot.state == TaskState.running) {
               final progress = snapshot.bytesTransferred / snapshot.totalBytes;
@@ -77,9 +114,15 @@ class StorageService {
       }
 
       // Wait for upload to complete
-      final snapshot = await uploadTask.whenComplete(() {
-        print('Upload completed for $fileName');
-      });
+      TaskSnapshot snapshot;
+      try {
+        snapshot = await uploadTask.whenComplete(() {
+          print('Upload completed for $fileName');
+        });
+      } finally {
+        // Clean up the progress subscription
+        await progressSubscription?.cancel();
+      }
 
       // Check if upload was successful
       if (snapshot.state != TaskState.success) {
@@ -99,6 +142,260 @@ class StorageService {
       switch (e.code) {
         case 'storage/unauthorized':
           errorMessage = 'You do not have permission to upload files. Please ensure you are logged in.';
+          break;
+        case 'storage/canceled':
+          errorMessage = 'Upload was canceled.';
+          break;
+        case 'storage/unknown':
+          errorMessage = 'An unknown error occurred. Please try again.';
+          break;
+        case 'storage/object-not-found':
+          errorMessage = 'Storage bucket not found. Please check your Firebase configuration.';
+          break;
+        case 'storage/bucket-not-found':
+          errorMessage = 'Storage bucket not configured. Please contact support.';
+          break;
+        case 'storage/quota-exceeded':
+          errorMessage = 'Storage quota exceeded. Please contact support.';
+          break;
+        case 'storage/unauthenticated':
+          errorMessage = 'You must be logged in to upload files.';
+          break;
+        case 'storage/retry-limit-exceeded':
+          errorMessage = 'Upload failed after multiple retries. Please check your internet connection.';
+          break;
+        default:
+          errorMessage = 'Failed to upload file: ${e.message ?? e.code}';
+      }
+
+      throw Exception(errorMessage);
+    } catch (e) {
+      print('Storage upload error: $e');
+      throw Exception('Failed to upload file: ${e.toString()}');
+    }
+  }
+
+  /// Upload a PlatformFile (works for both web and mobile)
+  /// Returns the download URL
+  Future<String> uploadPlatformFile({
+    required PlatformFile file,
+    required String storagePath,
+    Function(double progress)? onProgress,
+  }) async {
+    try {
+      // Debug: Check authentication status
+      final currentUser = FirebaseAuth.instance.currentUser;
+      print('🔐 Auth Status:');
+      print('   User ID: ${currentUser?.uid ?? "NOT AUTHENTICATED"}');
+      print('   Is Anonymous: ${currentUser?.isAnonymous ?? false}');
+      print('   Storage Bucket: ${_storage.bucket}');
+
+      if (currentUser == null) {
+        throw Exception('User not authenticated. Please sign in first.');
+      }
+
+      // Validate file size
+      if (file.size > 0 && !AppConstants.isValidFileSize(file.size)) {
+        throw Exception(AppConstants.errorFileSize);
+      }
+
+      // Validate file format
+      final extension = AppConstants.getFileExtension(file.name);
+      final allowedFormats = [
+        ...AppConstants.allowedImageFormats,
+        ...AppConstants.allowedDocumentFormats,
+        ...AppConstants.allowedVideoFormats,
+        ...AppConstants.allowedArchiveFormats,
+      ];
+
+      if (!allowedFormats.contains(extension)) {
+        throw Exception(AppConstants.errorFileFormat);
+      }
+
+      // Create reference
+      final fullPath = '$storagePath/${file.name}';
+      print('📤 Uploading file to path: $fullPath');
+      print('   File size: ${file.size} bytes (${(file.size / 1024 / 1024).toStringAsFixed(2)} MB)');
+      print('   Platform: ${kIsWeb ? "Web" : (_isDesktop ? "Desktop (${Platform.operatingSystem})" : "Mobile")}');
+      final ref = _storage.ref().child(fullPath);
+      print('   Full storage reference: ${ref.fullPath}');
+
+      // Create metadata
+      final metadata = SettableMetadata(
+        contentType: _getContentType(extension),
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'originalFilename': file.name,
+        },
+      );
+
+      UploadTask uploadTask;
+
+      // Handle web and mobile differently
+      try {
+        if (kIsWeb) {
+          // On web, use bytes
+          print('   Using web upload (putData)');
+          if (file.bytes == null) {
+            throw Exception('File bytes are null');
+          }
+          print('   Bytes length: ${file.bytes!.length}');
+          uploadTask = ref.putData(file.bytes!, metadata);
+          print('   Upload task created successfully');
+        } else {
+          // On mobile, use path
+          print('   Using mobile upload (putFile)');
+          if (file.path == null) {
+            throw Exception('File path is null');
+          }
+          print('   File path: ${file.path}');
+          uploadTask = ref.putFile(File(file.path!), metadata);
+          print('   Upload task created successfully');
+        }
+      } catch (e) {
+        print('❌ Error creating upload task: $e');
+        rethrow;
+      }
+
+      print('   Upload task created, starting upload...');
+
+      // Listen to upload progress and errors
+      // NOTE: On desktop platforms (Windows/Linux/macOS), Firebase Storage has a bug
+      // where snapshotEvents send messages from background threads, causing errors.
+      // We skip the progress listener on desktop platforms to avoid this issue.
+      StreamSubscription<TaskSnapshot>? progressSubscription;
+      if (onProgress != null && !_isDesktop) {
+        progressSubscription = uploadTask.snapshotEvents.listen(
+          (snapshot) {
+            print('   Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes} bytes');
+            print('   State: ${snapshot.state}');
+
+            if (snapshot.state == TaskState.running) {
+              final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+              onProgress(progress);
+            }
+          },
+          onError: (error) {
+            print('❌ Upload stream error: $error');
+            if (error is FirebaseException) {
+              print('   Firebase error code: ${error.code}');
+              print('   Firebase error message: ${error.message}');
+            }
+          },
+        );
+      } else if (_isDesktop && onProgress != null) {
+        print('   ⚠️  Progress tracking disabled on desktop platforms to avoid threading issues');
+      }
+
+      // Wait for upload to complete with timeout
+      print('   Waiting for upload to complete...');
+      TaskSnapshot snapshot;
+      try {
+        snapshot = await uploadTask.timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            print('   ❌ Upload timed out after 60 seconds');
+            print('   This might be a CORS issue or Storage rules blocking the upload');
+            throw Exception('Upload timed out. Check Firebase Storage rules and CORS configuration.');
+          },
+        ).whenComplete(() {
+          print('   ✅ Upload task completed for ${file.name}');
+        });
+      } catch (e) {
+        await progressSubscription?.cancel();
+        print('❌ Upload failed with error: $e');
+        if (e is FirebaseException) {
+          print('   Firebase error code: ${e.code}');
+          print('   Firebase error message: ${e.message}');
+          print('   Firebase error details: ${e.stackTrace}');
+        }
+        rethrow;
+      } finally {
+        // Clean up the progress subscription
+        await progressSubscription?.cancel();
+      }
+
+      // Check if upload was successful
+      print('   Upload state: ${snapshot.state}');
+      print('   Bytes transferred: ${snapshot.bytesTransferred}');
+      print('   Total bytes: ${snapshot.totalBytes}');
+
+      // Metadata might be null on some platforms (Windows), so handle carefully
+      try {
+        final metadata = snapshot.metadata;
+        if (metadata != null) {
+          print('   Metadata name: ${metadata.name ?? "null"}');
+        } else {
+          print('   Metadata: null (platform limitation)');
+        }
+      } catch (e) {
+        print('   ⚠️  Could not access metadata: $e');
+      }
+
+      if (snapshot.state != TaskState.success) {
+        throw Exception('Upload failed with state: ${snapshot.state}');
+      }
+
+      if (snapshot.bytesTransferred != snapshot.totalBytes) {
+        print('   ⚠️ WARNING: Bytes transferred (${snapshot.bytesTransferred}) != Total bytes (${snapshot.totalBytes})');
+      }
+
+      // Get download URL with retry logic
+      // On some platforms, there's a brief delay before the file is available
+      print('   Getting download URL...');
+
+      // Verify snapshot.ref is valid
+      final storageRef = snapshot.ref;
+      print('   Storage reference path: ${storageRef.fullPath}');
+      print('   Storage reference bucket: ${storageRef.bucket ?? "null"}');
+
+      String downloadUrl;
+      int retryCount = 0;
+      const maxRetries = 5;
+      final retryDelays = [
+        Duration(milliseconds: 500),
+        Duration(seconds: 1),
+        Duration(seconds: 2),
+        Duration(seconds: 3),
+        Duration(seconds: 5),
+      ];
+
+      while (retryCount <= maxRetries) {
+        try {
+          print('   Attempt ${retryCount + 1}/${maxRetries + 1}: Getting download URL...');
+          downloadUrl = await storageRef.getDownloadURL();
+          print('✅ File uploaded successfully!');
+          print('   URL: $downloadUrl');
+          return downloadUrl;
+        } catch (e) {
+          print('   ❌ Attempt ${retryCount + 1} failed: $e');
+          if (e is FirebaseException) {
+            print('      Error code: ${e.code}');
+            print('      Error message: ${e.message}');
+          }
+
+          retryCount++;
+          if (retryCount > maxRetries) {
+            print('❌ Failed to get download URL after ${maxRetries + 1} attempts');
+            print('   This usually means the file was not actually uploaded to Storage');
+            print('   Check Firebase Console Storage tab to verify');
+            rethrow;
+          }
+
+          final delay = retryDelays[retryCount - 1];
+          print('   ⏳ Waiting ${delay.inSeconds}s before retry...');
+          await Future.delayed(delay);
+        }
+      }
+
+      throw Exception('Failed to get download URL after retries');
+    } on FirebaseException catch (e) {
+      print('Firebase Storage error: ${e.code} - ${e.message}');
+      String errorMessage;
+
+      switch (e.code) {
+        case 'storage/unauthorized':
+          errorMessage = 'You do not have permission to upload files.';
           break;
         case 'storage/canceled':
           errorMessage = 'Upload was canceled.';

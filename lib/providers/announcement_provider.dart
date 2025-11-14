@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/announcement_model.dart';
 import '../services/announcement_service.dart';
 
@@ -109,7 +109,7 @@ class AnnouncementProvider extends ChangeNotifier {
     required List<String> groupIds,
     required String instructorId,
     required String instructorName,
-    List<File>? attachmentFiles,
+    List<PlatformFile>? attachmentFiles,
   }) async {
     try {
       _error = null;
@@ -145,6 +145,35 @@ class AnnouncementProvider extends ChangeNotifier {
       _error = null;
 
       await _announcementService.updateAnnouncement(announcement);
+
+      // Reload announcements
+      if (_selectedCourseId != null) {
+        await loadAnnouncementsByCourse(_selectedCourseId!);
+      } else {
+        await loadAnnouncements();
+      }
+
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      print('❌ Create announcement error: $_error');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Update announcement with new file attachments
+  Future<bool> updateAnnouncementWithFiles({
+    required AnnouncementModel announcement,
+    List<PlatformFile>? newAttachmentFiles,
+  }) async {
+    try {
+      _error = null;
+
+      await _announcementService.updateAnnouncementWithFiles(
+        announcement: announcement,
+        newAttachmentFiles: newAttachmentFiles,
+      );
 
       // Reload announcements
       if (_selectedCourseId != null) {
