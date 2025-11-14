@@ -25,7 +25,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   bool _isLoadingCourses = true;
   List<SemesterModel> _semesters = [];
   SemesterModel? _selectedSemester;
-  bool _isLoadingSemesters = true;
 
   @override
   void initState() {
@@ -39,10 +38,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   Future<void> _loadSemesters() async {
     if (!mounted) return;
 
-    setState(() {
-      _isLoadingSemesters = true;
-    });
-
     try {
       final semesterProvider = context.read<SemesterProvider>();
       await semesterProvider.loadSemesters();
@@ -52,7 +47,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           _semesters = semesterProvider.semesters;
           // Set current semester as default
           _selectedSemester = semesterProvider.currentSemester;
-          _isLoadingSemesters = false;
         });
 
         // Load courses for the current semester
@@ -62,9 +56,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingSemesters = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading semesters: $e'),
@@ -824,7 +815,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: AppTheme.successColor,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusXS),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
                     ),
                     child: Text(
                       'Current',
