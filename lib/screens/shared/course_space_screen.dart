@@ -32,7 +32,8 @@ import './material_details_screen.dart';
 import './forum/forum_list_screen.dart';
 import './messaging/conversations_list_screen.dart';
 
-/// Course Space Screen with 5 Tabs: Stream, Classwork, People, Forum, Messages
+/// Course Space Screen with 3 Tabs: Stream, Classwork, People
+/// Forum integrated into People tab, Messages accessible via AppBar
 /// Based on PDF requirements (Interface requirement - 2 pts)
 class CourseSpaceScreen extends StatefulWidget {
   final CourseModel course;
@@ -74,7 +75,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     // Defer loading to after the first frame to avoid build-phase conflicts
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
@@ -261,18 +262,28 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.message),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ConversationsListScreen(),
+                ),
+              );
+            },
+            tooltip: 'Messages',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.textOnPrimaryColor,
           labelColor: AppTheme.textOnPrimaryColor,
           unselectedLabelColor: AppTheme.textOnPrimaryColor.withOpacity(0.7),
-          isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.stream), text: 'Stream'),
             Tab(icon: Icon(Icons.assignment), text: 'Classwork'),
             Tab(icon: Icon(Icons.people), text: 'People'),
-            Tab(icon: Icon(Icons.forum), text: 'Forum'),
-            Tab(icon: Icon(Icons.message), text: 'Messages'),
           ],
         ),
       ),
@@ -282,8 +293,6 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           _buildStreamTab(),
           _buildClassworkTab(),
           _buildPeopleTab(),
-          _buildForumTab(),
-          _buildMessagingTab(),
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
@@ -600,10 +609,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     trailing: IconButton(
                       icon: const Icon(Icons.message),
                       onPressed: () {
-                        // TODO: Open private message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Messaging feature coming soon!'),
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ConversationsListScreen(),
                           ),
                         );
                       },
@@ -611,6 +619,62 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingM),
+
+          // Forum Section
+          Card(
+            child: InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ForumListScreen(course: widget.course),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(AppTheme.radiusM),
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacingM),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppTheme.spacingM),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                      ),
+                      child: const Icon(
+                        Icons.forum,
+                        color: Colors.purple,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingM),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Course Forum',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: AppTheme.spacingXS),
+                          Text(
+                            'Discuss course topics with classmates',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.textSecondaryColor,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1718,17 +1782,5 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         );
       },
     );
-  }
-
-  // Forum Tab: Course-specific forum discussions
-  Widget _buildForumTab() {
-    return ForumListScreen(
-      course: widget.course,
-    );
-  }
-
-  // Messaging Tab: Course-specific conversations
-  Widget _buildMessagingTab() {
-    return const ConversationsListScreen();
   }
 }
