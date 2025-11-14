@@ -46,11 +46,24 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    // Stop listening to semester updates when screen is disposed
+    final semesterProvider = context.read<SemesterProvider>();
+    semesterProvider.stopListening();
+    super.dispose();
+  }
+
   Future<void> _loadSemesters() async {
     if (!mounted) return;
 
     try {
       final semesterProvider = context.read<SemesterProvider>();
+
+      // Start listening to real-time semester updates
+      semesterProvider.startListening();
+
+      // Also load initial data
       await semesterProvider.loadSemesters();
 
       if (mounted) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/semester_model.dart';
 import '../services/semester_service.dart';
@@ -6,6 +7,7 @@ import '../services/semester_service.dart';
 /// Manages semester state using ChangeNotifier
 class SemesterProvider extends ChangeNotifier {
   final SemesterService _semesterService;
+  StreamSubscription<List<SemesterModel>>? _semesterSubscription;
 
   SemesterProvider({required SemesterService semesterService})
       : _semesterService = semesterService;
@@ -242,6 +244,37 @@ class SemesterProvider extends ChangeNotifier {
   /// Refresh semesters
   Future<void> refresh() async {
     await loadSemesters();
+  }
+
+  /// Start listening to real-time semester updates
+  void startListening() {
+    _semesterSubscription?.cancel(); // Cancel any existing subscription
+    _semesterSubscription = _semesterService.streamSemesters().listen(
+      (semesters) {
+        _semesters = semesters;
+        _currentSemester = semesters.firstWhere(
+          (s) => s.isCurrent,
+          orElse: () => semesters.isNotEmpty ? semesters.first : _createEmptySemester(),
+        );
+        notifyListeners();
+      },
+      onError: (error) {
+        _errorMessage = error.toString();
+        notifyListeners();
+      },
+    );
+  }
+
+  /// Stop listening to real-time updates
+  void stopListening() {
+    _semesterSubscription?.cancel();
+    _semesterSubscription = null;
+  }
+
+  @override
+  void dispose() {
+    stopListening();
+    super.dispose();
   }
 
   /// Create empty semester for default
