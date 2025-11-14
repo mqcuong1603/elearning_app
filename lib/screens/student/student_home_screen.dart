@@ -29,6 +29,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   List<CourseModel> _enrolledCourses = [];
   bool _isLoadingCourses = true;
   String? _selectedSemesterId;
+  String? _lastKnownCurrentSemesterId; // Track current semester changes
 
   // Dashboard data
   List<AssignmentModel> _allAssignments = [];
@@ -58,6 +59,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         if (currentSemester != null) {
           setState(() {
             _selectedSemesterId = currentSemester.id;
+            _lastKnownCurrentSemesterId = currentSemester.id;
           });
           await _loadEnrolledCourses();
         }
@@ -258,6 +260,35 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     // Watch semester provider for real-time updates
     final semesterProvider = context.watch<SemesterProvider>();
     final semesters = semesterProvider.semesters;
+
+    // Detect when current semester changes and auto-switch if needed
+    final currentSemesterId = semesterProvider.currentSemester?.id;
+    if (currentSemesterId != null &&
+        _lastKnownCurrentSemesterId != null &&
+        currentSemesterId != _lastKnownCurrentSemesterId) {
+      // Current semester has changed
+      // If student is viewing the old current semester, auto-switch to new one
+      if (_selectedSemesterId == _lastKnownCurrentSemesterId) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedSemesterId = currentSemesterId;
+              _lastKnownCurrentSemesterId = currentSemesterId;
+            });
+            _loadEnrolledCourses();
+          }
+        });
+      } else {
+        // Just update the tracking variable
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _lastKnownCurrentSemesterId = currentSemesterId;
+            });
+          }
+        });
+      }
+    }
 
     // Safely get selected semester with null checks
     SemesterModel? selectedSemester;
