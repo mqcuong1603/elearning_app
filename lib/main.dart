@@ -19,7 +19,11 @@ import 'services/quiz_service.dart';
 import 'services/question_service.dart';
 import 'services/forum_service.dart';
 import 'services/message_service.dart';
+import 'services/notification_service.dart';
+import 'services/email_service.dart';
+import 'services/deadline_monitoring_service.dart';
 import 'providers/semester_provider.dart';
+import 'providers/notification_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/group_provider.dart';
@@ -50,6 +54,17 @@ void main() async {
     // Initialize Hive for offline caching
     await HiveService.instance.initialize();
     print('Hive initialized successfully');
+
+    // Configure Email Service for notifications
+    final emailService = EmailService();
+    emailService.configureSMTP(
+      smtpHost: 'smtp.gmail.com',
+      smtpPort: 587,
+      senderEmail: 'cuongcfvipss4@gmail.com',
+      senderPassword: 'vspazecbnujrpwev',
+      senderName: 'E-Learning System',
+    );
+    print('Email service configured successfully');
   } catch (e) {
     print('Initialization error: $e');
   }
@@ -79,6 +94,19 @@ class MyApp extends StatelessWidget {
         ),
         Provider<CsvService>(
           create: (_) => CsvService(),
+        ),
+        Provider<EmailService>(
+          create: (_) {
+            final emailService = EmailService();
+            emailService.configureSMTP(
+              smtpHost: 'smtp.gmail.com',
+              smtpPort: 587,
+              senderEmail: 'cuongcfvipss4@gmail.com',
+              senderPassword: 'vspazecbnujrpwev',
+              senderName: 'E-Learning System',
+            );
+            return emailService;
+          },
         ),
         ProxyProvider2<FirestoreService, HiveService, SemesterService>(
           update: (_, firestoreService, hiveService, __) => SemesterService(
@@ -161,6 +189,27 @@ class MyApp extends StatelessWidget {
             storageService: storageService,
           ),
         ),
+        ProxyProvider2<FirestoreService, HiveService, NotificationService>(
+          update: (_, firestoreService, hiveService, __) => NotificationService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+          ),
+        ),
+        ProxyProvider2<NotificationService, EmailService, DeadlineMonitoringService>(
+          update: (_, notificationService, emailService, previous) {
+            if (previous != null) {
+              return previous;
+            }
+            final service = DeadlineMonitoringService(
+              notificationService: notificationService,
+              emailService: emailService,
+            );
+            // Start monitoring deadlines
+            service.startMonitoring();
+            return service;
+          },
+          dispose: (_, service) => service.dispose(),
+        ),
 
         // Providers (State Management)
         ChangeNotifierProxyProvider<SemesterService, SemesterProvider>(
@@ -228,6 +277,13 @@ class MyApp extends StatelessWidget {
           ),
           update: (_, messageService, previous) =>
               previous ?? MessageProvider(messageService: messageService),
+        ),
+        ChangeNotifierProxyProvider<NotificationService, NotificationProvider>(
+          create: (context) => NotificationProvider(
+            notificationService: context.read<NotificationService>(),
+          ),
+          update: (_, notificationService, previous) => previous ??
+              NotificationProvider(notificationService: notificationService),
         ),
       ],
       child: MaterialApp(

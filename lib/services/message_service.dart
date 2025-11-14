@@ -6,6 +6,7 @@ import '../config/app_constants.dart';
 import 'firestore_service.dart';
 import 'hive_service.dart';
 import 'storage_service.dart';
+import 'notification_service.dart';
 
 /// Message Service
 /// Handles all direct messaging operations (student-instructor only)
@@ -13,6 +14,7 @@ class MessageService {
   final FirestoreService _firestoreService;
   final HiveService _hiveService;
   final StorageService _storageService;
+  NotificationService? _notificationService;
 
   MessageService({
     required FirestoreService firestoreService,
@@ -21,6 +23,11 @@ class MessageService {
   })  : _firestoreService = firestoreService,
         _hiveService = hiveService,
         _storageService = storageService;
+
+  /// Set notification service for sending notifications
+  void setNotificationService(NotificationService notificationService) {
+    _notificationService = notificationService;
+  }
 
   // ============================================
   // MESSAGES
@@ -227,6 +234,27 @@ class MessageService {
             documentId: id,
             data: {'attachments': attachments.map((a) => a.toJson()).toList()},
           );
+        }
+      }
+
+      // Send notification to receiver about new message
+      if (_notificationService != null) {
+        try {
+          await _notificationService!.createNotification(
+            userId: receiverId,
+            type: AppConstants.notificationTypeMessage,
+            title: 'New Message from $senderName',
+            message: content.length > 100 ? '${content.substring(0, 100)}...' : content,
+            relatedId: id,
+            relatedType: 'message',
+            data: {
+              'senderId': senderId,
+              'senderName': senderName,
+              'conversationId': message.getConversationId(),
+            },
+          );
+        } catch (e) {
+          print('Failed to send message notification: $e');
         }
       }
 

@@ -5,12 +5,21 @@ import '../models/quiz_model.dart';
 import '../models/quiz_submission_model.dart';
 import '../models/question_model.dart';
 import 'question_service.dart';
+import 'notification_service.dart';
+import 'firestore_service.dart';
+import 'hive_service.dart';
 
 /// Service for managing quizzes with CRUD operations and random question selection
 class QuizService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final QuestionService _questionService = QuestionService();
   final _uuid = const Uuid();
+  NotificationService? _notificationService;
+
+  /// Set notification service for sending notifications
+  void setNotificationService(NotificationService notificationService) {
+    _notificationService = notificationService;
+  }
 
   /// Get quizzes collection reference
   CollectionReference get _quizzesCollection =>
@@ -76,6 +85,34 @@ class QuizService {
       );
 
       await _quizzesCollection.doc(quiz.id).set(quiz.toJson());
+
+      // Send notifications to students in assigned groups
+      if (_notificationService != null) {
+        try {
+          // Get student IDs from groups
+          final studentIds = await _getStudentIdsFromGroups(groupIds);
+
+          if (studentIds.isNotEmpty) {
+            await _notificationService!.createNotificationsForUsers(
+              userIds: studentIds,
+              type: AppConstants.notificationTypeQuiz,
+              title: 'New Quiz Available: $title',
+              message: 'A new quiz "$title" has been posted. Open date: ${openDate.toString().split('.')[0]}',
+              relatedId: quiz.id,
+              relatedType: 'quiz',
+              data: {
+                'courseId': courseId,
+                'quizTitle': title,
+                'openDate': openDate.toIso8601String(),
+                'closeDate': closeDate.toIso8601String(),
+              },
+            );
+          }
+        } catch (e) {
+          print('Failed to send quiz creation notifications: $e');
+        }
+      }
+
       return quiz;
     } catch (e) {
       throw Exception('Failed to create quiz: $e');
@@ -319,6 +356,29 @@ class QuizService {
       );
 
       await _submissionsCollection.doc(submission.id).set(submission.toJson());
+
+      // Send notification to student confirming submission
+      if (_notificationService != null) {
+        try {
+          await _notificationService!.createNotification(
+            userId: studentId,
+            type: AppConstants.notificationTypeQuiz,
+            title: 'Quiz Submitted Successfully',
+            message: 'Your quiz submission for "${quiz.title}" has been received. Score: ${score.toStringAsFixed(1)}%',
+            relatedId: quizId,
+            relatedType: 'quiz',
+            data: {
+              'quizTitle': quiz.title,
+              'score': score,
+              'attemptNumber': attemptNumber,
+              'submittedAt': submittedAt.toIso8601String(),
+            },
+          );
+        } catch (e) {
+          print('Failed to send quiz submission notification: $e');
+        }
+      }
+
       return submission;
     } catch (e) {
       throw Exception('Failed to submit quiz: $e');
@@ -531,5 +591,30 @@ class QuizService {
 
       return quizzes;
     });
+  }
+
+  /// Get student IDs from group IDs
+  Future<List<String>> _getStudentIdsFromGroups(List<String> groupIds) async {
+    try {
+      final Set<String> studentIds = {};
+
+      for (final groupId in groupIds) {
+        final groupDoc = await _firestore
+            .collection(AppConstants.collectionGroups)
+            .doc(groupId)
+            .get();
+
+        if (groupDoc.exists) {
+          final groupData = groupDoc.data() as Map<String, dynamic>;
+          final List<dynamic> students = groupData['studentIds'] ?? [];
+          studentIds.addAll(students.cast<String>());
+        }
+      }
+
+      return studentIds.toList();
+    } catch (e) {
+      print('Error getting student IDs from groups: $e');
+      return [];
+    }
   }
 }
