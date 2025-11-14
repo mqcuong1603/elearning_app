@@ -4,7 +4,9 @@ import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../providers/course_provider.dart';
+import '../../providers/semester_provider.dart';
 import '../../models/course_model.dart';
+import '../../models/semester_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
 import '../shared/messaging/conversations_list_screen.dart';
@@ -21,14 +23,56 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   int _selectedIndex = 0;
   List<CourseModel> _enrolledCourses = [];
   bool _isLoadingCourses = true;
+  List<SemesterModel> _semesters = [];
+  SemesterModel? _selectedSemester;
+  bool _isLoadingSemesters = true;
 
   @override
   void initState() {
     super.initState();
     // Defer loading to after the first frame to avoid build-phase conflicts
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadEnrolledCourses();
+      _loadSemesters();
     });
+  }
+
+  Future<void> _loadSemesters() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingSemesters = true;
+    });
+
+    try {
+      final semesterProvider = context.read<SemesterProvider>();
+      await semesterProvider.loadSemesters();
+
+      if (mounted) {
+        setState(() {
+          _semesters = semesterProvider.semesters;
+          // Set current semester as default
+          _selectedSemester = semesterProvider.currentSemester;
+          _isLoadingSemesters = false;
+        });
+
+        // Load courses for the current semester
+        if (_selectedSemester != null) {
+          await _loadEnrolledCourses();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingSemesters = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading semesters: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadEnrolledCourses() async {
@@ -37,7 +81,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
 
-    if (currentUser == null) return;
+    if (currentUser == null || _selectedSemester == null) return;
 
     setState(() {
       _isLoadingCourses = true;
@@ -45,7 +89,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
     try {
       final courseProvider = context.read<CourseProvider>();
-      final courses = await courseProvider.loadCoursesForStudent(currentUser.id);
+      final courses = await courseProvider.loadCoursesForStudentBySemester(
+        currentUser.id,
+        _selectedSemester!.id,
+      );
 
       if (mounted) {
         setState(() {
@@ -66,6 +113,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         );
       }
     }
+  }
+
+  Future<void> _onSemesterChanged(SemesterModel? semester) async {
+    if (semester == null || semester.id == _selectedSemester?.id) return;
+
+    setState(() {
+      _selectedSemester = semester;
+    });
+
+    await _loadEnrolledCourses();
+  }
+
+  bool get _isCurrentSemester {
+    return _selectedSemester?.isCurrent ?? false;
   }
 
   Future<void> _handleLogout() async {
@@ -261,19 +322,47 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              TextButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Semester selection coming soon!'),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.calendar_today, size: 16),
-                label: const Text('Current Semester'),
-              ),
+              // Semester Switcher
+              if (_semesters.isNotEmpty)
+                _buildSemesterSwitcher(),
             ],
           ),
+          // Read-only mode indicator for past semesters
+          if (!_isCurrentSemester && _selectedSemester != null) ...[
+            const SizedBox(height: AppTheme.spacingS),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingM,
+                vertical: AppTheme.spacingS,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.warningColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                border: Border.all(
+                  color: AppTheme.warningColor.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: AppTheme.warningColor,
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Expanded(
+                    child: Text(
+                      'This is a past semester. You can view courses but cannot submit assignments or take quizzes.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.warningColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: AppTheme.spacingM),
 
           // Courses List
@@ -554,6 +643,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 course: course,
                 currentUserId: currentUser?.id ?? '',
                 currentUserRole: AppConstants.roleStudent,
+                isReadOnly: !_isCurrentSemester,
               ),
             ),
           );
@@ -673,6 +763,84 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSemesterSwitcher() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingS,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryLightColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusS),
+        border: Border.all(
+          color: AppTheme.primaryColor.withOpacity(0.2),
+        ),
+      ),
+      child: DropdownButton<SemesterModel>(
+        value: _selectedSemester,
+        underline: const SizedBox.shrink(),
+        icon: Icon(
+          Icons.arrow_drop_down,
+          color: AppTheme.primaryColor,
+        ),
+        style: TextStyle(
+          fontSize: 14,
+          color: AppTheme.primaryColor,
+          fontWeight: FontWeight.w600,
+        ),
+        dropdownColor: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusS),
+        items: _semesters.map((SemesterModel semester) {
+          return DropdownMenuItem<SemesterModel>(
+            value: semester,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 14,
+                  color: AppTheme.primaryColor,
+                ),
+                const SizedBox(width: AppTheme.spacingXS),
+                Text(
+                  semester.name,
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: semester.isCurrent
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+                if (semester.isCurrent) ...[
+                  const SizedBox(width: AppTheme.spacingXS),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusXS),
+                    ),
+                    child: Text(
+                      'Current',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: _onSemesterChanged,
       ),
     );
   }

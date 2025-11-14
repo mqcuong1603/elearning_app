@@ -42,12 +42,14 @@ class CourseSpaceScreen extends StatefulWidget {
   final CourseModel course;
   final String currentUserId;
   final String currentUserRole;
+  final bool isReadOnly;
 
   const CourseSpaceScreen({
     super.key,
     required this.course,
     required this.currentUserId,
     required this.currentUserRole,
+    this.isReadOnly = false,
   });
 
   @override
@@ -1203,6 +1205,20 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
               ),
             );
           } else {
+            // Student: Check if read-only mode
+            if (widget.isReadOnly) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'Cannot submit assignments in past semesters. Switch to the current semester to submit work.',
+                  ),
+                  backgroundColor: AppTheme.warningColor,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+
             // Student: Navigate to submission screen
             final authService = context.read<AuthService>();
             final currentUser = authService.currentUser;
@@ -1353,6 +1369,20 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 )
                 .then((_) => _loadData());
           } else {
+            // Students: Check if read-only mode
+            if (widget.isReadOnly) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'Cannot take quizzes in past semesters. Switch to the current semester to take quizzes.',
+                  ),
+                  backgroundColor: AppTheme.warningColor,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+
             // Students can take the quiz if it's available
             if (quiz.isAvailable) {
               Navigator.of(context)
