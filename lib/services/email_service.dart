@@ -1,8 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
 /// Service for sending email notifications
 /// Configurable SMTP settings for sending emails to students
+///
+/// NOTE: SMTP email sending does NOT work on web browsers due to security restrictions.
+/// On web, emails will be logged but not sent. For production web deployment,
+/// use a backend API to handle email sending.
 class EmailService {
   // SMTP Configuration - To be set by the application
   String? _smtpHost;
@@ -11,6 +16,9 @@ class EmailService {
   String? _senderPassword;
   String? _senderName;
   bool _isConfigured = false;
+
+  // Track if we've shown the web warning
+  static bool _hasShownWebWarning = false;
 
   EmailService();
 
@@ -49,6 +57,36 @@ class EmailService {
       return false;
     }
 
+    // Check if running on web platform
+    if (kIsWeb) {
+      // Show warning only once
+      if (!_hasShownWebWarning) {
+        print('');
+        print('╔════════════════════════════════════════════════════════════════════════╗');
+        print('║                      WEB PLATFORM EMAIL LIMITATION                     ║');
+        print('╠════════════════════════════════════════════════════════════════════════╣');
+        print('║  ⚠️  SMTP email sending is NOT supported on web browsers due to        ║');
+        print('║      security restrictions (no direct socket connections).            ║');
+        print('║                                                                        ║');
+        print('║  📧 Emails are being SIMULATED but not actually sent.                 ║');
+        print('║                                                                        ║');
+        print('║  ✅ For production web deployment, use one of these solutions:        ║');
+        print('║      1. Backend API (recommended) - Create a server endpoint          ║');
+        print('║      2. Email service (SendGrid, Mailgun, AWS SES, etc.)              ║');
+        print('║      3. Firebase Cloud Functions with email triggers                  ║');
+        print('║                                                                        ║');
+        print('║  ℹ️  On mobile/desktop apps, emails will work normally with SMTP.     ║');
+        print('╚════════════════════════════════════════════════════════════════════════╝');
+        print('');
+        _hasShownWebWarning = true;
+      }
+
+      // Log the email that would have been sent
+      print('📧 [WEB SIMULATION] Email to: $recipientEmail');
+      print('   Subject: $subject');
+      return false; // Return false to indicate email wasn't actually sent
+    }
+
     try {
       final smtpServer = SmtpServer(
         _smtpHost!,
@@ -72,10 +110,10 @@ class EmailService {
       }
 
       final sendReport = await send(message, smtpServer);
-      print('Email sent successfully: ${sendReport.toString()}');
+      print('✅ Email sent successfully: ${sendReport.toString()}');
       return true;
     } catch (e) {
-      print('Error sending email: $e');
+      print('❌ Error sending email: $e');
       return false;
     }
   }
