@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/notification_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../models/notification_model.dart';
 import '../../config/app_theme.dart';
@@ -28,7 +27,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _initializeNotifications() async {
     final authService = context.read<AuthService>();
-    final userId = authService.currentUserId;
+    final userId = authService.currentUser?.id;
 
     if (userId != null) {
       final notificationProvider = context.read<NotificationProvider>();
@@ -39,7 +38,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final authService = context.read<AuthService>();
-    final userId = authService.currentUserId;
+    final userId = authService.currentUser?.id;
 
     if (userId == null) {
       return Scaffold(
@@ -117,7 +116,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         children: [
           // Toggle for unread only
           Container(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
@@ -133,7 +132,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       _showUnreadOnly = value;
                     });
                   },
-                  activeColor: AppTheme.primaryColor,
+                  activeTrackColor: AppTheme.primaryColor,
                 ),
               ],
             ),
@@ -259,7 +258,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: notification.isRead ? Colors.white : AppTheme.primaryColor.withOpacity(0.05),
+          color: notification.isRead ? Colors.white : AppTheme.primaryColor.withValues(alpha: 0.05),
           border: Border(
             bottom: BorderSide(color: Colors.grey[300]!),
           ),
@@ -359,23 +358,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Color _getNotificationColor(String type) {
     switch (type) {
       case AppConstants.notificationTypeAnnouncement:
-        return Colors.blue.withOpacity(0.2);
+        return Colors.blue.withValues(alpha: 0.2);
       case AppConstants.notificationTypeAssignment:
-        return Colors.orange.withOpacity(0.2);
+        return Colors.orange.withValues(alpha: 0.2);
       case AppConstants.notificationTypeQuiz:
-        return Colors.purple.withOpacity(0.2);
+        return Colors.purple.withValues(alpha: 0.2);
       case AppConstants.notificationTypeMaterial:
-        return Colors.green.withOpacity(0.2);
+        return Colors.green.withValues(alpha: 0.2);
       case AppConstants.notificationTypeMessage:
-        return Colors.teal.withOpacity(0.2);
+        return Colors.teal.withValues(alpha: 0.2);
       case AppConstants.notificationTypeForum:
-        return Colors.indigo.withOpacity(0.2);
+        return Colors.indigo.withValues(alpha: 0.2);
       case AppConstants.notificationTypeGrade:
-        return Colors.amber.withOpacity(0.2);
+        return Colors.amber.withValues(alpha: 0.2);
       case AppConstants.notificationTypeDeadline:
-        return Colors.red.withOpacity(0.2);
+        return Colors.red.withValues(alpha: 0.2);
       default:
-        return Colors.grey.withOpacity(0.2);
+        return Colors.grey.withValues(alpha: 0.2);
     }
   }
 

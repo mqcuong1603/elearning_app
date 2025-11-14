@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import '../models/notification_model.dart';
 import '../config/app_constants.dart';
 import 'firestore_service.dart';
@@ -9,6 +10,7 @@ import 'hive_service.dart';
 class NotificationService {
   final FirestoreService _firestoreService;
   final HiveService _hiveService;
+  final _uuid = const Uuid();
 
   NotificationService({
     required FirestoreService firestoreService,
@@ -29,8 +31,9 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
+      final notificationId = _uuid.v4();
       final notification = NotificationModel(
-        id: _firestoreService.generateId(),
+        id: notificationId,
         userId: userId,
         type: type,
         title: title,
@@ -43,8 +46,8 @@ class NotificationService {
       );
 
       // Save to Firestore
-      await _firestoreService.setDocument(
-        collectionPath: AppConstants.collectionNotifications,
+      await _firestoreService.create(
+        collection: AppConstants.collectionNotifications,
         documentId: notification.id,
         data: notification.toJson(),
       );
@@ -75,8 +78,9 @@ class NotificationService {
       final notifications = <NotificationModel>[];
 
       for (final userId in userIds) {
+        final notificationId = _uuid.v4();
         final notification = NotificationModel(
-          id: _firestoreService.generateId(),
+          id: notificationId,
           userId: userId,
           type: type,
           title: title,
@@ -238,8 +242,8 @@ class NotificationService {
       final now = DateTime.now();
 
       // Update in Firestore
-      await _firestoreService.updateDocument(
-        collectionPath: AppConstants.collectionNotifications,
+      await _firestoreService.update(
+        collection: AppConstants.collectionNotifications,
         documentId: notificationId,
         data: {
           'isRead': true,
@@ -304,8 +308,8 @@ class NotificationService {
   Future<void> deleteNotification(String notificationId) async {
     try {
       // Delete from Firestore
-      await _firestoreService.deleteDocument(
-        collectionPath: AppConstants.collectionNotifications,
+      await _firestoreService.delete(
+        collection: AppConstants.collectionNotifications,
         documentId: notificationId,
       );
 

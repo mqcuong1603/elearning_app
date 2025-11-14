@@ -5,7 +5,6 @@ import '../models/assignment_model.dart';
 import '../models/quiz_model.dart';
 import 'notification_service.dart';
 import 'email_service.dart';
-import 'firestore_service.dart';
 
 /// Deadline Monitoring Service
 /// Monitors assignments and quizzes for approaching deadlines
@@ -154,12 +153,13 @@ class DeadlineMonitoringService {
             _emailService.sendAssignmentDeadlineEmail(
               recipientEmail: studentEmail,
               recipientName: studentName,
-              courseName: assignment.courseName ?? 'Your Course',
+              courseName: 'Your Course', // TODO: Get course name from courseId
               assignmentTitle: assignment.title,
               deadline: assignment.deadline,
               hoursRemaining: hoursRemaining,
             ).catchError((error) {
               print('Error sending deadline email to $studentEmail: $error');
+              return false;
             });
           }
         }
@@ -225,6 +225,7 @@ class DeadlineMonitoringService {
               hoursRemaining: hoursRemaining,
             ).catchError((error) {
               print('Error sending deadline email to $studentEmail: $error');
+              return false;
             });
           }
         }
