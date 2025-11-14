@@ -1076,9 +1076,23 @@ class AssignmentService {
       final course = CourseModel.fromJson(courseData);
       final courseName = course.name;
 
-      // Get all students from the specified groups
+      // Determine which groups to notify
+      List<String> targetGroupIds = groupIds;
+
+      // If groupIds is empty, it means "All Groups" - fetch all groups for this course
+      if (groupIds.isEmpty) {
+        final allGroupsData = await _firestoreService.query(
+          collection: AppConstants.collectionGroups,
+          filters: [
+            QueryFilter(field: 'courseId', isEqualTo: courseId),
+          ],
+        );
+        targetGroupIds = allGroupsData.map((g) => g['id'] as String).toList();
+      }
+
+      // Get all students from the target groups
       final List<String> studentIds = [];
-      for (final groupId in groupIds) {
+      for (final groupId in targetGroupIds) {
         final groupData = await _firestoreService.read(
           collection: AppConstants.collectionGroups,
           documentId: groupId,
