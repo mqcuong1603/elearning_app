@@ -9,7 +9,6 @@ import '../../models/assignment_submission_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/assignment_provider.dart';
 import '../../config/app_theme.dart';
-import '../../config/app_constants.dart';
 
 /// Student Assignment Submission Screen
 /// Allows students to view assignment details, submit work, and view submission history

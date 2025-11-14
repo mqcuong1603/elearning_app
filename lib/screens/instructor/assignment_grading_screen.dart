@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/assignment_model.dart';
 import '../../models/assignment_submission_model.dart';
-import '../../models/user_model.dart';
 import '../../providers/assignment_provider.dart';
 import '../../services/auth_service.dart';
 import '../../config/app_theme.dart';

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-import '../../config/app_constants.dart';
 import '../../models/question_model.dart';
 import '../../providers/quiz_provider.dart';
 
@@ -105,14 +104,10 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildStatItem(
-                'Total', stats['total'].toString(), Colors.blue),
-            _buildStatItem(
-                'Easy', stats['easy'].toString(), Colors.green),
-            _buildStatItem(
-                'Medium', stats['medium'].toString(), Colors.orange),
-            _buildStatItem(
-                'Hard', stats['hard'].toString(), Colors.red),
+            _buildStatItem('Total', stats['total'].toString(), Colors.blue),
+            _buildStatItem('Easy', stats['easy'].toString(), Colors.green),
+            _buildStatItem('Medium', stats['medium'].toString(), Colors.orange),
+            _buildStatItem('Hard', stats['hard'].toString(), Colors.red),
           ],
         ),
       ),
@@ -176,8 +171,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
 
   List<QuestionModel> _filterQuestions(List<QuestionModel> questions) {
     return questions.where((q) {
-      final matchesDifficulty = _selectedDifficulty == 'all' ||
-          q.difficulty == _selectedDifficulty;
+      final matchesDifficulty =
+          _selectedDifficulty == 'all' || q.difficulty == _selectedDifficulty;
       final matchesSearch = _searchQuery.isEmpty ||
           q.questionText.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchesDifficulty && matchesSearch;
@@ -336,16 +331,14 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
     );
   }
 
-  void _showQuestionDialog(BuildContext context,
-      {QuestionModel? question}) {
+  void _showQuestionDialog(BuildContext context, {QuestionModel? question}) {
     showDialog(
       context: context,
-      builder: (context) =>
-          _QuestionFormDialog(
-            courseId: widget.courseId,
-            question: question,
-            onSaved: _loadData,
-          ),
+      builder: (context) => _QuestionFormDialog(
+        courseId: widget.courseId,
+        question: question,
+        onSaved: _loadData,
+      ),
     );
   }
 }
@@ -410,8 +403,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-          widget.question == null ? 'Add Question' : 'Edit Question'),
+      title: Text(widget.question == null ? 'Add Question' : 'Edit Question'),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -435,7 +427,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedDifficulty,
+                initialValue: _selectedDifficulty,
                 decoration: const InputDecoration(
                   labelText: 'Difficulty',
                   border: OutlineInputBorder(),
@@ -558,8 +550,7 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
     // Validate that at least one choice is correct
     if (!_choices.any((c) => c.isCorrect)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please select one correct answer')),
+        const SnackBar(content: Text('Please select one correct answer')),
       );
       return;
     }

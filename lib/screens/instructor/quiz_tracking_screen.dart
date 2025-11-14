@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:csv/csv.dart';
-import '../../config/app_constants.dart';
 import '../../models/quiz_submission_model.dart';
 import '../../providers/quiz_provider.dart';
 import '../../utils/csv_download.dart' as csv_helper;
@@ -493,7 +491,8 @@ class _QuizTrackingScreenState extends State<QuizTrackingScreen> {
       String csv = const ListToCsvConverter().convert(rows);
 
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'quiz_results_${widget.quizTitle.replaceAll(RegExp(r'[^\w\s]'), '')}_$timestamp.csv';
+      final fileName =
+          'quiz_results_${widget.quizTitle.replaceAll(RegExp(r'[^\w\s]'), '')}_$timestamp.csv';
 
       // Download CSV using platform-specific implementation
       final filePath = await csv_helper.downloadCsv(csv, fileName);
@@ -503,8 +502,8 @@ class _QuizTrackingScreenState extends State<QuizTrackingScreen> {
           SnackBar(
             content: Text(
               filePath != null
-                ? 'CSV exported successfully to $fileName'
-                : 'CSV exported successfully',
+                  ? 'CSV exported successfully to $fileName'
+                  : 'CSV exported successfully',
             ),
             duration: const Duration(seconds: 3),
             action: SnackBarAction(

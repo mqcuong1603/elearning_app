@@ -1,6 +1,5 @@
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as path;
 import '../models/assignment_model.dart';
 import '../models/assignment_submission_model.dart';
 import '../models/announcement_model.dart'; // For AttachmentModel
@@ -597,10 +596,12 @@ class AssignmentService {
       // Group submissions by student ID
       final submissionsByStudent = <String, List<AssignmentSubmissionModel>>{};
       for (final submission in submissions) {
-        submissionsByStudent.putIfAbsent(
-          submission.studentId,
-          () => [],
-        ).add(submission);
+        submissionsByStudent
+            .putIfAbsent(
+              submission.studentId,
+              () => [],
+            )
+            .add(submission);
       }
 
       // Count statistics
@@ -679,10 +680,12 @@ class AssignmentService {
       // Group submissions by student ID
       final submissionsByStudent = <String, List<AssignmentSubmissionModel>>{};
       for (final submission in submissions) {
-        submissionsByStudent.putIfAbsent(
-          submission.studentId,
-          () => [],
-        ).add(submission);
+        submissionsByStudent
+            .putIfAbsent(
+              submission.studentId,
+              () => [],
+            )
+            .add(submission);
       }
 
       // Build status list for each student
@@ -863,7 +866,8 @@ class AssignmentService {
       try {
         // Upload to storage - use directory path only
         final storagePath = 'assignments/$courseId/$assignmentId';
-        final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
+        final timestampedFilename =
+            '${DateTime.now().millisecondsSinceEpoch}_$filename';
         final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
           storagePath: '$storagePath/$timestampedFilename',
@@ -890,7 +894,8 @@ class AssignmentService {
 
     // Log warning if some files failed
     if (failedFiles.isNotEmpty) {
-      print('Warning: Some attachment files failed to upload: ${failedFiles.join(", ")}');
+      print(
+          'Warning: Some attachment files failed to upload: ${failedFiles.join(", ")}');
     }
 
     return attachments;
@@ -915,7 +920,8 @@ class AssignmentService {
         // Upload to storage - use directory path only
         final storagePath =
             'submissions/$assignmentId/$studentId/attempt_$attemptNumber';
-        final timestampedFilename = '${DateTime.now().millisecondsSinceEpoch}_$filename';
+        final timestampedFilename =
+            '${DateTime.now().millisecondsSinceEpoch}_$filename';
         final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
           storagePath: '$storagePath/$timestampedFilename',
@@ -976,8 +982,8 @@ class AssignmentService {
       final cached = _hiveService.getCached(key: 'all_assignments');
       if (cached != null && cached is List) {
         return cached
-            .map(
-                (json) => AssignmentModel.fromJson(json as Map<String, dynamic>))
+            .map((json) =>
+                AssignmentModel.fromJson(json as Map<String, dynamic>))
             .toList();
       }
       return [];

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import '../models/material_model.dart';
-import '../models/announcement_model.dart'; // For AttachmentModel
+// For AttachmentModel
 import '../config/app_theme.dart';
 
 /// Material Form Dialog
@@ -28,10 +28,10 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
   final _linkUrlController = TextEditingController();
   final _linkTitleController = TextEditingController();
 
-  List<PlatformFile> _newFiles = [];
-  List<String> _newFileNames = [];
+  final List<PlatformFile> _newFiles = [];
+  final List<String> _newFileNames = [];
   List<LinkModel> _links = [];
-  List<String> _filesToRemove = []; // IDs of existing files to remove
+  final List<String> _filesToRemove = []; // IDs of existing files to remove
 
   @override
   void initState() {
@@ -352,8 +352,7 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
                       child: ListTile(
                         leading: Icon(
                           Icons.insert_drive_file,
-                          color:
-                              isMarkedForRemoval ? Colors.red : Colors.green,
+                          color: isMarkedForRemoval ? Colors.red : Colors.green,
                         ),
                         title: Text(
                           file.filename,
@@ -370,7 +369,8 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
                             isMarkedForRemoval
                                 ? Icons.restore_from_trash
                                 : Icons.delete,
-                            color: isMarkedForRemoval ? Colors.blue : Colors.red,
+                            color:
+                                isMarkedForRemoval ? Colors.blue : Colors.red,
                           ),
                           onPressed: () => _markExistingFileForRemoval(file.id),
                           tooltip: isMarkedForRemoval

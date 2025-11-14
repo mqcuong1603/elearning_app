@@ -67,10 +67,9 @@ class QuizProvider with ChangeNotifier {
   int get totalQuestionsCount => _quizQuestions.length;
   bool get isQuizCompleted =>
       answeredQuestionsCount == totalQuestionsCount && totalQuestionsCount > 0;
-  double get progressPercentage =>
-      totalQuestionsCount > 0
-          ? (answeredQuestionsCount / totalQuestionsCount) * 100
-          : 0;
+  double get progressPercentage => totalQuestionsCount > 0
+      ? (answeredQuestionsCount / totalQuestionsCount) * 100
+      : 0;
 
   /// Load quizzes for a course
   Future<void> loadQuizzesForCourse(String courseId) async {
@@ -392,11 +391,6 @@ class QuizProvider with ChangeNotifier {
         startedAt: _quizStartTime!,
         questions: _quizQuestions,
       );
-
-      // Verify submission was created
-      if (submission == null) {
-        throw Exception('Failed to create quiz submission');
-      }
 
       // Set current submission before resetting state
       _currentSubmission = submission;
