@@ -18,6 +18,7 @@ import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
 import '../../providers/quiz_provider.dart';
 import '../../providers/material_provider.dart';
+import '../../providers/forum_provider.dart';
 import '../../widgets/announcement_card.dart';
 import '../../widgets/announcement_form_dialog.dart';
 import '../../widgets/assignment_form_dialog.dart';
@@ -28,8 +29,10 @@ import '../instructor/quiz_management_screen.dart';
 import '../instructor/question_bank_screen.dart';
 import '../student/quiz_taking_screen.dart';
 import './material_details_screen.dart';
+import './forum/forum_list_screen.dart';
+import './messaging/conversations_list_screen.dart';
 
-/// Course Space Screen with 3 Tabs: Stream, Classwork, People
+/// Course Space Screen with 5 Tabs: Stream, Classwork, People, Forum, Messages
 /// Based on PDF requirements (Interface requirement - 2 pts)
 class CourseSpaceScreen extends StatefulWidget {
   final CourseModel course;
@@ -71,7 +74,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     // Defer loading to after the first frame to avoid build-phase conflicts
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
@@ -263,10 +266,13 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           indicatorColor: AppTheme.textOnPrimaryColor,
           labelColor: AppTheme.textOnPrimaryColor,
           unselectedLabelColor: AppTheme.textOnPrimaryColor.withOpacity(0.7),
+          isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.stream), text: 'Stream'),
             Tab(icon: Icon(Icons.assignment), text: 'Classwork'),
             Tab(icon: Icon(Icons.people), text: 'People'),
+            Tab(icon: Icon(Icons.forum), text: 'Forum'),
+            Tab(icon: Icon(Icons.message), text: 'Messages'),
           ],
         ),
       ),
@@ -276,6 +282,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           _buildStreamTab(),
           _buildClassworkTab(),
           _buildPeopleTab(),
+          _buildForumTab(),
+          _buildMessagingTab(),
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
@@ -1710,5 +1718,17 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         );
       },
     );
+  }
+
+  // Forum Tab: Course-specific forum discussions
+  Widget _buildForumTab() {
+    return ForumListScreen(
+      course: widget.course,
+    );
+  }
+
+  // Messaging Tab: Course-specific conversations
+  Widget _buildMessagingTab() {
+    return const ConversationsListScreen();
   }
 }
