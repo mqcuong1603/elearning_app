@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
@@ -11,6 +10,7 @@ import '../../../models/announcement_model.dart';
 import '../../../providers/forum_provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/storage_service.dart';
+import '../../../services/forum_service.dart';
 import '../../../config/app_theme.dart';
 import '../../../config/app_constants.dart';
 
@@ -36,34 +36,20 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
   String? _replyingToId;
   String? _replyingToAuthor;
   List<PlatformFile> _selectedFiles = [];
-  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadTopicAndReplies();
-    // Auto-refresh every 10 seconds to get new replies
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (mounted) {
-        _loadTopicAndReplies();
-      }
-    });
-  }
-
-  void _loadTopicAndReplies() {
-    if (!mounted) return;
-
+    // Load topic once for initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final forumProvider = context.read<ForumProvider>();
-      forumProvider.loadTopicById(widget.topicId);
-      forumProvider.loadRepliesByTopic(widget.topicId);
+      if (mounted) {
+        context.read<ForumProvider>().loadTopicById(widget.topicId);
+      }
     });
   }
 
   @override
   void dispose() {
-    _autoRefreshTimer?.cancel();
     _replyController.dispose();
     _replyFocusNode.dispose();
     super.dispose();
@@ -71,73 +57,97 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final forumService = context.read<ForumService>();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Topic Discussion'),
       ),
       body: Consumer<ForumProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (provider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error: ${provider.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadTopicAndReplies,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-
           final topic = provider.selectedTopic;
           if (topic == null) {
+            if (provider.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
             return const Center(child: Text('Topic not found'));
           }
 
           return Column(
             children: [
-              // Topic details
+              // Topic details with real-time replies using StreamBuilder
               Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async => _loadTopicAndReplies(),
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _buildTopicCard(topic),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      // Replies header
-                      Row(
-                        children: [
-                          const Icon(Icons.comment_outlined, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${provider.repliesCount} ${provider.repliesCount == 1 ? 'Reply' : 'Replies'}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                child: StreamBuilder<List<ForumReplyModel>>(
+                  stream: forumService.streamRepliesByTopic(widget.topicId),
+                  builder: (context, snapshot) {
+                    // Handle loading state
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    // Handle error state
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text('Error: ${snapshot.error}'),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                // Trigger rebuild by calling setState
+                                setState(() {});
+                              },
+                              child: const Text('Retry'),
                             ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    // Get replies from stream
+                    final replies = snapshot.data ?? [];
+
+                    // Organize replies by parent for threading
+                    final topLevelReplies = replies.where((r) => r.parentReplyId == null).toList();
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        // Trigger stream refresh by rebuilding
+                        setState(() {});
+                      },
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          _buildTopicCard(topic),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          // Replies header
+                          Row(
+                            children: [
+                              const Icon(Icons.comment_outlined, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${replies.length} ${replies.length == 1 ? 'Reply' : 'Replies'}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 16),
+                          // Replies list (threaded) - updated in real-time
+                          ...topLevelReplies.map((reply) {
+                            return _buildReplyCard(reply, replies, 0);
+                          }).toList(),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      // Replies list (threaded)
-                      ...provider.getTopLevelReplies().map((reply) {
-                        return _buildReplyCard(reply, provider, 0);
-                      }).toList(),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
 
@@ -277,12 +287,12 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
     );
   }
 
-  Widget _buildReplyCard(ForumReplyModel reply, ForumProvider provider, int depth) {
+  Widget _buildReplyCard(ForumReplyModel reply, List<ForumReplyModel> allReplies, int depth) {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
     final isAuthor = currentUser?.id == reply.authorId;
     final isInstructor = currentUser?.role == AppConstants.roleInstructor;
-    final nestedReplies = provider.getNestedReplies(reply.id);
+    final nestedReplies = allReplies.where((r) => r.parentReplyId == reply.id).toList();
 
     return Container(
       margin: EdgeInsets.only(left: depth * 24.0, bottom: 12),
@@ -354,7 +364,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                         IconButton(
                           icon: const Icon(Icons.delete_outline, size: 18),
                           color: Colors.red,
-                          onPressed: () => _deleteReply(reply, provider),
+                          onPressed: () => _deleteReply(reply),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -397,7 +407,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
           // Nested replies
           if (nestedReplies.isNotEmpty)
             ...nestedReplies.map((nested) {
-              return _buildReplyCard(nested, provider, depth + 1);
+              return _buildReplyCard(nested, allReplies, depth + 1);
             }).toList(),
         ],
       ),
@@ -601,7 +611,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
     }
   }
 
-  Future<void> _deleteReply(ForumReplyModel reply, ForumProvider provider) async {
+  Future<void> _deleteReply(ForumReplyModel reply) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -622,6 +632,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
     );
 
     if (confirmed == true) {
+      final provider = context.read<ForumProvider>();
       final success = await provider.deleteReply(reply);
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

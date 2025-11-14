@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import '../models/message_model.dart';
 import '../models/announcement_model.dart'; // For AttachmentModel
@@ -318,10 +319,16 @@ class MessageService {
   }
 
   /// Stream conversation (real-time updates)
+  /// Combines messages in both directions between two users using Firestore real-time listeners
   Stream<List<MessageModel>> streamConversation(
     String userId1,
     String userId2,
-  ) async* {
+  ) {
+    final controller = StreamController<List<MessageModel>>();
+
+    // Cache for messages from both streams
+    final Map<String, MessageModel> messagesCache = {};
+
     // Stream messages where user1 is sender and user2 is receiver
     final stream1 = _firestoreService.streamQuery(
       collection: AppConstants.collectionMessages,
@@ -340,14 +347,40 @@ class MessageService {
       ],
     );
 
-    // Combine streams (simplified - in production, use StreamGroup or similar)
-    await for (final data1 in stream1) {
-      // This is a simplified version - for production, properly combine streams
-      final messages =
-          data1.map((json) => MessageModel.fromJson(json)).toList();
-      messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      yield messages;
-    }
+    // Listen to both streams and combine results
+    final subscription1 = stream1.listen((data) {
+      // Update cache with messages from stream1
+      for (final json in data) {
+        final message = MessageModel.fromJson(json);
+        messagesCache[message.id] = message;
+      }
+
+      // Emit combined and sorted messages
+      final allMessages = messagesCache.values.toList();
+      allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      controller.add(allMessages);
+    });
+
+    final subscription2 = stream2.listen((data) {
+      // Update cache with messages from stream2
+      for (final json in data) {
+        final message = MessageModel.fromJson(json);
+        messagesCache[message.id] = message;
+      }
+
+      // Emit combined and sorted messages
+      final allMessages = messagesCache.values.toList();
+      allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      controller.add(allMessages);
+    });
+
+    // Clean up subscriptions when controller is closed
+    controller.onCancel = () {
+      subscription1.cancel();
+      subscription2.cancel();
+    };
+
+    return controller.stream;
   }
 
   /// Search messages by content

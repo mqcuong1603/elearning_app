@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
@@ -9,6 +8,7 @@ import '../../../models/announcement_model.dart';
 import '../../../providers/message_provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/storage_service.dart';
+import '../../../services/message_service.dart';
 import '../../../config/app_theme.dart';
 import '../../../config/app_constants.dart';
 
@@ -34,40 +34,27 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<PlatformFile> _selectedFiles = [];
-  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadConversation();
-    // Auto-refresh every 5 seconds to get new messages
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (mounted) {
-        _loadConversation();
-      }
-    });
-  }
-
-  void _loadConversation() {
-    if (!mounted) return;
-
+    // Mark messages as read when opening chat (once)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final authService = context.read<AuthService>();
-      final currentUser = authService.currentUser;
-      if (currentUser != null) {
-        final provider = context.read<MessageProvider>();
-        provider.loadConversation(currentUser.id, widget.partnerId);
-
-        // Mark conversation as read
-        provider.markConversationAsRead(currentUser.id, widget.partnerId);
+      if (mounted) {
+        final authService = context.read<AuthService>();
+        final currentUser = authService.currentUser;
+        if (currentUser != null) {
+          context.read<MessageProvider>().markConversationAsRead(
+            currentUser.id,
+            widget.partnerId,
+          );
+        }
       }
     });
   }
 
   @override
   void dispose() {
-    _autoRefreshTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -77,6 +64,13 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
+    final messageService = context.read<MessageService>();
+
+    if (currentUser == null) {
+      return const Scaffold(
+        body: Center(child: Text('Please log in to view messages')),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -111,18 +105,11 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadConversation,
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
       body: Column(
         children: [
           // Info banner about student-instructor only messaging
-          if (currentUser?.role == AppConstants.roleStudent)
+          if (currentUser.role == AppConstants.roleStudent)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               color: Colors.blue[50],
@@ -140,25 +127,31 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
 
-          // Messages list
+          // Messages list with real-time updates using StreamBuilder
           Expanded(
-            child: Consumer<MessageProvider>(
-              builder: (context, provider, child) {
-                if (provider.isLoadingMessages) {
+            child: StreamBuilder<List<MessageModel>>(
+              stream: messageService.streamConversation(currentUser.id, widget.partnerId),
+              builder: (context, snapshot) {
+                // Handle loading state
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (provider.error != null) {
+                // Handle error state
+                if (snapshot.hasError) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.error_outline, size: 48, color: Colors.red),
                         const SizedBox(height: 16),
-                        Text('Error: ${provider.error}'),
+                        Text('Error: ${snapshot.error}'),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: _loadConversation,
+                          onPressed: () {
+                            // Trigger rebuild
+                            setState(() {});
+                          },
                           child: const Text('Retry'),
                         ),
                       ],
@@ -166,7 +159,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                if (provider.conversation.isEmpty) {
+                final conversation = snapshot.data ?? [];
+
+                if (conversation.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -201,10 +196,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: provider.conversation.length,
+                  itemCount: conversation.length,
                   itemBuilder: (context, index) {
-                    final message = provider.conversation[index];
-                    final isMe = message.senderId == currentUser?.id;
+                    final message = conversation[index];
+                    final isMe = message.senderId == currentUser.id;
                     return _buildMessageBubble(message, isMe);
                   },
                 );
