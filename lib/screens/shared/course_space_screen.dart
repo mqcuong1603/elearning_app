@@ -20,9 +20,7 @@ import '../../services/quiz_service.dart';
 import '../../services/material_service.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
-import '../../providers/quiz_provider.dart';
 import '../../providers/material_provider.dart';
-import '../../providers/forum_provider.dart';
 import '../../widgets/announcement_card.dart';
 import '../../widgets/announcement_form_dialog.dart';
 import '../../widgets/assignment_form_dialog.dart';
@@ -61,7 +59,6 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   late TabController _tabController;
 
   // Data lists (will be populated from services later)
-  List<AnnouncementModel> _announcements = [];
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
 
@@ -101,7 +98,6 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       // Get services from context
       final groupService = context.read<GroupService>();
       final studentService = context.read<StudentService>();
-      final announcementProvider = context.read<AnnouncementProvider>();
 
       // Load groups for this course
       _groups = await groupService.getGroupsByCourse(widget.course.id);
@@ -117,19 +113,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         }
       }
 
-      // Load announcements based on role
-      if (widget.currentUserRole == AppConstants.roleInstructor) {
-        // Instructors see all announcements for the course
-        await announcementProvider.loadAnnouncementsByCourse(widget.course.id);
-      } else {
-        // Students see only announcements scoped to their groups
-        await announcementProvider.loadAnnouncementsForStudent(
-          courseId: widget.course.id,
-          studentId: widget.currentUserId,
-          studentGroupIds: studentGroupIds,
-        );
-      }
-      _announcements = announcementProvider.announcements;
+      // Note: Announcements are now loaded via real-time streams in the Stream tab
 
       // Collect all unique student IDs from all groups in this course
       final Set<String> studentIds = {};
@@ -610,8 +594,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             child: SizedBox(height: AppTheme.spacingXL),
           ),
         ],
-      ),
-    );
+      );
   }
 
   // People Tab: Lists groups and students enrolled in the course
