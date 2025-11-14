@@ -14,6 +14,7 @@ import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/student_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/announcement_service.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/assignment_provider.dart';
 import '../../providers/quiz_provider.dart';
@@ -300,32 +301,87 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     );
   }
 
-  // Stream Tab: Displays recent announcements with comment threads
+  // Stream Tab: Displays recent announcements with comment threads (REAL-TIME)
   Widget _buildStreamTab() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final announcementService = context.read<AnnouncementService>();
 
-    if (_announcements.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.campaign,
-        message: 'No announcements yet',
-        description: widget.currentUserRole == AppConstants.roleInstructor
-            ? 'Create your first announcement to get started'
-            : 'Your instructor will post announcements here',
-      );
-    }
+    return StreamBuilder<List<AnnouncementModel>>(
+      stream: announcementService.streamAnnouncementsByCourse(widget.course.id),
+      builder: (context, snapshot) {
+        // Handle loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        itemCount: _announcements.length,
-        itemBuilder: (context, index) {
-          final announcement = _announcements[index];
-          return _buildAnnouncementCard(announcement);
-        },
-      ),
+        // Handle error state
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${snapshot.error}'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => setState(() {}), // Trigger rebuild
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Get announcements from stream
+        var announcements = snapshot.data ?? [];
+
+        // Filter announcements based on user role and group membership
+        if (widget.currentUserRole == AppConstants.roleStudent) {
+          // Students should only see announcements for their groups
+          announcements = announcements.where((announcement) {
+            if (announcement.isForAllGroups) {
+              return true; // Visible to all students
+            }
+            // Check if announcement is for any of the student's groups
+            return announcement.groupIds.any((groupId) =>
+              _groups.any((g) => g.id == groupId && g.hasStudent(widget.currentUserId))
+            );
+          }).toList();
+        }
+
+        // Show empty state if no announcements
+        if (announcements.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: _loadData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height - 200,
+                child: _buildEmptyState(
+                  icon: Icons.campaign,
+                  message: 'No announcements yet',
+                  description: widget.currentUserRole == AppConstants.roleInstructor
+                      ? 'Create your first announcement to get started'
+                      : 'Your instructor will post announcements here',
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Display announcements with pull-to-refresh
+        return RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            itemCount: announcements.length,
+            itemBuilder: (context, index) {
+              final announcement = announcements[index];
+              return _buildAnnouncementCard(announcement);
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -890,9 +946,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       );
 
       if (announcement != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Announcement created successfully')),
-        );
+        // Snackbar removed - real-time stream will show the announcement instantly
         await _loadData(); // Reload to show new announcement
       } else if (mounted) {
         final error = announcementProvider.error;
@@ -941,9 +995,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       }
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Announcement updated successfully')),
-        );
+        // Snackbar removed - real-time stream will show the update instantly
         await _loadData();
       } else if (mounted) {
         final error = context.read<AnnouncementProvider>().error;
@@ -1070,9 +1122,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       );
 
       if (assignment != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Assignment created successfully')),
-        );
+        // Snackbar removed - real-time stream will show the assignment instantly
         await _loadData(); // Reload to show new assignment
       } else if (mounted) {
         final error = assignmentProvider.error;
@@ -1110,9 +1160,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       );
 
       if (materialId != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material created successfully')),
-        );
+        // Snackbar removed - real-time stream will show the material instantly
         await _loadData(); // Reload to show new material
       } else if (mounted) {
         final error = materialProvider.error;

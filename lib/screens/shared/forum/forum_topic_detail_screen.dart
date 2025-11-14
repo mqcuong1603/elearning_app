@@ -601,13 +601,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
       setState(() {
         _selectedFiles = [];
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reply posted'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Snackbar removed - real-time stream will show the reply instantly
     }
   }
 

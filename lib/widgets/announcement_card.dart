@@ -59,9 +59,7 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
 
       if (success) {
         _commentController.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment added successfully')),
-        );
+        // Snackbar removed - comment will appear instantly
       } else {
         final error = context.read<AnnouncementProvider>().error;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -97,18 +95,13 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
             commentId: commentId,
           );
 
-      if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Comment deleted successfully')),
-          );
-        } else {
-          final error = context.read<AnnouncementProvider>().error;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error ?? 'Failed to delete comment')),
-          );
-        }
+      if (mounted && !success) {
+        final error = context.read<AnnouncementProvider>().error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error ?? 'Failed to delete comment')),
+        );
       }
+      // Success snackbar removed - comment will disappear instantly
     }
   }
 
