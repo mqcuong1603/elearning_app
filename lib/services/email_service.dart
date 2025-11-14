@@ -1,6 +1,5 @@
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
-import '../config/app_constants.dart';
 
 /// Service for sending email notifications
 /// Configurable SMTP settings for sending emails to students
@@ -137,7 +136,8 @@ class EmailService {
     required DateTime deadline,
     required int hoursRemaining,
   }) async {
-    final subject = '⏰ [$courseName] Assignment Deadline Approaching: $assignmentTitle';
+    final subject =
+        '⏰ [$courseName] Assignment Deadline Approaching: $assignmentTitle';
     final body = _buildDeadlineEmailBody(
       recipientName: recipientName,
       courseName: courseName,
@@ -246,7 +246,8 @@ class EmailService {
     required double grade,
     String? feedback,
   }) async {
-    final subject = '⭐ [$courseName] You received feedback on: $assignmentTitle';
+    final subject =
+        '⭐ [$courseName] You received feedback on: $assignmentTitle';
     final body = _buildFeedbackEmailBody(
       recipientName: recipientName,
       courseName: courseName,
@@ -316,7 +317,8 @@ class EmailService {
     required DateTime deadline,
     required int hoursRemaining,
   }) {
-    final deadlineStr = deadline.toString().split('.')[0]; // Remove microseconds
+    final deadlineStr =
+        deadline.toString().split('.')[0]; // Remove microseconds
     return '''
 <!DOCTYPE html>
 <html>
@@ -408,7 +410,9 @@ class EmailService {
     double? score,
   }) {
     final submissionStr = submissionTime.toString().split('.')[0];
-    final scoreDisplay = score != null ? '<p><strong>Score:</strong> ${score.toStringAsFixed(1)}</p>' : '';
+    final scoreDisplay = score != null
+        ? '<p><strong>Score:</strong> ${score.toStringAsFixed(1)}</p>'
+        : '';
 
     return '''
 <!DOCTYPE html>

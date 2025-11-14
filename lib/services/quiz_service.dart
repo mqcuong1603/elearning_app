@@ -6,8 +6,6 @@ import '../models/quiz_submission_model.dart';
 import '../models/question_model.dart';
 import 'question_service.dart';
 import 'notification_service.dart';
-import 'firestore_service.dart';
-import 'hive_service.dart';
 
 /// Service for managing quizzes with CRUD operations and random question selection
 class QuizService {
@@ -55,8 +53,7 @@ class QuizService {
       }
 
       // Check if enough questions exist in the question bank
-      final hasEnoughQuestions =
-          await _questionService.validateQuizStructure(
+      final hasEnoughQuestions = await _questionService.validateQuizStructure(
         courseId: courseId,
         questionStructure: questionStructure,
       );
@@ -97,7 +94,8 @@ class QuizService {
               userIds: studentIds,
               type: AppConstants.notificationTypeQuiz,
               title: 'New Quiz Available: $title',
-              message: 'A new quiz "$title" has been posted. Open date: ${openDate.toString().split('.')[0]}',
+              message:
+                  'A new quiz "$title" has been posted. Open date: ${openDate.toString().split('.')[0]}',
               relatedId: quiz.id,
               relatedType: 'quiz',
               data: {
@@ -149,8 +147,7 @@ class QuizService {
 
       // Validate question structure if provided
       if (questionStructure != null) {
-        final hasEnoughQuestions =
-            await _questionService.validateQuizStructure(
+        final hasEnoughQuestions = await _questionService.validateQuizStructure(
           courseId: currentQuiz.courseId,
           questionStructure: questionStructure,
         );
@@ -184,9 +181,8 @@ class QuizService {
   Future<void> deleteQuiz(String quizId) async {
     try {
       // Also delete all submissions for this quiz
-      final submissions = await _submissionsCollection
-          .where('quizId', isEqualTo: quizId)
-          .get();
+      final submissions =
+          await _submissionsCollection.where('quizId', isEqualTo: quizId).get();
 
       final batch = _firestore.batch();
       for (final doc in submissions.docs) {
@@ -215,9 +211,8 @@ class QuizService {
   /// Get all quizzes for a course
   Future<List<QuizModel>> getQuizzesForCourse(String courseId) async {
     try {
-      final snapshot = await _quizzesCollection
-          .where('courseId', isEqualTo: courseId)
-          .get();
+      final snapshot =
+          await _quizzesCollection.where('courseId', isEqualTo: courseId).get();
 
       final quizzes = snapshot.docs
           .map((doc) => QuizModel.fromJson(doc.data() as Map<String, dynamic>))
@@ -323,8 +318,7 @@ class QuizService {
       // Grade the answers
       final gradedAnswers = <QuizAnswerModel>[];
       for (final answer in answers) {
-        final question =
-            questions.firstWhere((q) => q.id == answer.questionId);
+        final question = questions.firstWhere((q) => q.id == answer.questionId);
         final isCorrect = question.isChoiceCorrect(answer.selectedChoiceId);
         gradedAnswers.add(QuizAnswerModel(
           questionId: answer.questionId,
@@ -334,8 +328,7 @@ class QuizService {
       }
 
       // Calculate score
-      final correctCount =
-          gradedAnswers.where((a) => a.isCorrect).length;
+      final correctCount = gradedAnswers.where((a) => a.isCorrect).length;
       final score = (correctCount / gradedAnswers.length) * 100;
 
       // Calculate duration
@@ -364,7 +357,8 @@ class QuizService {
             userId: studentId,
             type: AppConstants.notificationTypeQuiz,
             title: 'Quiz Submitted Successfully',
-            message: 'Your quiz submission for "${quiz.title}" has been received. Score: ${score.toStringAsFixed(1)}%',
+            message:
+                'Your quiz submission for "${quiz.title}" has been received. Score: ${score.toStringAsFixed(1)}%',
             relatedId: quizId,
             relatedType: 'quiz',
             data: {
@@ -452,9 +446,8 @@ class QuizService {
   Future<List<QuizSubmissionModel>> getAllSubmissionsForQuiz(
       String quizId) async {
     try {
-      final snapshot = await _submissionsCollection
-          .where('quizId', isEqualTo: quizId)
-          .get();
+      final snapshot =
+          await _submissionsCollection.where('quizId', isEqualTo: quizId).get();
 
       final submissions = snapshot.docs
           .map((doc) =>
@@ -542,8 +535,8 @@ class QuizService {
 
       // Check if student is in the right group
       if (!quiz.isForAllGroups) {
-        final hasAccess = quiz.groupIds
-            .any((groupId) => studentGroupIds.contains(groupId));
+        final hasAccess =
+            quiz.groupIds.any((groupId) => studentGroupIds.contains(groupId));
         if (!hasAccess) {
           return {
             'canTake': false,
@@ -582,9 +575,8 @@ class QuizService {
         .where('courseId', isEqualTo: courseId)
         .snapshots()
         .map((snapshot) {
-      final quizzes = snapshot.docs
-          .map((doc) => QuizModel.fromJson(doc.data()))
-          .toList();
+      final quizzes =
+          snapshot.docs.map((doc) => QuizModel.fromJson(doc.data())).toList();
 
       // Sort in memory to avoid requiring a composite index
       quizzes.sort((a, b) => b.createdAt.compareTo(a.createdAt));

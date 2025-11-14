@@ -1117,9 +1117,9 @@ class AssignmentService {
           );
           if (userData != null) {
             final user = UserModel.fromJson(userData);
-            if (user.email != null && user.email!.isNotEmpty) {
+            if (user.email.isNotEmpty) {
               _emailService.sendEmailAsync(
-                recipientEmail: user.email!,
+                recipientEmail: user.email,
                 recipientName: user.fullName,
                 subject: '[$courseName] New Assignment: $assignmentTitle',
                 body: '''
@@ -1140,7 +1140,7 @@ class AssignmentService {
       }
     } catch (e) {
       print('Error in _sendAssignmentCreatedNotifications: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -1183,8 +1183,7 @@ class AssignmentService {
         userId: studentId,
         type: AppConstants.notificationTypeAssignment,
         title: 'Assignment Submitted',
-        message:
-            'Your submission for "${assignment.title}" has been received',
+        message: 'Your submission for "${assignment.title}" has been received',
         relatedId: assignmentId,
         relatedType: 'assignment',
         data: {
@@ -1195,9 +1194,9 @@ class AssignmentService {
       );
 
       // Send email confirmation
-      if (user.email != null && user.email!.isNotEmpty) {
+      if (user.email.isNotEmpty) {
         await _emailService.sendAssignmentSubmissionConfirmationEmail(
-          recipientEmail: user.email!,
+          recipientEmail: user.email,
           recipientName: user.fullName,
           courseName: course.name,
           assignmentTitle: assignment.title,
@@ -1206,7 +1205,7 @@ class AssignmentService {
       }
     } catch (e) {
       print('Error in _sendAssignmentSubmissionConfirmation: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -1263,9 +1262,9 @@ class AssignmentService {
       );
 
       // Send email with feedback
-      if (user.email != null && user.email!.isNotEmpty) {
+      if (user.email.isNotEmpty) {
         await _emailService.sendFeedbackEmail(
-          recipientEmail: user.email!,
+          recipientEmail: user.email,
           recipientName: user.fullName,
           courseName: course.name,
           assignmentTitle: assignment.title,
@@ -1275,7 +1274,7 @@ class AssignmentService {
       }
     } catch (e) {
       print('Error in _sendGradingFeedbackNotification: $e');
-      throw e;
+      rethrow;
     }
   }
 }

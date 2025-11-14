@@ -91,7 +91,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
                             const SizedBox(height: 16),
                             Text('Error: ${snapshot.error}'),
                             const SizedBox(height: 16),
@@ -111,7 +112,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                     final replies = snapshot.data ?? [];
 
                     // Organize replies by parent for threading
-                    final topLevelReplies = replies.where((r) => r.parentReplyId == null).toList();
+                    final topLevelReplies =
+                        replies.where((r) => r.parentReplyId == null).toList();
 
                     return RefreshIndicator(
                       onRefresh: () async {
@@ -143,7 +145,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                           // Replies list (threaded) - updated in real-time
                           ...topLevelReplies.map((reply) {
                             return _buildReplyCard(reply, replies, 0);
-                          }).toList(),
+                          }),
                         ],
                       ),
                     );
@@ -184,7 +186,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.push_pin, size: 14, color: AppTheme.primaryColor),
+                    Icon(Icons.push_pin,
+                        size: 14, color: AppTheme.primaryColor),
                     const SizedBox(width: 4),
                     Text(
                       'Pinned Topic',
@@ -238,7 +241,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                         if (topic.isAuthorInstructor) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(3),
@@ -279,7 +283,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
               const SizedBox(height: 8),
               ...topic.attachments.map((attachment) {
                 return _buildAttachmentItem(attachment);
-              }).toList(),
+              }),
             ],
           ],
         ),
@@ -287,12 +291,14 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
     );
   }
 
-  Widget _buildReplyCard(ForumReplyModel reply, List<ForumReplyModel> allReplies, int depth) {
+  Widget _buildReplyCard(
+      ForumReplyModel reply, List<ForumReplyModel> allReplies, int depth) {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
     final isAuthor = currentUser?.id == reply.authorId;
     final isInstructor = currentUser?.role == AppConstants.roleInstructor;
-    final nestedReplies = allReplies.where((r) => r.parentReplyId == reply.id).toList();
+    final nestedReplies =
+        allReplies.where((r) => r.parentReplyId == reply.id).toList();
 
     return Container(
       margin: EdgeInsets.only(left: depth * 24.0, bottom: 12),
@@ -315,7 +321,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                             : Colors.blue,
                         child: Text(
                           reply.authorName[0].toUpperCase(),
-                          style: const TextStyle(fontSize: 12, color: Colors.white),
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.white),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -335,9 +342,11 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                                 if (reply.isAuthorInstructor) ...[
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primaryColor.withOpacity(0.1),
+                                      color: AppTheme.primaryColor
+                                          .withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(3),
                                     ),
                                     child: Text(
@@ -354,7 +363,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                             ),
                             Text(
                               AppConstants.formatDateTime(reply.createdAt),
-                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey[600]),
                             ),
                           ],
                         ),
@@ -384,7 +394,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                     const SizedBox(height: 8),
                     ...reply.attachments.map((attachment) {
                       return _buildAttachmentItem(attachment);
-                    }).toList(),
+                    }),
                   ],
 
                   // Reply button
@@ -408,7 +418,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
           if (nestedReplies.isNotEmpty)
             ...nestedReplies.map((nested) {
               return _buildReplyCard(nested, allReplies, depth + 1);
-            }).toList(),
+            }),
         ],
       ),
     );
@@ -492,7 +502,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                 spacing: 8,
                 children: _selectedFiles.map((file) {
                   return Chip(
-                    label: Text(file.name, style: const TextStyle(fontSize: 12)),
+                    label:
+                        Text(file.name, style: const TextStyle(fontSize: 12)),
                     onDeleted: () {
                       setState(() {
                         _selectedFiles.remove(file);
@@ -519,7 +530,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                   decoration: const InputDecoration(
                     hintText: 'Write a reply...',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   maxLines: null,
                 ),
@@ -610,7 +622,8 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Reply'),
-        content: const Text('Are you sure you want to delete this reply? This will also delete nested replies.'),
+        content: const Text(
+            'Are you sure you want to delete this reply? This will also delete nested replies.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

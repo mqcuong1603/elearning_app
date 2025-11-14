@@ -154,7 +154,8 @@ class NotificationService {
 
       final snapshot = await query.get();
       final notifications = snapshot.docs
-          .map((doc) => NotificationModel.fromJson(doc.data() as Map<String, dynamic>))
+          .map((doc) =>
+              NotificationModel.fromJson(doc.data() as Map<String, dynamic>))
           .toList();
 
       // Cache the fetched notifications
@@ -211,8 +212,7 @@ class NotificationService {
         .snapshots()
         .map((snapshot) {
       final notifications = snapshot.docs
-          .map((doc) =>
-              NotificationModel.fromJson(doc.data() as Map<String, dynamic>))
+          .map((doc) => NotificationModel.fromJson(doc.data()))
           .toList();
 
       // Update cache in background
@@ -252,7 +252,8 @@ class NotificationService {
       );
 
       // Update in Hive cache
-      final notification = await _hiveService.getNotificationById(notificationId);
+      final notification =
+          await _hiveService.getNotificationById(notificationId);
       if (notification != null) {
         final updatedNotification = notification.copyWith(
           isRead: true,

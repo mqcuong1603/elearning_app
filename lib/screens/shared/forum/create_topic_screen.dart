@@ -25,7 +25,7 @@ class _CreateTopicScreenState extends State<CreateTopicScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
-  List<PlatformFile> _selectedFiles = [];
+  final List<PlatformFile> _selectedFiles = [];
   bool _isSubmitting = false;
 
   @override
@@ -164,7 +164,6 @@ class _CreateTopicScreenState extends State<CreateTopicScreen> {
                         ),
                       ],
                     ),
-
                     if (_selectedFiles.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -184,7 +183,7 @@ class _CreateTopicScreenState extends State<CreateTopicScreen> {
                         final index = entry.key;
                         final file = entry.value;
                         return _buildFileChip(file, index);
-                      }).toList(),
+                      }),
                     ],
                   ],
                 ),
@@ -203,7 +202,8 @@ class _CreateTopicScreenState extends State<CreateTopicScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.blue[700], size: 20),
+                        Icon(Icons.lightbulb_outline,
+                            color: Colors.blue[700], size: 20),
                         const SizedBox(width: 8),
                         Text(
                           'Tips for a good topic',
@@ -390,7 +390,8 @@ class _CreateTopicScreenState extends State<CreateTopicScreen> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(forumProvider.topicsError ?? 'Failed to create topic'),
+            content:
+                Text(forumProvider.topicsError ?? 'Failed to create topic'),
             backgroundColor: Colors.red,
           ),
         );

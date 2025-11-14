@@ -185,7 +185,8 @@ class AnnouncementService {
       // Now upload attachments with the proper announcement ID
       List<AttachmentModel> attachments = [];
       if (attachmentFiles != null && attachmentFiles.isNotEmpty) {
-        print('Uploading ${attachmentFiles.length} attachments for announcement $id');
+        print(
+            'Uploading ${attachmentFiles.length} attachments for announcement $id');
         attachments = await _uploadAttachments(
           files: attachmentFiles,
           courseId: courseId,
@@ -259,7 +260,8 @@ class AnnouncementService {
       // Upload new attachments if any
       List<AttachmentModel> newAttachments = [];
       if (newAttachmentFiles != null && newAttachmentFiles.isNotEmpty) {
-        print('Uploading ${newAttachmentFiles.length} new attachments for announcement ${announcement.id}');
+        print(
+            'Uploading ${newAttachmentFiles.length} new attachments for announcement ${announcement.id}');
         newAttachments = await _uploadAttachments(
           files: newAttachmentFiles,
           courseId: announcement.courseId,
@@ -527,8 +529,7 @@ class AnnouncementService {
 
       try {
         // Upload to storage
-        final storagePath =
-            'announcements/$courseId/$announcementId';
+        final storagePath = 'announcements/$courseId/$announcementId';
         final downloadUrl = await _storageService.uploadPlatformFile(
           file: file,
           storagePath: storagePath,
@@ -547,14 +548,16 @@ class AnnouncementService {
         );
 
         attachments.add(attachment);
-        print('Successfully added attachment: $filename (${attachment.formattedSize})');
+        print(
+            'Successfully added attachment: $filename (${attachment.formattedSize})');
       } catch (e) {
         print('ERROR: Failed to upload attachment $filename: $e');
         // Continue with other files - don't throw, just log and skip
       }
     }
 
-    print('Total attachments uploaded: ${attachments.length} of ${files.length}');
+    print(
+        'Total attachments uploaded: ${attachments.length} of ${files.length}');
     return attachments;
   }
 
@@ -640,8 +643,10 @@ class AnnouncementService {
         );
         if (groupData != null) {
           print('   ✅ Group found: ${groupData['name']}');
-          final studentIdsInGroup = List<String>.from(groupData['studentIds'] ?? []);
-          print('   👥 Students in group: ${studentIdsInGroup.length} (${studentIdsInGroup.join(', ')})');
+          final studentIdsInGroup =
+              List<String>.from(groupData['studentIds'] ?? []);
+          print(
+              '   👥 Students in group: ${studentIdsInGroup.length} (${studentIdsInGroup.join(', ')})');
           studentIds.addAll(studentIdsInGroup);
         } else {
           print('   ⚠️  Group not found: $groupId');
@@ -650,7 +655,8 @@ class AnnouncementService {
 
       // Remove duplicates
       final uniqueStudentIds = studentIds.toSet().toList();
-      print('   📊 Total unique students to notify: ${uniqueStudentIds.length}');
+      print(
+          '   📊 Total unique students to notify: ${uniqueStudentIds.length}');
 
       if (uniqueStudentIds.isEmpty) {
         print('❌ No students found in groups, skipping notifications');
@@ -658,7 +664,8 @@ class AnnouncementService {
         return;
       }
 
-      print('✅ Sending announcement notifications to ${uniqueStudentIds.length} students');
+      print(
+          '✅ Sending announcement notifications to ${uniqueStudentIds.length} students');
 
       // Create in-app notifications for all students
       print('   📱 Creating in-app notifications...');
@@ -688,11 +695,12 @@ class AnnouncementService {
           );
           if (userData != null) {
             final user = UserModel.fromJson(userData);
-            if (user.email != null && user.email!.isNotEmpty) {
-              print('      📨 Sending email to: ${user.fullName} <${user.email}>');
+            if (user.email.isNotEmpty) {
+              print(
+                  '      📨 Sending email to: ${user.fullName} <${user.email}>');
               // Send email asynchronously (non-blocking)
               _emailService.sendEmailAsync(
-                recipientEmail: user.email!,
+                recipientEmail: user.email,
                 recipientName: user.fullName,
                 subject: '[$courseName] New Announcement: $announcementTitle',
                 body: '''
@@ -706,7 +714,8 @@ class AnnouncementService {
               );
               emailsSent++;
             } else {
-              print('      ⚠️  No email found for student: ${user.fullName} (ID: $studentId)');
+              print(
+                  '      ⚠️  No email found for student: ${user.fullName} (ID: $studentId)');
               emailsSkipped++;
             }
           } else {
@@ -724,7 +733,7 @@ class AnnouncementService {
       print('✅ Announcement notifications sent successfully');
     } catch (e) {
       print('Error sending announcement notifications: $e');
-      throw e;
+      rethrow;
     }
   }
 }

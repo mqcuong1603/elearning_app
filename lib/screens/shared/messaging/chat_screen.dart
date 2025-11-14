@@ -45,9 +45,9 @@ class _ChatScreenState extends State<ChatScreen> {
         final currentUser = authService.currentUser;
         if (currentUser != null) {
           context.read<MessageProvider>().markConversationAsRead(
-            currentUser.id,
-            widget.partnerId,
-          );
+                currentUser.id,
+                widget.partnerId,
+              );
         }
       }
     });
@@ -98,7 +98,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (widget.partnerRole == AppConstants.roleInstructor)
                     const Text(
                       'Instructor',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.normal),
                     ),
                 ],
               ),
@@ -130,7 +131,8 @@ class _ChatScreenState extends State<ChatScreen> {
           // Messages list with real-time updates using StreamBuilder
           Expanded(
             child: StreamBuilder<List<MessageModel>>(
-              stream: messageService.streamConversation(currentUser.id, widget.partnerId),
+              stream: messageService.streamConversation(
+                  currentUser.id, widget.partnerId),
               builder: (context, snapshot) {
                 // Handle loading state
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -143,7 +145,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Colors.red),
                         const SizedBox(height: 16),
                         Text('Error: ${snapshot.error}'),
                         const SizedBox(height: 16),
@@ -166,11 +169,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
+                        Icon(Icons.chat_bubble_outline,
+                            size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
                         Text(
                           'No messages yet',
-                          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 18, color: Colors.grey[600]),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -223,7 +228,8 @@ class _ChatScreenState extends State<ChatScreen> {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -250,7 +256,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     const SizedBox(height: 8),
                     ...message.attachments.map((attachment) {
                       return _buildAttachmentItem(attachment, isMe);
-                    }).toList(),
+                    }),
                   ],
                 ],
               ),
@@ -341,7 +347,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 spacing: 8,
                 children: _selectedFiles.map((file) {
                   return Chip(
-                    label: Text(file.name, style: const TextStyle(fontSize: 12)),
+                    label:
+                        Text(file.name, style: const TextStyle(fontSize: 12)),
                     onDeleted: () {
                       setState(() {
                         _selectedFiles.remove(file);
@@ -368,7 +375,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: const InputDecoration(
                       hintText: 'Type a message...',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     maxLines: null,
                     textInputAction: TextInputAction.send,

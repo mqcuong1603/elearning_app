@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
-import '../config/app_theme.dart';
 
 /// Notification Bell Icon Widget with Unread Badge
 /// Shows a bell icon with a badge indicating the number of unread notifications

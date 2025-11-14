@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
-import '../../config/app_constants.dart';
 import '../../models/course_model.dart';
 import '../../providers/course_provider.dart';
 import '../../services/auth_service.dart';
@@ -43,7 +42,8 @@ class _AllForumsScreenState extends State<AllForumsScreen> {
 
     try {
       final courseProvider = context.read<CourseProvider>();
-      final courses = await courseProvider.loadCoursesForStudent(currentUser.id);
+      final courses =
+          await courseProvider.loadCoursesForStudent(currentUser.id);
 
       if (mounted) {
         setState(() {

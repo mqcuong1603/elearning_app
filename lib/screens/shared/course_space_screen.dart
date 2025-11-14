@@ -63,7 +63,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   List<UserModel> _students = [];
 
   // Track quiz submissions for students (quizId -> best submission)
-  Map<String, QuizSubmissionModel> _quizSubmissions = {};
+  final Map<String, QuizSubmissionModel> _quizSubmissions = {};
 
   // Track which group the current user belongs to (for students)
   String? _currentUserGroupId;
@@ -255,9 +255,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
               return true; // Visible to all students
             }
             // Check if announcement is for any of the student's groups
-            return announcement.groupIds.any((groupId) =>
-              _groups.any((g) => g.id == groupId && g.hasStudent(widget.currentUserId))
-            );
+            return announcement.groupIds.any((groupId) => _groups.any(
+                (g) => g.id == groupId && g.hasStudent(widget.currentUserId)));
           }).toList();
         }
 
@@ -272,9 +271,10 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 child: _buildEmptyState(
                   icon: Icons.campaign,
                   message: 'No announcements yet',
-                  description: widget.currentUserRole == AppConstants.roleInstructor
-                      ? 'Create your first announcement to get started'
-                      : 'Your instructor will post announcements here',
+                  description:
+                      widget.currentUserRole == AppConstants.roleInstructor
+                          ? 'Create your first announcement to get started'
+                          : 'Your instructor will post announcements here',
                 ),
               ),
             ),
@@ -313,9 +313,11 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
               stream: materialService.streamMaterialsByCourse(widget.course.id),
               builder: (context, materialSnapshot) {
                 // Handle loading state
-                if (assignmentSnapshot.connectionState == ConnectionState.waiting ||
+                if (assignmentSnapshot.connectionState ==
+                        ConnectionState.waiting ||
                     quizSnapshot.connectionState == ConnectionState.waiting ||
-                    materialSnapshot.connectionState == ConnectionState.waiting) {
+                    materialSnapshot.connectionState ==
+                        ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
@@ -336,7 +338,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 var materials = materialSnapshot.data ?? [];
 
                 // Filter based on role and groups
-                if (widget.currentUserRole == AppConstants.roleStudent && _groups.isNotEmpty) {
+                if (widget.currentUserRole == AppConstants.roleStudent &&
+                    _groups.isNotEmpty) {
                   // Get student's group IDs
                   final studentGroupIds = _groups
                       .where((group) => group.hasStudent(widget.currentUserId))
@@ -346,7 +349,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                   // Filter assignments by student's groups
                   assignments = assignments.where((assignment) {
                     return assignment.isForAllGroups ||
-                        assignment.groupIds.any((groupId) => studentGroupIds.contains(groupId));
+                        assignment.groupIds.any(
+                            (groupId) => studentGroupIds.contains(groupId));
                   }).toList();
 
                   // Filter quizzes by student's groups and availability
@@ -356,22 +360,25 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
                     // Check if student is in the right group
                     return quiz.isForAllGroups ||
-                        quiz.groupIds.any((groupId) => studentGroupIds.contains(groupId));
+                        quiz.groupIds.any(
+                            (groupId) => studentGroupIds.contains(groupId));
                   }).toList();
 
                   // Materials are visible to all students (no filtering needed)
                 }
 
                 // Combine all classwork items
-                final totalItems = assignments.length + quizzes.length + materials.length;
+                final totalItems =
+                    assignments.length + quizzes.length + materials.length;
 
                 if (totalItems == 0) {
                   return _buildEmptyState(
                     icon: Icons.school,
                     message: 'No classwork yet',
-                    description: widget.currentUserRole == AppConstants.roleInstructor
-                        ? 'Add assignments, quizzes, or materials'
-                        : 'Your instructor will add classwork here',
+                    description:
+                        widget.currentUserRole == AppConstants.roleInstructor
+                            ? 'Add assignments, quizzes, or materials'
+                            : 'Your instructor will add classwork here',
                   );
                 }
 
@@ -391,210 +398,210 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     List<MaterialModel> materials,
   ) {
     return CustomScrollView(
-        slivers: [
-          // Search and filter bar
+      slivers: [
+        // Search and filter bar
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search classwork...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingM,
+                        vertical: AppTheme.spacingS,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      // TODO: Implement search
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingS),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: () {
+                    _showFilterDialog();
+                  },
+                  tooltip: 'Filter & Sort',
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Assignments Section
+        if (assignments.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+              ),
               child: Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search classwork...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                  Icon(Icons.assignment,
+                      color: AppTheme.primaryColor, size: 20),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Text(
+                    'Assignments',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacingM,
-                          vertical: AppTheme.spacingS,
-                        ),
-                      ),
-                      onChanged: (value) {
-                        // TODO: Implement search
-                      },
-                    ),
                   ),
                   const SizedBox(width: AppTheme.spacingS),
-                  IconButton(
-                    icon: const Icon(Icons.filter_list),
-                    onPressed: () {
-                      _showFilterDialog();
-                    },
-                    tooltip: 'Filter & Sort',
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingS,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      '${assignments.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-
-          // Assignments Section
-          if (assignments.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.spacingM,
-                  AppTheme.spacingM,
-                  AppTheme.spacingM,
-                  AppTheme.spacingS,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.assignment,
-                        color: AppTheme.primaryColor, size: 20),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      'Assignments',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingS,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryLightColor,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusS),
-                      ),
-                      child: Text(
-                        '${assignments.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return _buildAssignmentCard(assignments[index]);
+              },
+              childCount: assignments.length,
             ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildAssignmentCard(assignments[index]);
-                },
-                childCount: assignments.length,
-              ),
-            ),
-          ],
-
-          // Quizzes Section
-          if (quizzes.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.spacingM,
-                  AppTheme.spacingL,
-                  AppTheme.spacingM,
-                  AppTheme.spacingS,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.quiz, color: AppTheme.infoColor, size: 20),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      'Quizzes',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingS,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.infoLightColor,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusS),
-                      ),
-                      child: Text(
-                        '${quizzes.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.infoColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildQuizCard(quizzes[index]);
-                },
-                childCount: quizzes.length,
-              ),
-            ),
-          ],
-
-          // Materials Section
-          if (materials.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.spacingM,
-                  AppTheme.spacingL,
-                  AppTheme.spacingM,
-                  AppTheme.spacingS,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.folder, color: AppTheme.warningColor, size: 20),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      'Materials',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingS,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.warningLightColor,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusS),
-                      ),
-                      child: Text(
-                        '${materials.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.warningColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildMaterialCard(materials[index]);
-                },
-                childCount: materials.length,
-              ),
-            ),
-          ],
-
-          // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: AppTheme.spacingXL),
           ),
         ],
-      );
+
+        // Quizzes Section
+        if (quizzes.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingL,
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.quiz, color: AppTheme.infoColor, size: 20),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Text(
+                    'Quizzes',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingS,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.infoLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      '${quizzes.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.infoColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return _buildQuizCard(quizzes[index]);
+              },
+              childCount: quizzes.length,
+            ),
+          ),
+        ],
+
+        // Materials Section
+        if (materials.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingL,
+                AppTheme.spacingM,
+                AppTheme.spacingS,
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.folder, color: AppTheme.warningColor, size: 20),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Text(
+                    'Materials',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(width: AppTheme.spacingS),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingS,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                    ),
+                    child: Text(
+                      '${materials.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.warningColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return _buildMaterialCard(materials[index]);
+              },
+              childCount: materials.length,
+            ),
+          ),
+        ],
+
+        // Bottom padding
+        const SliverToBoxAdapter(
+          child: SizedBox(height: AppTheme.spacingXL),
+        ),
+      ],
+    );
   }
 
   // People Tab: Lists groups and students enrolled in the course
@@ -705,16 +712,20 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         children: [
                           Text(
                             'Course Forum',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
                           const SizedBox(height: AppTheme.spacingXS),
                           Text(
                             'Discuss course topics with classmates',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.textSecondaryColor,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textSecondaryColor,
+                                    ),
                           ),
                         ],
                       ),
@@ -958,7 +969,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         groupIds: result['groupIds'],
       );
 
-      final newAttachmentFiles = result['attachmentFiles'] as List<PlatformFile>?;
+      final newAttachmentFiles =
+          result['attachmentFiles'] as List<PlatformFile>?;
 
       bool success;
       if (newAttachmentFiles != null && newAttachmentFiles.isNotEmpty) {
@@ -1330,25 +1342,29 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         onTap: () {
           if (widget.currentUserRole == AppConstants.roleInstructor) {
             // Instructors go to quiz management
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => QuizManagementScreen(
-                  courseId: widget.course.id,
-                  courseName: widget.course.name,
-                ),
-              ),
-            ).then((_) => _loadData());
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(
+                    builder: (_) => QuizManagementScreen(
+                      courseId: widget.course.id,
+                      courseName: widget.course.name,
+                    ),
+                  ),
+                )
+                .then((_) => _loadData());
           } else {
             // Students can take the quiz if it's available
             if (quiz.isAvailable) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => QuizTakingScreen(
-                    quizId: quiz.id,
-                    courseId: widget.course.id,
-                  ),
-                ),
-              ).then((_) => _loadData());
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      builder: (_) => QuizTakingScreen(
+                        quizId: quiz.id,
+                        courseId: widget.course.id,
+                      ),
+                    ),
+                  )
+                  .then((_) => _loadData());
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -1436,11 +1452,13 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       ),
       child: InkWell(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MaterialDetailsScreen(material: material),
-            ),
-          ).then((_) => _loadData()); // Reload data when returning
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (_) => MaterialDetailsScreen(material: material),
+                ),
+              )
+              .then((_) => _loadData()); // Reload data when returning
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         child: Padding(
@@ -1629,14 +1647,16 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         child: Center(
                           child: Text(
                             'No students in this group yet',
-                            style: TextStyle(color: AppTheme.textSecondaryColor),
+                            style:
+                                TextStyle(color: AppTheme.textSecondaryColor),
                           ),
                         ),
                       )
                     : ListView.separated(
                         shrinkWrap: true,
                         itemCount: groupStudents.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final student = groupStudents[index];
                           return ListTile(
@@ -1661,17 +1681,20 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                               'ID: ${student.studentId ?? "N/A"}',
                               style: const TextStyle(fontSize: 12),
                             ),
-                            trailing: widget.currentUserRole == AppConstants.roleInstructor
+                            trailing: widget.currentUserRole ==
+                                    AppConstants.roleInstructor
                                 ? IconButton(
                                     icon: const Icon(Icons.message, size: 18),
                                     onPressed: () {
-                                      Navigator.of(context).pop(); // Close dialog
+                                      Navigator.of(context)
+                                          .pop(); // Close dialog
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
                                           builder: (_) => ChatScreen(
                                             partnerId: student.id,
                                             partnerName: student.fullName,
-                                            partnerRole: AppConstants.roleStudent,
+                                            partnerRole:
+                                                AppConstants.roleStudent,
                                           ),
                                         ),
                                       );
@@ -1839,14 +1862,16 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                 title: const Text('Manage Quizzes'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => QuizManagementScreen(
-                        courseId: widget.course.id,
-                        courseName: widget.course.name,
-                      ),
-                    ),
-                  ).then((_) => _loadData()); // Reload data when returning
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                          builder: (_) => QuizManagementScreen(
+                            courseId: widget.course.id,
+                            courseName: widget.course.name,
+                          ),
+                        ),
+                      )
+                      .then((_) => _loadData()); // Reload data when returning
                 },
               ),
               ListTile(
