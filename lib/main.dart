@@ -17,6 +17,8 @@ import 'services/assignment_service.dart';
 import 'services/material_service.dart';
 import 'services/quiz_service.dart';
 import 'services/question_service.dart';
+import 'services/forum_service.dart';
+import 'services/message_service.dart';
 import 'providers/semester_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/student_provider.dart';
@@ -25,6 +27,8 @@ import 'providers/announcement_provider.dart';
 import 'providers/assignment_provider.dart';
 import 'providers/material_provider.dart';
 import 'providers/quiz_provider.dart';
+import 'providers/forum_provider.dart';
+import 'providers/message_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/instructor/instructor_dashboard_screen.dart';
 import 'screens/student/student_home_screen.dart';
@@ -139,6 +143,24 @@ class MyApp extends StatelessWidget {
         Provider<QuestionService>(
           create: (_) => QuestionService(),
         ),
+        ProxyProvider3<FirestoreService, HiveService, StorageService,
+            ForumService>(
+          update: (_, firestoreService, hiveService, storageService, __) =>
+              ForumService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+            storageService: storageService,
+          ),
+        ),
+        ProxyProvider3<FirestoreService, HiveService, StorageService,
+            MessageService>(
+          update: (_, firestoreService, hiveService, storageService, __) =>
+              MessageService(
+            firestoreService: firestoreService,
+            hiveService: hiveService,
+            storageService: storageService,
+          ),
+        ),
 
         // Providers (State Management)
         ChangeNotifierProxyProvider<SemesterService, SemesterProvider>(
@@ -192,6 +214,20 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<QuizProvider>(
           create: (context) => QuizProvider(),
+        ),
+        ChangeNotifierProxyProvider<ForumService, ForumProvider>(
+          create: (context) => ForumProvider(
+            forumService: context.read<ForumService>(),
+          ),
+          update: (_, forumService, previous) =>
+              previous ?? ForumProvider(forumService: forumService),
+        ),
+        ChangeNotifierProxyProvider<MessageService, MessageProvider>(
+          create: (context) => MessageProvider(
+            messageService: context.read<MessageService>(),
+          ),
+          update: (_, messageService, previous) =>
+              previous ?? MessageProvider(messageService: messageService),
         ),
       ],
       child: MaterialApp(
