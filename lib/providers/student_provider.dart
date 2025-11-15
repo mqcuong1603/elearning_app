@@ -44,10 +44,15 @@ class StudentProvider extends ChangeNotifier {
   /// Get student by ID
   Future<UserModel?> getStudentById(String id) async {
     try {
-      return await _studentService.getStudentById(id);
+      final student = await _studentService.getStudentById(id);
+      if (student == null) {
+        // Don't set error for null results, might be offline
+        print('ℹ️ Student $id not found (may be offline)');
+      }
+      return student;
     } catch (e) {
-      _error = e.toString();
-      notifyListeners();
+      // Only log error once, don't spam the console
+      print('Get student by ID error: $e');
       return null;
     }
   }
