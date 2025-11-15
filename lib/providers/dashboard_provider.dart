@@ -360,10 +360,6 @@ class DashboardProvider with ChangeNotifier {
           courseId: courseId,
           studentGroupIds: studentGroupIds,
         );
-        print('📚 Loaded ${quizzes.length} quizzes for course $courseId');
-        for (final quiz in quizzes) {
-          print('  Quiz: "${quiz.title}" - openDate: ${quiz.openDate}, closeDate: ${quiz.closeDate}');
-        }
         allQuizzes.addAll(quizzes);
 
         // Load submissions for each quiz
@@ -372,14 +368,12 @@ class DashboardProvider with ChangeNotifier {
             quizId: quiz.id,
             studentId: studentId,
           );
-          print('  Submissions for "${quiz.title}": ${submissions.length}');
           quizSubmissions[quiz.id] = submissions;
         }
       }
 
       _allQuizzes = allQuizzes;
       _quizSubmissions = quizSubmissions;
-      print('📚 Total quizzes loaded: ${_allQuizzes.length}');
     } catch (e) {
       print('Error loading quizzes: $e');
       rethrow;

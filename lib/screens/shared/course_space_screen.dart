@@ -441,17 +441,24 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
                   // Materials are visible to all students (no filtering needed)
 
-                  // Schedule submission loading AFTER this build completes (only once)
-                  if (!_hasScheduledSubmissionLoad && !_isLoadingSubmissions) {
+                  // Check if we have unloaded items
+                  final hasUnloadedItems = assignments.any((a) => !_loadedAssignmentIds.contains(a.id)) ||
+                      quizzes.any((q) => !_loadedQuizIds.contains(q.id));
+
+                  // If we have unloaded items and haven't scheduled a load, schedule it
+                  if (hasUnloadedItems && !_hasScheduledSubmissionLoad && !_isLoadingSubmissions) {
                     _hasScheduledSubmissionLoad = true;
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       _loadSubmissionsForStudent(assignments, quizzes);
                     });
                   }
-                }
 
-                // Show loading indicator while submissions are being loaded
-                if (_isLoadingSubmissions && widget.currentUserRole == AppConstants.roleStudent) {
+                  // Show loading indicator if submissions are being loaded or need to be loaded
+                  if ((hasUnloadedItems || _isLoadingSubmissions) && widget.currentUserRole == AppConstants.roleStudent) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                } else if (_isLoadingSubmissions && widget.currentUserRole == AppConstants.roleStudent) {
+                  // Show loading indicator while submissions are being loaded
                   return const Center(child: CircularProgressIndicator());
                 }
 
