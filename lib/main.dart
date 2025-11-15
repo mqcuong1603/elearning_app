@@ -22,8 +22,10 @@ import 'services/message_service.dart';
 import 'services/notification_service.dart';
 import 'services/email_service.dart';
 import 'services/deadline_monitoring_service.dart';
+import 'services/offline_sync_service.dart';
 import 'providers/semester_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/connectivity_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/group_provider.dart';
@@ -54,6 +56,14 @@ void main() async {
     // Initialize Hive for offline caching
     await HiveService.instance.initialize();
     print('Hive initialized successfully');
+
+    // Initialize Offline Sync Service
+    final offlineSyncService = OfflineSyncService(
+      hiveService: HiveService.instance,
+      firestoreService: FirestoreService(),
+    );
+    await offlineSyncService.initialize();
+    print('Offline sync service initialized successfully');
 
     // Configure Email Service for notifications
     final emailService = EmailService();
@@ -216,8 +226,30 @@ class MyApp extends StatelessWidget {
           },
           dispose: (_, service) => service.dispose(),
         ),
+        ProxyProvider2<HiveService, FirestoreService, OfflineSyncService>(
+          update: (_, hiveService, firestoreService, previous) {
+            if (previous != null) {
+              return previous;
+            }
+            final service = OfflineSyncService(
+              hiveService: hiveService,
+              firestoreService: firestoreService,
+            );
+            // Initialize offline sync
+            service.initialize();
+            return service;
+          },
+          dispose: (_, service) => service.dispose(),
+        ),
 
         // Providers (State Management)
+        ChangeNotifierProxyProvider<OfflineSyncService, ConnectivityProvider>(
+          create: (context) => ConnectivityProvider(
+            offlineSyncService: context.read<OfflineSyncService>(),
+          ),
+          update: (_, offlineSyncService, previous) => previous ??
+              ConnectivityProvider(offlineSyncService: offlineSyncService),
+        ),
         ChangeNotifierProxyProvider<SemesterService, SemesterProvider>(
           create: (context) => SemesterProvider(
             semesterService: context.read<SemesterService>(),

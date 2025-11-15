@@ -51,17 +51,24 @@ class StudentService {
         documentId: id,
       );
 
-      if (data == null) return null;
+      if (data == null) {
+        // If not found in Firestore, try cache
+        return _getCachedStudentById(id);
+      }
 
       final user = UserModel.fromJson(data);
 
       // Verify it's a student
       if (!user.isStudent) return null;
 
+      // Cache the student for offline access
+      await _cacheStudent(user);
+
       return user;
     } catch (e) {
-      print('Get student by ID error: $e');
-      return null;
+      print('Firestore read error: $e');
+      // Try to get from cache if Firestore fails (e.g., offline)
+      return _getCachedStudentById(id);
     }
   }
 
@@ -429,6 +436,51 @@ class StudentService {
       );
     } catch (e) {
       print('Cache students error: $e');
+    }
+  }
+
+  /// Private: Cache individual student
+  Future<void> _cacheStudent(UserModel student) async {
+    try {
+      await _hiveService.save(
+        boxName: AppConstants.hiveBoxUsers,
+        key: student.id,
+        value: student,
+      );
+    } catch (e) {
+      print('Cache student error: $e');
+    }
+  }
+
+  /// Private: Get cached student by ID
+  UserModel? _getCachedStudentById(String id) {
+    try {
+      final cached = _hiveService.get(
+        boxName: AppConstants.hiveBoxUsers,
+        key: id,
+      );
+      if (cached != null && cached is UserModel) {
+        print('📦 Retrieved student from cache: ${cached.fullName}');
+        return cached;
+      }
+      // Also check in the all_students cache as fallback
+      final allStudents = _getCachedStudents();
+      final student = allStudents.firstWhere(
+        (s) => s.id == id,
+        orElse: () => UserModel(
+          id: '',
+          username: '',
+          fullName: '',
+          email: '',
+          role: '',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+      return student.id.isNotEmpty ? student : null;
+    } catch (e) {
+      print('Get cached student error: $e');
+      return null;
     }
   }
 
