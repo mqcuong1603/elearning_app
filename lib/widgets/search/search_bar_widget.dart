@@ -136,7 +136,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                       });
                     },
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),

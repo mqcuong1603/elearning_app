@@ -1,15 +1,12 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'hive_service.dart';
 import 'firestore_service.dart';
 import '../config/app_constants.dart';
 import '../models/course_model.dart';
 import '../models/announcement_model.dart';
 import '../models/assignment_model.dart';
-import '../models/assignment_submission_model.dart';
 import '../models/quiz_model.dart';
-import '../models/quiz_submission_model.dart';
 import '../models/material_model.dart';
 import '../models/group_model.dart';
 import '../models/semester_model.dart';
@@ -224,9 +221,7 @@ class OfflineSyncService {
   Future<List<CourseModel>> getOfflineCourses() async {
     try {
       final values = _hiveService.getAllValues(AppConstants.hiveBoxCourses);
-      return values
-          .whereType<CourseModel>()
-          .toList();
+      return values.whereType<CourseModel>().toList();
     } catch (e) {
       print('Error getting offline courses: $e');
       return [];
@@ -236,10 +231,9 @@ class OfflineSyncService {
   /// Get announcements from offline storage
   Future<List<AnnouncementModel>> getOfflineAnnouncements() async {
     try {
-      final values = _hiveService.getAllValues(AppConstants.hiveBoxAnnouncements);
-      return values
-          .whereType<AnnouncementModel>()
-          .toList();
+      final values =
+          _hiveService.getAllValues(AppConstants.hiveBoxAnnouncements);
+      return values.whereType<AnnouncementModel>().toList();
     } catch (e) {
       print('Error getting offline announcements: $e');
       return [];
@@ -250,9 +244,7 @@ class OfflineSyncService {
   Future<List<AssignmentModel>> getOfflineAssignments() async {
     try {
       final values = _hiveService.getAllValues(AppConstants.hiveBoxAssignments);
-      return values
-          .whereType<AssignmentModel>()
-          .toList();
+      return values.whereType<AssignmentModel>().toList();
     } catch (e) {
       print('Error getting offline assignments: $e');
       return [];
@@ -263,9 +255,7 @@ class OfflineSyncService {
   Future<List<QuizModel>> getOfflineQuizzes() async {
     try {
       final values = _hiveService.getAllValues(AppConstants.hiveBoxQuizzes);
-      return values
-          .whereType<QuizModel>()
-          .toList();
+      return values.whereType<QuizModel>().toList();
     } catch (e) {
       print('Error getting offline quizzes: $e');
       return [];
@@ -276,9 +266,7 @@ class OfflineSyncService {
   Future<List<MaterialModel>> getOfflineMaterials() async {
     try {
       final values = _hiveService.getAllValues(AppConstants.hiveBoxMaterials);
-      return values
-          .whereType<MaterialModel>()
-          .toList();
+      return values.whereType<MaterialModel>().toList();
     } catch (e) {
       print('Error getting offline materials: $e');
       return [];
@@ -289,9 +277,7 @@ class OfflineSyncService {
   Future<List<GroupModel>> getOfflineGroups() async {
     try {
       final values = _hiveService.getAllValues(AppConstants.hiveBoxGroups);
-      return values
-          .whereType<GroupModel>()
-          .toList();
+      return values.whereType<GroupModel>().toList();
     } catch (e) {
       print('Error getting offline groups: $e');
       return [];
@@ -302,9 +288,7 @@ class OfflineSyncService {
   Future<List<SemesterModel>> getOfflineSemesters() async {
     try {
       final values = _hiveService.getAllValues(AppConstants.hiveBoxSemesters);
-      return values
-          .whereType<SemesterModel>()
-          .toList();
+      return values.whereType<SemesterModel>().toList();
     } catch (e) {
       print('Error getting offline semesters: $e');
       return [];
@@ -339,8 +323,7 @@ class OfflineSyncService {
       await syncGroups(studentGroups);
 
       // Get student's courses
-      final courseIds =
-          studentGroups.map((g) => g.courseId).toSet().toList();
+      final courseIds = studentGroups.map((g) => g.courseId).toSet().toList();
       final courses = <CourseModel>[];
       for (final courseId in courseIds) {
         final courseData = await _firestoreService.read(
@@ -373,9 +356,8 @@ class OfflineSyncService {
             QueryFilter(field: 'courseId', isEqualTo: courseId),
           ],
         );
-        final assignments = assignmentsData
-            .map((a) => AssignmentModel.fromJson(a))
-            .toList();
+        final assignments =
+            assignmentsData.map((a) => AssignmentModel.fromJson(a)).toList();
         await syncAssignments(assignments);
 
         // Sync quizzes
@@ -385,9 +367,7 @@ class OfflineSyncService {
             QueryFilter(field: 'courseId', isEqualTo: courseId),
           ],
         );
-        final quizzes = quizzesData
-            .map((q) => QuizModel.fromJson(q))
-            .toList();
+        final quizzes = quizzesData.map((q) => QuizModel.fromJson(q)).toList();
         await syncQuizzes(quizzes);
 
         // Sync materials
@@ -397,9 +377,8 @@ class OfflineSyncService {
             QueryFilter(field: 'courseId', isEqualTo: courseId),
           ],
         );
-        final materials = materialsData
-            .map((m) => MaterialModel.fromJson(m))
-            .toList();
+        final materials =
+            materialsData.map((m) => MaterialModel.fromJson(m)).toList();
         await syncMaterials(materials);
       }
 
@@ -429,18 +408,14 @@ class OfflineSyncService {
           QueryFilter(field: 'semesterId', isEqualTo: semesterId),
         ],
       );
-      final courses = coursesData
-          .map((c) => CourseModel.fromJson(c))
-          .toList();
+      final courses = coursesData.map((c) => CourseModel.fromJson(c)).toList();
       await syncCourses(courses);
 
       // Get all groups
       final groupsData = await _firestoreService.getAll(
         collection: AppConstants.collectionGroups,
       );
-      final groups = groupsData
-          .map((g) => GroupModel.fromJson(g))
-          .toList();
+      final groups = groupsData.map((g) => GroupModel.fromJson(g)).toList();
       await syncGroups(groups);
 
       // Get all students

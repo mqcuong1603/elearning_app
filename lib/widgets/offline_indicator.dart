@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/connectivity_provider.dart';
-import '../config/app_theme.dart';
 
 /// Offline Indicator Widget
 /// Shows a banner when the app is in offline mode
