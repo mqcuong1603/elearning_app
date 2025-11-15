@@ -9,6 +9,7 @@ import '../../config/app_constants.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
 import '../../models/user_model.dart';
+import '../../widgets/user_avatar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -260,22 +261,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Stack(
           children: [
-            CircleAvatar(
+            UserAvatar(
+              avatarUrl: currentAvatarUrl,
+              fallbackText: user.fullName,
               radius: 60,
-              backgroundColor: AppTheme.primaryColor,
-              backgroundImage: currentAvatarUrl != null
-                  ? NetworkImage(currentAvatarUrl)
-                  : null,
-              child: currentAvatarUrl == null
-                  ? Text(
-                      user.fullName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 48,
-                        color: AppTheme.textOnPrimaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
+              fontSize: 48,
             ),
             Positioned(
               bottom: 0,

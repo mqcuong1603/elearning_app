@@ -26,6 +26,61 @@ class _AllChatsDashboardScreenState extends State<AllChatsDashboardScreen> {
     _loadAllConversations();
   }
 
+  /// Open chat with a user after fetching their role
+  Future<void> _openChatWithUser({
+    required String userId,
+    required String userName,
+  }) async {
+    try {
+      final firestoreService = FirestoreService();
+
+      // Fetch user data to get their role
+      final userData = await firestoreService.getDocument(
+        collection: AppConstants.collectionUsers,
+        documentId: userId,
+      );
+
+      if (userData == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User not found'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+        return;
+      }
+
+      final userRole = userData['role'] as String;
+
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              partnerId: userId,
+              partnerName: userName,
+              partnerRole: userRole,
+            ),
+          ),
+        );
+        // Reload conversations after returning from chat
+        _loadAllConversations();
+      }
+    } catch (e) {
+      print('Error opening chat: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening chat: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _loadAllConversations() async {
     setState(() {
       _isLoading = true;
@@ -292,19 +347,12 @@ class _AllChatsDashboardScreenState extends State<AllChatsDashboardScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
       child: InkWell(
-        onTap: () {
-          // For now, navigate to the first user's perspective
-          // In a full implementation, you might want to show a dialog to choose perspective
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ChatScreen(
-                partnerId: conversation['user2Id'],
-                partnerName: user2Name,
-                partnerRole: AppConstants.roleStudent, // Default, may need to fetch actual role
-              ),
-            ),
-          ).then((_) => _loadAllConversations());
+        onTap: () async {
+          // Fetch the actual user role before navigating
+          await _openChatWithUser(
+            userId: conversation['user2Id'],
+            userName: user2Name,
+          );
         },
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         child: Padding(

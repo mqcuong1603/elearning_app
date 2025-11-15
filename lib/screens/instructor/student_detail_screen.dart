@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/user_model.dart';
 import '../../config/app_theme.dart';
+import '../../widgets/user_avatar.dart';
 
 class StudentDetailScreen extends StatelessWidget {
   final UserModel student;
@@ -23,22 +24,11 @@ class StudentDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Avatar Section
-            CircleAvatar(
+            UserAvatar(
+              avatarUrl: student.avatarUrl,
+              fallbackText: student.fullName,
               radius: 60,
-              backgroundColor: AppTheme.primaryColor,
-              backgroundImage: student.avatarUrl != null
-                  ? NetworkImage(student.avatarUrl!)
-                  : null,
-              child: student.avatarUrl == null
-                  ? Text(
-                      student.fullName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 48,
-                        color: AppTheme.textOnPrimaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
+              fontSize: 48,
             ),
             const SizedBox(height: AppTheme.spacingM),
             Text(

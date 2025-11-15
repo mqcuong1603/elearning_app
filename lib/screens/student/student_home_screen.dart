@@ -12,6 +12,7 @@ import '../../models/course_model.dart';
 import '../../models/semester_model.dart';
 import '../../models/assignment_model.dart';
 import '../../models/quiz_model.dart';
+import '../../widgets/user_avatar.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
 import '../shared/messaging/conversations_list_screen.dart';
@@ -388,22 +389,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               padding: const EdgeInsets.all(AppTheme.spacingL),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  UserAvatar(
+                    avatarUrl: currentUser?.avatarUrl,
+                    fallbackText: currentUser?.fullName ?? 'Student',
                     radius: 30,
-                    backgroundColor: AppTheme.primaryColor,
-                    backgroundImage: currentUser?.avatarUrl != null
-                        ? NetworkImage(currentUser!.avatarUrl!)
-                        : null,
-                    child: currentUser?.avatarUrl == null
-                        ? Text(
-                            currentUser?.fullName.substring(0, 1).toUpperCase() ?? 'S',
-                            style: TextStyle(
-                              fontSize: 24,
-                              color: AppTheme.textOnPrimaryColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          )
-                        : null,
+                    fontSize: 24,
                   ),
                   const SizedBox(width: AppTheme.spacingM),
                   Expanded(
