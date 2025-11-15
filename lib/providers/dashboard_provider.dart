@@ -179,17 +179,31 @@ class DashboardProvider with ChangeNotifier {
   /// Get upcoming quizzes (sorted by close date) - only incomplete
   List<QuizModel> getUpcomingQuizzes({int limit = 10}) {
     final now = DateTime.now();
+
+    print('DEBUG: Total quizzes loaded: ${_allQuizzes.length}');
+    print('DEBUG: Quiz submissions map size: ${_quizSubmissions.length}');
+
     final upcoming = _allQuizzes
         .where((quiz) {
           // Check if quiz is upcoming (deadline in the future)
-          if (!quiz.closeDate.isAfter(now)) return false;
+          if (!quiz.closeDate.isAfter(now)) {
+            print('DEBUG: Quiz "${quiz.title}" filtered - closeDate ${quiz.closeDate} is not after now');
+            return false;
+          }
 
           // Filter out completed quizzes
           final submissions = _quizSubmissions[quiz.id] ?? [];
-          return submissions.isEmpty;
+          if (submissions.isNotEmpty) {
+            print('DEBUG: Quiz "${quiz.title}" filtered - has ${submissions.length} submissions');
+            return false;
+          }
+
+          print('DEBUG: Quiz "${quiz.title}" INCLUDED - closeDate: ${quiz.closeDate}');
+          return true;
         })
         .toList();
 
+    print('DEBUG: Upcoming quizzes count: ${upcoming.length}');
     upcoming.sort((a, b) => a.closeDate.compareTo(b.closeDate));
 
     return limit > 0 ? upcoming.take(limit).toList() : upcoming;
@@ -348,6 +362,11 @@ class DashboardProvider with ChangeNotifier {
           courseId: courseId,
           studentGroupIds: studentGroupIds,
         );
+        print('DEBUG: Loaded ${quizzes.length} quizzes for course $courseId');
+        print('DEBUG: Student group IDs: $studentGroupIds');
+        for (final quiz in quizzes) {
+          print('DEBUG: Quiz "${quiz.title}" - openDate: ${quiz.openDate}, closeDate: ${quiz.closeDate}, groupIds: ${quiz.groupIds}');
+        }
         allQuizzes.addAll(quizzes);
 
         // Load submissions for each quiz
@@ -356,12 +375,15 @@ class DashboardProvider with ChangeNotifier {
             quizId: quiz.id,
             studentId: studentId,
           );
+          print('DEBUG: Quiz "${quiz.title}" has ${submissions.length} submissions');
           quizSubmissions[quiz.id] = submissions;
         }
       }
 
       _allQuizzes = allQuizzes;
       _quizSubmissions = quizSubmissions;
+      print('DEBUG: Total quizzes stored: ${_allQuizzes.length}');
+      print('DEBUG: Total quiz submissions stored: ${_quizSubmissions.length}');
     } catch (e) {
       print('Error loading quizzes: $e');
       rethrow;

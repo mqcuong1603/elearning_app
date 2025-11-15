@@ -70,6 +70,10 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   // Track assignment submissions for students (assignmentId -> submission)
   final Map<String, bool> _assignmentSubmissions = {};
 
+  // Track which submissions have been loaded to avoid reloading
+  final Set<String> _loadedAssignmentIds = {};
+  final Set<String> _loadedQuizIds = {};
+
   // Track which group the current user belongs to (for students)
   String? _currentUserGroupId;
 
@@ -172,29 +176,40 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       final assignmentService = context.read<AssignmentService>();
       final quizService = context.read<QuizService>();
 
-      // Load assignment submissions
-      for (final assignment in assignments) {
-        final submission = await assignmentService.getLatestSubmission(
-          assignmentId: assignment.id,
-          studentId: widget.currentUserId,
-        );
-        _assignmentSubmissions[assignment.id] = submission != null;
-      }
+      bool hasNewData = false;
 
-      // Load quiz submissions (get best submission for each quiz)
-      for (final quiz in quizzes) {
-        final submissions = await quizService.getStudentSubmissions(
-          quizId: quiz.id,
-          studentId: widget.currentUserId,
-        );
-        if (submissions.isNotEmpty) {
-          // Get best score
-          submissions.sort((a, b) => b.score.compareTo(a.score));
-          _quizSubmissions[quiz.id] = submissions.first;
+      // Load assignment submissions (only for new assignments)
+      for (final assignment in assignments) {
+        if (!_loadedAssignmentIds.contains(assignment.id)) {
+          final submission = await assignmentService.getLatestSubmission(
+            assignmentId: assignment.id,
+            studentId: widget.currentUserId,
+          );
+          _assignmentSubmissions[assignment.id] = submission != null;
+          _loadedAssignmentIds.add(assignment.id);
+          hasNewData = true;
         }
       }
 
-      if (mounted) {
+      // Load quiz submissions (only for new quizzes)
+      for (final quiz in quizzes) {
+        if (!_loadedQuizIds.contains(quiz.id)) {
+          final submissions = await quizService.getStudentSubmissions(
+            quizId: quiz.id,
+            studentId: widget.currentUserId,
+          );
+          if (submissions.isNotEmpty) {
+            // Get best score
+            submissions.sort((a, b) => b.score.compareTo(a.score));
+            _quizSubmissions[quiz.id] = submissions.first;
+          }
+          _loadedQuizIds.add(quiz.id);
+          hasNewData = true;
+        }
+      }
+
+      // Only setState if we loaded new data
+      if (mounted && hasNewData) {
         setState(() {});
       }
     } catch (e) {
