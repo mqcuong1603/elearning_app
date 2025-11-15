@@ -10,6 +10,7 @@ import 'storage_service.dart';
 /// Handles all material-related operations including CRUD, file uploads, and view/download tracking
 class MaterialService {
   final FirestoreService _firestoreService;
+  final HiveService _hiveService;
   final StorageService _storageService;
 
   MaterialService({
@@ -17,6 +18,7 @@ class MaterialService {
     required HiveService hiveService,
     required StorageService storageService,
   })  : _firestoreService = firestoreService,
+        _hiveService = hiveService,
         _storageService = storageService;
 
   /// Get all materials
@@ -51,7 +53,12 @@ class MaterialService {
         descending: true,
       );
 
-      return data.map((json) => MaterialModel.fromJson(json)).toList();
+      final materials = data.map((json) => MaterialModel.fromJson(json)).toList();
+
+      // Cache materials for offline access
+      await _cacheMaterialsForCourse(courseId, materials);
+
+      return materials;
     } catch (e) {
       print('Get materials by course error: $e');
 
@@ -73,14 +80,19 @@ class MaterialService {
           // Sort in memory by createdAt descending
           materials.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
+          // Cache materials
+          await _cacheMaterialsForCourse(courseId, materials);
+
           return materials;
         } catch (fallbackError) {
           print('Fallback query also failed: $fallbackError');
-          return [];
+          // Try to get from offline cache
+          return _getCachedMaterialsForCourse(courseId);
         }
       }
 
-      return [];
+      // Try to get from offline cache
+      return _getCachedMaterialsForCourse(courseId);
     }
   }
 
@@ -413,5 +425,49 @@ class MaterialService {
     }
 
     return attachments;
+  }
+
+  /// Cache materials for a course
+  Future<void> _cacheMaterialsForCourse(
+    String courseId,
+    List<MaterialModel> materials,
+  ) async {
+    try {
+      final materialsJson = materials.map((m) => m.toJson()).toList();
+      await _hiveService.cacheWithExpiration(
+        boxName: AppConstants.hiveBoxMaterials,
+        key: 'materials_$courseId',
+        value: materialsJson,
+        duration: AppConstants.cacheValidDuration,
+      );
+      print('✅ Cached ${materials.length} materials for course $courseId');
+    } catch (e) {
+      print('Error caching materials: $e');
+    }
+  }
+
+  /// Get cached materials for a course
+  List<MaterialModel> _getCachedMaterialsForCourse(String courseId) {
+    try {
+      final cached = _hiveService.getCached(key: 'materials_$courseId');
+      if (cached != null && cached is List) {
+        final materials = cached
+            .map((json) {
+              if (json is Map) {
+                return MaterialModel.fromJson(Map<String, dynamic>.from(json));
+              }
+              return null;
+            })
+            .whereType<MaterialModel>()
+            .toList();
+        print('📦 Retrieved ${materials.length} cached materials for course $courseId');
+        return materials;
+      }
+      print('⚠️ No cached materials found for course $courseId');
+      return [];
+    } catch (e) {
+      print('Error getting cached materials: $e');
+      return [];
+    }
   }
 }
