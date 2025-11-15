@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../config/app_theme.dart';
 
 /// User Avatar Widget
@@ -53,12 +54,15 @@ class _UserAvatarState extends State<UserAvatar> {
       onBackgroundImageError: hasValidUrl
           ? (exception, stackTrace) {
               // Handle image load errors (e.g., 403 Forbidden)
-              if (mounted) {
-                setState(() {
-                  _imageLoadError = true;
-                });
-              }
+              // Use post-frame callback to avoid setState during build/paint
               print('Avatar image load error: $exception');
+              SchedulerBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _imageLoadError = true;
+                  });
+                }
+              });
             }
           : null,
       child: !hasValidUrl
