@@ -6,6 +6,7 @@ import '../models/quiz_submission_model.dart';
 import '../models/question_model.dart';
 import 'question_service.dart';
 import 'notification_service.dart';
+import 'hive_service.dart';
 
 /// Service for managing quizzes with CRUD operations and random question selection
 class QuizService {
@@ -13,10 +14,16 @@ class QuizService {
   final QuestionService _questionService = QuestionService();
   final _uuid = const Uuid();
   NotificationService? _notificationService;
+  HiveService? _hiveService;
 
   /// Set notification service for sending notifications
   void setNotificationService(NotificationService notificationService) {
     _notificationService = notificationService;
+  }
+
+  /// Set hive service for caching
+  void setHiveService(HiveService hiveService) {
+    _hiveService = hiveService;
   }
 
   /// Get quizzes collection reference
@@ -221,9 +228,14 @@ class QuizService {
       // Sort in memory to avoid requiring a composite index
       quizzes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
+      // Cache quizzes
+      await _cacheQuizzes(courseId, quizzes);
+
       return quizzes;
     } catch (e) {
-      throw Exception('Failed to get quizzes: $e');
+      print('Failed to get quizzes from Firestore: $e');
+      // Try to get from cache if online fetch fails
+      return _getCachedQuizzes(courseId);
     }
   }
 
@@ -415,9 +427,14 @@ class QuizService {
       // Sort in memory to avoid requiring a composite index
       submissions.sort((a, b) => a.attemptNumber.compareTo(b.attemptNumber));
 
+      // Cache submissions
+      await _cacheQuizSubmissions(quizId, studentId, submissions);
+
       return submissions;
     } catch (e) {
-      throw Exception('Failed to get student submissions: $e');
+      print('Failed to get student submissions from Firestore: $e');
+      // Try to get from cache if online fetch fails
+      return _getCachedQuizSubmissions(quizId, studentId);
     }
   }
 
@@ -618,6 +635,101 @@ class QuizService {
       return studentIds.toList();
     } catch (e) {
       print('Error getting student IDs from groups: $e');
+      return [];
+    }
+  }
+
+  // ==================== CACHING METHODS ====================
+
+  /// Cache quizzes for a course
+  Future<void> _cacheQuizzes(String courseId, List<QuizModel> quizzes) async {
+    if (_hiveService == null) return;
+
+    try {
+      final quizzesJson = quizzes.map((q) => q.toJson()).toList();
+      await _hiveService!.cacheWithExpiration(
+        boxName: AppConstants.hiveBoxQuizzes,
+        key: 'quizzes_$courseId',
+        value: quizzesJson,
+        duration: AppConstants.cacheValidDuration,
+      );
+    } catch (e) {
+      print('Cache quizzes error: $e');
+    }
+  }
+
+  /// Get cached quizzes for a course
+  List<QuizModel> _getCachedQuizzes(String courseId) {
+    if (_hiveService == null) return [];
+
+    try {
+      final cached = _hiveService!.getCached(key: 'quizzes_$courseId');
+      if (cached != null && cached is List) {
+        return cached
+            .map((json) => QuizModel.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('Get cached quizzes error: $e');
+      return [];
+    }
+  }
+
+  /// Clear quiz cache for a course
+  Future<void> clearQuizCache(String courseId) async {
+    if (_hiveService == null) return;
+
+    try {
+      await _hiveService!.delete(
+        boxName: AppConstants.hiveBoxCache,
+        key: 'quizzes_$courseId',
+      );
+    } catch (e) {
+      print('Clear quiz cache error: $e');
+    }
+  }
+
+  /// Cache quiz submissions for a student
+  Future<void> _cacheQuizSubmissions(
+    String quizId,
+    String studentId,
+    List<QuizSubmissionModel> submissions,
+  ) async {
+    if (_hiveService == null) return;
+
+    try {
+      final submissionsJson = submissions.map((s) => s.toJson()).toList();
+      await _hiveService!.cacheWithExpiration(
+        boxName: AppConstants.hiveBoxQuizzes,
+        key: 'quiz_submissions_${quizId}_$studentId',
+        value: submissionsJson,
+        duration: AppConstants.cacheValidDuration,
+      );
+    } catch (e) {
+      print('Cache quiz submissions error: $e');
+    }
+  }
+
+  /// Get cached quiz submissions
+  List<QuizSubmissionModel> _getCachedQuizSubmissions(
+    String quizId,
+    String studentId,
+  ) {
+    if (_hiveService == null) return [];
+
+    try {
+      final cached = _hiveService!
+          .getCached(key: 'quiz_submissions_${quizId}_$studentId');
+      if (cached != null && cached is List) {
+        return cached
+            .map((json) =>
+                QuizSubmissionModel.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('Get cached quiz submissions error: $e');
       return [];
     }
   }
