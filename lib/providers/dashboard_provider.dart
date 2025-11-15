@@ -179,17 +179,29 @@ class DashboardProvider with ChangeNotifier {
   /// Get upcoming quizzes (sorted by close date) - only incomplete
   List<QuizModel> getUpcomingQuizzes({int limit = 10}) {
     final now = DateTime.now();
+    print('📊 getUpcomingQuizzes: Total quizzes = ${_allQuizzes.length}, Now = $now');
+
     final upcoming = _allQuizzes
         .where((quiz) {
           // Check if quiz is upcoming (deadline in the future)
-          if (!quiz.closeDate.isAfter(now)) return false;
+          if (!quiz.closeDate.isAfter(now)) {
+            print('  ❌ "${quiz.title}" filtered: closeDate ${quiz.closeDate} is not after now');
+            return false;
+          }
 
           // Filter out completed quizzes
           final submissions = _quizSubmissions[quiz.id] ?? [];
-          return submissions.isEmpty;
+          if (submissions.isNotEmpty) {
+            print('  ❌ "${quiz.title}" filtered: has ${submissions.length} submissions');
+            return false;
+          }
+
+          print('  ✅ "${quiz.title}" included: closeDate ${quiz.closeDate}');
+          return true;
         })
         .toList();
 
+    print('📊 Upcoming quizzes result: ${upcoming.length} quizzes');
     upcoming.sort((a, b) => a.closeDate.compareTo(b.closeDate));
 
     return limit > 0 ? upcoming.take(limit).toList() : upcoming;
@@ -348,6 +360,10 @@ class DashboardProvider with ChangeNotifier {
           courseId: courseId,
           studentGroupIds: studentGroupIds,
         );
+        print('📚 Loaded ${quizzes.length} quizzes for course $courseId');
+        for (final quiz in quizzes) {
+          print('  Quiz: "${quiz.title}" - openDate: ${quiz.openDate}, closeDate: ${quiz.closeDate}');
+        }
         allQuizzes.addAll(quizzes);
 
         // Load submissions for each quiz
@@ -356,12 +372,14 @@ class DashboardProvider with ChangeNotifier {
             quizId: quiz.id,
             studentId: studentId,
           );
+          print('  Submissions for "${quiz.title}": ${submissions.length}');
           quizSubmissions[quiz.id] = submissions;
         }
       }
 
       _allQuizzes = allQuizzes;
       _quizSubmissions = quizSubmissions;
+      print('📚 Total quizzes loaded: ${_allQuizzes.length}');
     } catch (e) {
       print('Error loading quizzes: $e');
       rethrow;

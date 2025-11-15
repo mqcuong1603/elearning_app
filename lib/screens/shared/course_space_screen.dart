@@ -80,6 +80,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   // Loading state
   bool _isLoading = true;
   bool _isLoadingSubmissions = false;
+  bool _hasScheduledSubmissionLoad = false;
 
   @override
   void initState() {
@@ -171,15 +172,21 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     List<AssignmentModel> assignments,
     List<QuizModel> quizzes,
   ) async {
-    if (widget.currentUserRole != AppConstants.roleStudent) return;
+    if (widget.currentUserRole != AppConstants.roleStudent) {
+      _hasScheduledSubmissionLoad = false;
+      return;
+    }
 
     // Check if we have new items to load
     final newAssignments = assignments.where((a) => !_loadedAssignmentIds.contains(a.id)).toList();
     final newQuizzes = quizzes.where((q) => !_loadedQuizIds.contains(q.id)).toList();
 
     if (newAssignments.isEmpty && newQuizzes.isEmpty) {
+      _hasScheduledSubmissionLoad = false;
       return; // Nothing new to load
     }
+
+    if (!mounted) return;
 
     setState(() {
       _isLoadingSubmissions = true;
@@ -218,6 +225,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       if (mounted) {
         setState(() {
           _isLoadingSubmissions = false;
+          _hasScheduledSubmissionLoad = false;
         });
       }
     }
@@ -433,8 +441,13 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
                   // Materials are visible to all students (no filtering needed)
 
-                  // Load submissions for assignments and quizzes
-                  _loadSubmissionsForStudent(assignments, quizzes);
+                  // Schedule submission loading AFTER this build completes (only once)
+                  if (!_hasScheduledSubmissionLoad && !_isLoadingSubmissions) {
+                    _hasScheduledSubmissionLoad = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _loadSubmissionsForStudent(assignments, quizzes);
+                    });
+                  }
                 }
 
                 // Show loading indicator while submissions are being loaded
