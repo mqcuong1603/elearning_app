@@ -67,6 +67,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   // Track quiz submissions for students (quizId -> best submission)
   final Map<String, QuizSubmissionModel> _quizSubmissions = {};
 
+  // Track assignment submissions for students (assignmentId -> submission)
+  final Map<String, bool> _assignmentSubmissions = {};
+
   // Track which group the current user belongs to (for students)
   String? _currentUserGroupId;
 
@@ -155,6 +158,47 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           ),
         );
       }
+    }
+  }
+
+  /// Load submissions for assignments and quizzes for the current student
+  Future<void> _loadSubmissionsForStudent(
+    List<AssignmentModel> assignments,
+    List<QuizModel> quizzes,
+  ) async {
+    if (widget.currentUserRole != AppConstants.roleStudent) return;
+
+    try {
+      final assignmentService = context.read<AssignmentService>();
+      final quizService = context.read<QuizService>();
+
+      // Load assignment submissions
+      for (final assignment in assignments) {
+        final submission = await assignmentService.getLatestSubmission(
+          assignmentId: assignment.id,
+          studentId: widget.currentUserId,
+        );
+        _assignmentSubmissions[assignment.id] = submission != null;
+      }
+
+      // Load quiz submissions (get best submission for each quiz)
+      for (final quiz in quizzes) {
+        final submissions = await quizService.getStudentSubmissions(
+          quizId: quiz.id,
+          studentId: widget.currentUserId,
+        );
+        if (submissions.isNotEmpty) {
+          // Get best score
+          submissions.sort((a, b) => b.score.compareTo(a.score));
+          _quizSubmissions[quiz.id] = submissions.first;
+        }
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error loading submissions: $e');
     }
   }
 
@@ -367,6 +411,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                   }).toList();
 
                   // Materials are visible to all students (no filtering needed)
+
+                  // Load submissions for assignments and quizzes
+                  _loadSubmissionsForStudent(assignments, quizzes);
                 }
 
                 // Combine all classwork items
@@ -1173,7 +1220,17 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     String statusText = 'Open';
     IconData statusIcon = Icons.check_circle;
 
-    if (assignment.isClosed) {
+    // Check if student has submitted (for students only)
+    final hasSubmitted = widget.currentUserRole == AppConstants.roleStudent
+        ? (_assignmentSubmissions[assignment.id] ?? false)
+        : false;
+
+    if (hasSubmitted) {
+      // Student has submitted
+      statusColor = Colors.purple;
+      statusText = 'Submitted';
+      statusIcon = Icons.check_circle;
+    } else if (assignment.isClosed) {
       statusColor = AppTheme.errorColor;
       statusText = 'Closed';
       statusIcon = Icons.cancel;

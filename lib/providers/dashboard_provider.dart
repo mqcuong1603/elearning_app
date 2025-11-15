@@ -176,11 +176,18 @@ class DashboardProvider with ChangeNotifier {
     }).toList();
   }
 
-  /// Get upcoming quizzes (sorted by close date)
+  /// Get upcoming quizzes (sorted by close date) - only incomplete
   List<QuizModel> getUpcomingQuizzes({int limit = 10}) {
     final now = DateTime.now();
     final upcoming = _allQuizzes
-        .where((quiz) => quiz.closeDate.isAfter(now))
+        .where((quiz) {
+          // Check if quiz is upcoming (deadline in the future)
+          if (!quiz.closeDate.isAfter(now)) return false;
+
+          // Filter out completed quizzes
+          final submissions = _quizSubmissions[quiz.id] ?? [];
+          return submissions.isEmpty;
+        })
         .toList();
 
     upcoming.sort((a, b) => a.closeDate.compareTo(b.closeDate));
@@ -224,12 +231,18 @@ class DashboardProvider with ChangeNotifier {
     }).toList();
   }
 
-  /// Get upcoming assignments (sorted by deadline)
+  /// Get upcoming assignments (sorted by deadline) - only unsubmitted
   List<AssignmentModel> getUpcomingAssignments({int limit = 10}) {
     final now = DateTime.now();
     final upcoming = _allAssignments
-        .where((assignment) =>
-            assignment.deadline.isAfter(now) && assignment.isOpen)
+        .where((assignment) {
+          // Check if assignment is upcoming and open
+          if (!assignment.deadline.isAfter(now) || !assignment.isOpen) return false;
+
+          // Filter out submitted assignments
+          final submission = _latestSubmissions[assignment.id];
+          return submission == null;
+        })
         .toList();
 
     upcoming.sort((a, b) => a.deadline.compareTo(b.deadline));
