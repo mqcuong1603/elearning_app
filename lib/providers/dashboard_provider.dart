@@ -161,8 +161,7 @@ class DashboardProvider with ChangeNotifier {
 
     return _allQuizzes.where((quiz) {
       return quiz.closeDate.isAfter(today) &&
-          quiz.closeDate.isBefore(tomorrow) &&
-          quiz.isAvailable;
+          quiz.closeDate.isBefore(tomorrow);
     }).toList();
   }
 
@@ -173,8 +172,7 @@ class DashboardProvider with ChangeNotifier {
 
     return _allQuizzes.where((quiz) {
       return quiz.closeDate.isAfter(now) &&
-          quiz.closeDate.isBefore(weekFromNow) &&
-          quiz.isAvailable;
+          quiz.closeDate.isBefore(weekFromNow);
     }).toList();
   }
 
@@ -182,7 +180,7 @@ class DashboardProvider with ChangeNotifier {
   List<QuizModel> getUpcomingQuizzes({int limit = 10}) {
     final now = DateTime.now();
     final upcoming = _allQuizzes
-        .where((quiz) => quiz.closeDate.isAfter(now) && quiz.isAvailable)
+        .where((quiz) => quiz.closeDate.isAfter(now))
         .toList();
 
     upcoming.sort((a, b) => a.closeDate.compareTo(b.closeDate));
@@ -333,7 +331,7 @@ class DashboardProvider with ChangeNotifier {
 
       // Load quizzes for each course
       for (final courseId in courseIds) {
-        final quizzes = await _quizService.getAvailableQuizzesForStudent(
+        final quizzes = await _quizService.getQuizzesForStudent(
           courseId: courseId,
           studentGroupIds: studentGroupIds,
         );

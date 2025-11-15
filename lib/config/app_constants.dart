@@ -333,4 +333,40 @@ class AppConstants {
       return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
     }
   }
+
+  /// Format deadline (future date) with relative time or absolute date
+  static String formatDeadline(DateTime deadline) {
+    final now = DateTime.now();
+    final difference = deadline.difference(now);
+
+    if (difference.isNegative) {
+      // Past deadline - show as overdue
+      final daysPast = difference.inDays.abs();
+      if (daysPast == 0) {
+        return 'Today';
+      } else if (daysPast == 1) {
+        return 'Yesterday';
+      } else if (daysPast < 7) {
+        return '$daysPast days ago';
+      }
+    } else {
+      // Future deadline - show relative or absolute
+      final daysUntil = difference.inDays;
+      final hoursUntil = difference.inHours;
+
+      if (hoursUntil < 24) {
+        if (hoursUntil < 1) {
+          return 'In ${difference.inMinutes} min';
+        }
+        return 'Today';
+      } else if (daysUntil == 1) {
+        return 'Tomorrow';
+      } else if (daysUntil < 7) {
+        return 'In $daysUntil days';
+      }
+    }
+
+    // Default: Format as dd/MM/yyyy HH:mm
+    return '${deadline.day.toString().padLeft(2, '0')}/${deadline.month.toString().padLeft(2, '0')}/${deadline.year} ${deadline.hour.toString().padLeft(2, '0')}:${deadline.minute.toString().padLeft(2, '0')}';
+  }
 }

@@ -1282,7 +1282,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                         ),
                         const SizedBox(width: AppTheme.spacingS),
                         Text(
-                          'Due: ${AppConstants.formatDateTime(assignment.deadline)}',
+                          'Due: ${AppConstants.formatDeadline(assignment.deadline)}',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: AppTheme.textSecondaryColor,
@@ -1464,7 +1464,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                     ),
                     const SizedBox(height: AppTheme.spacingXS),
                     Text(
-                      'Due: ${AppConstants.formatDateTime(quiz.closeDate)}',
+                      'Due: ${AppConstants.formatDeadline(quiz.closeDate)}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppTheme.textSecondaryColor,
                           ),

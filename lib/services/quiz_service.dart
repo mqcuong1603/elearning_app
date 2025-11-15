@@ -239,6 +239,27 @@ class QuizService {
     }
   }
 
+  /// Get all quizzes for a student (based on groups only, regardless of availability)
+  Future<List<QuizModel>> getQuizzesForStudent({
+    required String courseId,
+    required List<String> studentGroupIds,
+  }) async {
+    try {
+      final allQuizzes = await getQuizzesForCourse(courseId);
+
+      return allQuizzes.where((quiz) {
+        // Check if student's groups match quiz groups (or quiz is for all groups)
+        if (quiz.isForAllGroups) return true;
+
+        // Check if student is in any of the quiz's target groups
+        return quiz.groupIds
+            .any((groupId) => studentGroupIds.contains(groupId));
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get quizzes for student: $e');
+    }
+  }
+
   /// Get available quizzes for a student (based on groups and availability)
   Future<List<QuizModel>> getAvailableQuizzesForStudent({
     required String courseId,
