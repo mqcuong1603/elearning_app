@@ -2,21 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../config/app_theme.dart';
 import '../../models/assignment_model.dart';
+import '../../models/quiz_model.dart';
 
 /// Timeline widget for upcoming deadlines
 class DeadlineTimelineWidget extends StatelessWidget {
   final List<AssignmentModel> assignments;
+  final List<QuizModel> quizzes;
   final Function(AssignmentModel)? onAssignmentTap;
+  final Function(QuizModel)? onQuizTap;
 
   const DeadlineTimelineWidget({
     super.key,
     required this.assignments,
+    this.quizzes = const [],
     this.onAssignmentTap,
+    this.onQuizTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (assignments.isEmpty) {
+    // Combine assignments and quizzes into deadline items
+    final List<_DeadlineItem> deadlineItems = [
+      ...assignments.map((a) => _DeadlineItem(
+            title: a.title,
+            deadline: a.deadline,
+            type: 'Assignment',
+            icon: Icons.assignment,
+            data: a,
+          )),
+      ...quizzes.map((q) => _DeadlineItem(
+            title: q.title,
+            deadline: q.closeDate,
+            type: 'Quiz',
+            icon: Icons.quiz,
+            data: q,
+          )),
+    ];
+
+    // Sort by deadline
+    deadlineItems.sort((a, b) => a.deadline.compareTo(b.deadline));
+
+    if (deadlineItems.isEmpty) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(AppTheme.spacingL),
@@ -52,12 +78,12 @@ class DeadlineTimelineWidget extends StatelessWidget {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: assignments.length,
+      itemCount: deadlineItems.length,
       itemBuilder: (context, index) {
-        final assignment = assignments[index];
+        final item = deadlineItems[index];
         final now = DateTime.now();
-        final daysUntil = assignment.deadline.difference(now).inDays;
-        final hoursUntil = assignment.deadline.difference(now).inHours;
+        final daysUntil = item.deadline.difference(now).inDays;
+        final hoursUntil = item.deadline.difference(now).inHours;
 
         String timeText;
         Color timeColor;
@@ -93,8 +119,10 @@ class DeadlineTimelineWidget extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
           child: InkWell(
             onTap: () {
-              if (onAssignmentTap != null) {
-                onAssignmentTap!(assignment);
+              if (item.type == 'Assignment' && onAssignmentTap != null) {
+                onAssignmentTap!(item.data as AssignmentModel);
+              } else if (item.type == 'Quiz' && onQuizTap != null) {
+                onQuizTap!(item.data as QuizModel);
               }
             },
             borderRadius: BorderRadius.circular(AppTheme.radiusM),
@@ -117,13 +145,25 @@ class DeadlineTimelineWidget extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          assignment.title,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
+                        Row(
+                          children: [
+                            Icon(
+                              item.icon,
+                              size: 16,
+                              color: AppTheme.primaryColor,
+                            ),
+                            const SizedBox(width: AppTheme.spacingXS),
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: AppTheme.spacingXS),
                         Row(
@@ -136,7 +176,7 @@ class DeadlineTimelineWidget extends StatelessWidget {
                             const SizedBox(width: AppTheme.spacingXS),
                             Text(
                               DateFormat('MMM dd, yyyy - HH:mm')
-                                  .format(assignment.deadline),
+                                  .format(item.deadline),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: AppTheme.textSecondaryColor,
                                   ),
@@ -188,4 +228,21 @@ class DeadlineTimelineWidget extends StatelessWidget {
       },
     );
   }
+}
+
+/// Internal class to represent a deadline item (assignment or quiz)
+class _DeadlineItem {
+  final String title;
+  final DateTime deadline;
+  final String type; // 'Assignment' or 'Quiz'
+  final IconData icon;
+  final dynamic data; // The actual AssignmentModel or QuizModel
+
+  _DeadlineItem({
+    required this.title,
+    required this.deadline,
+    required this.type,
+    required this.icon,
+    required this.data,
+  });
 }

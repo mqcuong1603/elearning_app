@@ -151,6 +151,71 @@ class DashboardProvider with ChangeNotifier {
     return allBestScores.reduce((a, b) => a + b) / allBestScores.length;
   }
 
+  // ==================== QUIZ DEADLINE TRACKING ====================
+
+  /// Get quizzes due today
+  List<QuizModel> getQuizzesDueToday() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+
+    return _allQuizzes.where((quiz) {
+      return quiz.closeDate.isAfter(today) &&
+          quiz.closeDate.isBefore(tomorrow);
+    }).toList();
+  }
+
+  /// Get quizzes due this week
+  List<QuizModel> getQuizzesDueThisWeek() {
+    final now = DateTime.now();
+    final weekFromNow = now.add(const Duration(days: 7));
+
+    return _allQuizzes.where((quiz) {
+      return quiz.closeDate.isAfter(now) &&
+          quiz.closeDate.isBefore(weekFromNow);
+    }).toList();
+  }
+
+  /// Get upcoming quizzes (sorted by close date) - only incomplete
+  List<QuizModel> getUpcomingQuizzes({int limit = 10}) {
+    final now = DateTime.now();
+    print('📊 getUpcomingQuizzes: Total quizzes = ${_allQuizzes.length}, Now = $now');
+
+    final upcoming = _allQuizzes
+        .where((quiz) {
+          // Check if quiz is upcoming (deadline in the future)
+          if (!quiz.closeDate.isAfter(now)) {
+            print('  ❌ "${quiz.title}" filtered: closeDate ${quiz.closeDate} is not after now');
+            return false;
+          }
+
+          // Filter out completed quizzes
+          final submissions = _quizSubmissions[quiz.id] ?? [];
+          if (submissions.isNotEmpty) {
+            print('  ❌ "${quiz.title}" filtered: has ${submissions.length} submissions');
+            return false;
+          }
+
+          print('  ✅ "${quiz.title}" included: closeDate ${quiz.closeDate}');
+          return true;
+        })
+        .toList();
+
+    print('📊 Upcoming quizzes result: ${upcoming.length} quizzes');
+    upcoming.sort((a, b) => a.closeDate.compareTo(b.closeDate));
+
+    return limit > 0 ? upcoming.take(limit).toList() : upcoming;
+  }
+
+  /// Get overdue quizzes (close date passed, not submitted)
+  List<QuizModel> getOverdueQuizzes() {
+    final now = DateTime.now();
+    return _allQuizzes.where((quiz) {
+      final submissions = _quizSubmissions[quiz.id] ?? [];
+      return submissions.isEmpty && quiz.closeDate.isBefore(now);
+    }).toList();
+  }
+
   // ==================== DEADLINE TRACKING ====================
 
   /// Get assignments due today
@@ -178,12 +243,18 @@ class DashboardProvider with ChangeNotifier {
     }).toList();
   }
 
-  /// Get upcoming assignments (sorted by deadline)
+  /// Get upcoming assignments (sorted by deadline) - only unsubmitted
   List<AssignmentModel> getUpcomingAssignments({int limit = 10}) {
     final now = DateTime.now();
     final upcoming = _allAssignments
-        .where((assignment) =>
-            assignment.deadline.isAfter(now) && assignment.isOpen)
+        .where((assignment) {
+          // Check if assignment is upcoming and open
+          if (!assignment.deadline.isAfter(now) || !assignment.isOpen) return false;
+
+          // Filter out submitted assignments
+          final submission = _latestSubmissions[assignment.id];
+          return submission == null;
+        })
         .toList();
 
     upcoming.sort((a, b) => a.deadline.compareTo(b.deadline));
@@ -285,7 +356,7 @@ class DashboardProvider with ChangeNotifier {
 
       // Load quizzes for each course
       for (final courseId in courseIds) {
-        final quizzes = await _quizService.getAvailableQuizzesForStudent(
+        final quizzes = await _quizService.getQuizzesForStudent(
           courseId: courseId,
           studentGroupIds: studentGroupIds,
         );
@@ -363,6 +434,7 @@ class DashboardProvider with ChangeNotifier {
       'totalQuizzes': totalQuizzes,
       'completedQuizzes': completedQuizzes,
       'pendingQuizzes': pendingQuizzes,
+      'overdueQuizzes': getOverdueQuizzes().length,
       'averageAssignmentGrade': avgAssignmentGrade,
       'averageQuizScore': avgQuizScore,
       'assignmentCompletionRate':
