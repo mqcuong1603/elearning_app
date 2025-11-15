@@ -394,15 +394,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     fallbackText: currentUser?.fullName ?? 'Student',
                     radius: 30,
                     backgroundColor: AppTheme.primaryColor,
-                    child: Text(
-                      currentUser?.fullName.substring(0, 1).toUpperCase() ??
-                          'S',
-                      style: TextStyle(
-                        fontSize: 24,
-                        color: AppTheme.textOnPrimaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    textColor: AppTheme.textOnPrimaryColor,
+                    fontSize: 24,
                   ),
                   const SizedBox(width: AppTheme.spacingM),
                   Expanded(
@@ -429,7 +422,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             'ID: ${currentUser!.studentId}',
                             style: TextStyle(
                               color:
-                                  AppTheme.textOnPrimaryColor.withOpacity(0.9),
+                                  AppTheme.textOnPrimaryColor.withValues(alpha: 0.9),
                               fontSize: 12,
                             ),
                           ),
@@ -466,10 +459,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 vertical: AppTheme.spacingS,
               ),
               decoration: BoxDecoration(
-                color: AppTheme.warningColor.withOpacity(0.1),
+                color: AppTheme.warningColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusS),
                 border: Border.all(
-                  color: AppTheme.warningColor.withOpacity(0.3),
+                  color: AppTheme.warningColor.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -695,7 +688,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: timeColor.withOpacity(0.1),
+                        color: timeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppTheme.radiusS),
                       ),
                       child: Text(
@@ -820,7 +813,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       child: Icon(
                         Icons.school,
                         size: 48,
-                        color: AppTheme.textOnPrimaryColor.withOpacity(0.7),
+                        color: AppTheme.textOnPrimaryColor.withValues(alpha: 0.7),
                       ),
                     )
                   : null,
@@ -925,7 +918,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         color: AppTheme.primaryLightColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusS),
         border: Border.all(
-          color: AppTheme.primaryColor.withOpacity(0.2),
+          color: AppTheme.primaryColor.withValues(alpha: 0.2),
         ),
       ),
       child: DropdownButton<SemesterModel>(
