@@ -23,7 +23,7 @@ class DashboardProvider with ChangeNotifier {
   // Loading states
   bool _isLoadingAssignments = false;
   bool _isLoadingQuizzes = false;
-  bool _isLoadingSubmissions = false;
+  final bool _isLoadingSubmissions = false;
 
   // Error states
   String? _error;
@@ -37,7 +37,8 @@ class DashboardProvider with ChangeNotifier {
   // Getters
   List<AssignmentModel> get allAssignments => _allAssignments;
   List<QuizModel> get allQuizzes => _allQuizzes;
-  bool get isLoading => _isLoadingAssignments || _isLoadingQuizzes || _isLoadingSubmissions;
+  bool get isLoading =>
+      _isLoadingAssignments || _isLoadingQuizzes || _isLoadingSubmissions;
   String? get error => _error;
 
   // ==================== ASSIGNMENT PROGRESS ====================
@@ -160,8 +161,7 @@ class DashboardProvider with ChangeNotifier {
     final tomorrow = today.add(const Duration(days: 1));
 
     return _allQuizzes.where((quiz) {
-      return quiz.closeDate.isAfter(today) &&
-          quiz.closeDate.isBefore(tomorrow);
+      return quiz.closeDate.isAfter(today) && quiz.closeDate.isBefore(tomorrow);
     }).toList();
   }
 
@@ -179,27 +179,28 @@ class DashboardProvider with ChangeNotifier {
   /// Get upcoming quizzes (sorted by close date) - only incomplete
   List<QuizModel> getUpcomingQuizzes({int limit = 10}) {
     final now = DateTime.now();
-    print('📊 getUpcomingQuizzes: Total quizzes = ${_allQuizzes.length}, Now = $now');
+    print(
+        '📊 getUpcomingQuizzes: Total quizzes = ${_allQuizzes.length}, Now = $now');
 
-    final upcoming = _allQuizzes
-        .where((quiz) {
-          // Check if quiz is upcoming (deadline in the future)
-          if (!quiz.closeDate.isAfter(now)) {
-            print('  ❌ "${quiz.title}" filtered: closeDate ${quiz.closeDate} is not after now');
-            return false;
-          }
+    final upcoming = _allQuizzes.where((quiz) {
+      // Check if quiz is upcoming (deadline in the future)
+      if (!quiz.closeDate.isAfter(now)) {
+        print(
+            '  ❌ "${quiz.title}" filtered: closeDate ${quiz.closeDate} is not after now');
+        return false;
+      }
 
-          // Filter out completed quizzes
-          final submissions = _quizSubmissions[quiz.id] ?? [];
-          if (submissions.isNotEmpty) {
-            print('  ❌ "${quiz.title}" filtered: has ${submissions.length} submissions');
-            return false;
-          }
+      // Filter out completed quizzes
+      final submissions = _quizSubmissions[quiz.id] ?? [];
+      if (submissions.isNotEmpty) {
+        print(
+            '  ❌ "${quiz.title}" filtered: has ${submissions.length} submissions');
+        return false;
+      }
 
-          print('  ✅ "${quiz.title}" included: closeDate ${quiz.closeDate}');
-          return true;
-        })
-        .toList();
+      print('  ✅ "${quiz.title}" included: closeDate ${quiz.closeDate}');
+      return true;
+    }).toList();
 
     print('📊 Upcoming quizzes result: ${upcoming.length} quizzes');
     upcoming.sort((a, b) => a.closeDate.compareTo(b.closeDate));
@@ -246,16 +247,14 @@ class DashboardProvider with ChangeNotifier {
   /// Get upcoming assignments (sorted by deadline) - only unsubmitted
   List<AssignmentModel> getUpcomingAssignments({int limit = 10}) {
     final now = DateTime.now();
-    final upcoming = _allAssignments
-        .where((assignment) {
-          // Check if assignment is upcoming and open
-          if (!assignment.deadline.isAfter(now) || !assignment.isOpen) return false;
+    final upcoming = _allAssignments.where((assignment) {
+      // Check if assignment is upcoming and open
+      if (!assignment.deadline.isAfter(now) || !assignment.isOpen) return false;
 
-          // Filter out submitted assignments
-          final submission = _latestSubmissions[assignment.id];
-          return submission == null;
-        })
-        .toList();
+      // Filter out submitted assignments
+      final submission = _latestSubmissions[assignment.id];
+      return submission == null;
+    }).toList();
 
     upcoming.sort((a, b) => a.deadline.compareTo(b.deadline));
 
@@ -312,8 +311,7 @@ class DashboardProvider with ChangeNotifier {
 
       // Load assignments for each course
       for (final courseId in courseIds) {
-        final assignments =
-            await _assignmentService.getAssignmentsForStudent(
+        final assignments = await _assignmentService.getAssignmentsForStudent(
           courseId: courseId,
           studentId: studentId,
           studentGroupIds: studentGroupIds,
@@ -437,8 +435,9 @@ class DashboardProvider with ChangeNotifier {
       'overdueQuizzes': getOverdueQuizzes().length,
       'averageAssignmentGrade': avgAssignmentGrade,
       'averageQuizScore': avgQuizScore,
-      'assignmentCompletionRate':
-          totalAssignments > 0 ? (submittedAssignments / totalAssignments) * 100 : 0.0,
+      'assignmentCompletionRate': totalAssignments > 0
+          ? (submittedAssignments / totalAssignments) * 100
+          : 0.0,
       'quizCompletionRate':
           totalQuizzes > 0 ? (completedQuizzes / totalQuizzes) * 100 : 0.0,
     };

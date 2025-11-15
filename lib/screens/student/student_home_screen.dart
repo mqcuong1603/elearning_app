@@ -393,7 +393,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     avatarUrl: currentUser?.avatarUrl,
                     fallbackText: currentUser?.fullName ?? 'Student',
                     radius: 30,
-                    fontSize: 24,
+                    backgroundColor: AppTheme.primaryColor,
+                    child: Text(
+                      currentUser?.fullName.substring(0, 1).toUpperCase() ??
+                          'S',
+                      style: TextStyle(
+                        fontSize: 24,
+                        color: AppTheme.textOnPrimaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: AppTheme.spacingM),
                   Expanded(
@@ -419,7 +428,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           Text(
                             'ID: ${currentUser!.studentId}',
                             style: TextStyle(
-                              color: AppTheme.textOnPrimaryColor.withOpacity(0.9),
+                              color:
+                                  AppTheme.textOnPrimaryColor.withOpacity(0.9),
                               fontSize: 12,
                             ),
                           ),
@@ -508,9 +518,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       const SizedBox(height: AppTheme.spacingM),
                       Text(
                         'No courses enrolled yet',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: AppTheme.textSecondaryColor,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppTheme.textSecondaryColor,
+                                ),
                       ),
                       const SizedBox(height: AppTheme.spacingS),
                       Text(
@@ -539,7 +550,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     // Calculate assignment stats
     final now = DateTime.now();
     final openAssignments = _allAssignments.where((a) => a.isOpen).toList();
-    final upcomingAssignments = _allAssignments.where((a) => a.isUpcoming).toList();
+    final upcomingAssignments =
+        _allAssignments.where((a) => a.isUpcoming).toList();
 
     final upcomingDueThisWeek = _allAssignments.where((a) {
       final daysUntilDue = a.deadline.difference(now).inDays;
@@ -697,7 +709,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
           ],
         ],
       ),
@@ -706,8 +718,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
   String _getCourseName(String courseId) {
     try {
-      final course =
-          _enrolledCourses.firstWhere((c) => c.id == courseId);
+      final course = _enrolledCourses.firstWhere((c) => c.id == courseId);
       return course.name;
     } catch (e) {
       return 'Unknown Course';
@@ -765,8 +776,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildCourseCard(
-      CourseModel course, dynamic currentUser, SemesterModel? selectedSemester) {
+  Widget _buildCourseCard(CourseModel course, dynamic currentUser,
+      SemesterModel? selectedSemester) {
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
       child: InkWell(

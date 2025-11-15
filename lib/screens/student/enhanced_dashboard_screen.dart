@@ -251,7 +251,8 @@ class _EnhancedDashboardTabState extends State<EnhancedDashboardTab>
                       child: StatCardWidget(
                         title: 'Avg Assignment Grade',
                         value: stats['averageAssignmentGrade'] != null
-                            ? '${(stats['averageAssignmentGrade'] as double).toStringAsFixed(1)}'
+                            ? (stats['averageAssignmentGrade'] as double)
+                                .toStringAsFixed(1)
                             : 'N/A',
                         icon: Icons.trending_up,
                         color: AppTheme.successColor,
@@ -288,8 +289,12 @@ class _EnhancedDashboardTabState extends State<EnhancedDashboardTab>
                             fontWeight: FontWeight.bold,
                           ),
                     ),
-                    if (dashboardProvider.getUpcomingAssignments(limit: 10).length +
-                            dashboardProvider.getUpcomingQuizzes(limit: 10).length >
+                    if (dashboardProvider
+                                .getUpcomingAssignments(limit: 10)
+                                .length +
+                            dashboardProvider
+                                .getUpcomingQuizzes(limit: 10)
+                                .length >
                         5)
                       TextButton(
                         onPressed: () {
@@ -301,7 +306,8 @@ class _EnhancedDashboardTabState extends State<EnhancedDashboardTab>
                 ),
                 const SizedBox(height: AppTheme.spacingM),
                 DeadlineTimelineWidget(
-                  assignments: dashboardProvider.getUpcomingAssignments(limit: 5),
+                  assignments:
+                      dashboardProvider.getUpcomingAssignments(limit: 5),
                   quizzes: dashboardProvider.getUpcomingQuizzes(limit: 5),
                 ),
               ],
@@ -349,7 +355,8 @@ class _EnhancedDashboardTabState extends State<EnhancedDashboardTab>
                       controller: scrollController,
                       children: [
                         DeadlineTimelineWidget(
-                          assignments: provider.getUpcomingAssignments(limit: 0),
+                          assignments:
+                              provider.getUpcomingAssignments(limit: 0),
                           quizzes: provider.getUpcomingQuizzes(limit: 0),
                         ),
                       ],

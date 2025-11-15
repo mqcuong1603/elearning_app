@@ -9,7 +9,6 @@ import '../../../models/forum_reply_model.dart';
 import '../../../models/announcement_model.dart';
 import '../../../providers/forum_provider.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/storage_service.dart';
 import '../../../services/forum_service.dart';
 import '../../../config/app_theme.dart';
 import '../../../config/app_constants.dart';
@@ -180,7 +179,7 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Row(

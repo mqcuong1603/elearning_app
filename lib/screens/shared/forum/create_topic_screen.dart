@@ -5,7 +5,6 @@ import '../../../models/course_model.dart';
 import '../../../providers/forum_provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../config/app_theme.dart';
-import '../../../config/app_constants.dart';
 
 /// Create Topic Screen
 /// Form to create a new forum topic with file attachments
