@@ -64,8 +64,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   List<GroupModel> _groups = [];
   List<UserModel> _students = [];
 
-  // Track quiz submissions for students (quizId -> best submission)
-  final Map<String, QuizSubmissionModel> _quizSubmissions = {};
+  // Track quiz submissions for students (quizId -> list of submissions)
+  final Map<String, List<QuizSubmissionModel>> _quizSubmissions = {};
 
   // Track assignment submissions for students (assignmentId -> submission)
   final Map<String, bool> _assignmentSubmissions = {};
@@ -212,11 +212,9 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           quizId: quiz.id,
           studentId: widget.currentUserId,
         );
-        if (submissions.isNotEmpty) {
-          // Get best score
-          submissions.sort((a, b) => b.score.compareTo(a.score));
-          _quizSubmissions[quiz.id] = submissions.first;
-        }
+        // Store all submissions (sorted by score, best first)
+        submissions.sort((a, b) => b.score.compareTo(a.score));
+        _quizSubmissions[quiz.id] = submissions;
         _loadedQuizIds.add(quiz.id);
       }
     } catch (e) {
@@ -228,6 +226,29 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
           _hasScheduledSubmissionLoad = false;
         });
       }
+    }
+  }
+
+  /// Reload submissions for a specific quiz (called after quiz taking)
+  Future<void> _reloadQuizSubmissions(String quizId) async {
+    if (widget.currentUserRole != AppConstants.roleStudent) return;
+
+    try {
+      final quizService = context.read<QuizService>();
+      final submissions = await quizService.getStudentSubmissions(
+        quizId: quizId,
+        studentId: widget.currentUserId,
+      );
+      // Store all submissions (sorted by score, best first)
+      submissions.sort((a, b) => b.score.compareTo(a.score));
+
+      if (mounted) {
+        setState(() {
+          _quizSubmissions[quizId] = submissions;
+        });
+      }
+    } catch (e) {
+      print('Error reloading quiz submissions: $e');
     }
   }
 
@@ -1432,15 +1453,23 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
     String statusText = 'Available';
     IconData statusIcon = Icons.check_circle;
 
-    // Check if student has completed this quiz
-    final submission = widget.currentUserRole == AppConstants.roleStudent
-        ? _quizSubmissions[quiz.id]
-        : null;
+    // Get all submissions for this quiz (for students)
+    final submissions = widget.currentUserRole == AppConstants.roleStudent
+        ? (_quizSubmissions[quiz.id] ?? [])
+        : <QuizSubmissionModel>[];
 
-    if (submission != null) {
+    // Get best submission (first in sorted list)
+    final bestSubmission = submissions.isNotEmpty ? submissions.first : null;
+
+    // Calculate attempts
+    final attemptsUsed = submissions.length;
+    final maxAttempts = quiz.maxAttempts;
+    final attemptsRemaining = maxAttempts - attemptsUsed;
+
+    if (bestSubmission != null) {
       // Student has completed the quiz
       statusColor = Colors.purple;
-      statusText = 'Completed • ${submission.formattedScore}';
+      statusText = 'Best: ${bestSubmission.formattedScore}';
       statusIcon = Icons.check_circle;
     } else if (quiz.isClosed) {
       statusColor = AppTheme.errorColor;
@@ -1497,7 +1526,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                       ),
                     ),
                   )
-                  .then((_) => _loadData());
+                  .then((_) => _reloadQuizSubmissions(quiz.id));
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -1555,7 +1584,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                                   ),
                         ),
                         const SizedBox(width: AppTheme.spacingS),
-                        if (submission == null)
+                        if (bestSubmission == null)
                           Text(
                             '${quiz.totalQuestions} questions • ${quiz.durationMinutes} min',
                             style:
@@ -1566,11 +1595,42 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                       ],
                     ),
                     const SizedBox(height: AppTheme.spacingXS),
-                    Text(
-                      'Due: ${AppConstants.formatDeadline(quiz.closeDate)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textSecondaryColor,
+                    Row(
+                      children: [
+                        Text(
+                          'Due: ${AppConstants.formatDeadline(quiz.closeDate)}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.textSecondaryColor,
+                              ),
+                        ),
+                        if (widget.currentUserRole == AppConstants.roleStudent) ...[
+                          const SizedBox(width: AppTheme.spacingS),
+                          Text(
+                            '•',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.textSecondaryColor,
+                                ),
                           ),
+                          const SizedBox(width: AppTheme.spacingS),
+                          Icon(
+                            Icons.refresh,
+                            size: 14,
+                            color: attemptsRemaining > 0
+                                ? AppTheme.successColor
+                                : AppTheme.errorColor,
+                          ),
+                          const SizedBox(width: AppTheme.spacingXS),
+                          Text(
+                            '$attemptsUsed/$maxAttempts attempts',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: attemptsRemaining > 0
+                                      ? AppTheme.successColor
+                                      : AppTheme.errorColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
