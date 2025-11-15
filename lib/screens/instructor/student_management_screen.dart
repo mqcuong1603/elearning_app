@@ -8,6 +8,7 @@ import '../../services/auth_service.dart';
 import '../../widgets/student_form_dialog.dart';
 import '../../widgets/csv_import_dialog.dart';
 import '../../config/app_theme.dart';
+import 'student_detail_screen.dart';
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({super.key});
@@ -484,6 +485,16 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
         trailing: PopupMenuButton(
           itemBuilder: (context) => [
             const PopupMenuItem(
+              value: 'view',
+              child: Row(
+                children: [
+                  Icon(Icons.visibility, size: 20),
+                  SizedBox(width: 8),
+                  Text('View Details'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
               value: 'edit',
               child: Row(
                 children: [
@@ -505,14 +516,29 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
             ),
           ],
           onSelected: (value) {
-            if (value == 'edit') {
+            if (value == 'view') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StudentDetailScreen(student: student),
+                ),
+              );
+            } else if (value == 'edit') {
               _editStudent(student);
             } else if (value == 'delete') {
               _deleteStudent(student);
             }
           },
         ),
-        onTap: () => _editStudent(student),
+        onTap: () {
+          // Navigate to detail screen on tap
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StudentDetailScreen(student: student),
+            ),
+          );
+        },
       ),
     );
   }
