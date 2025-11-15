@@ -288,7 +288,9 @@ class _EnhancedDashboardTabState extends State<EnhancedDashboardTab>
                             fontWeight: FontWeight.bold,
                           ),
                     ),
-                    if (dashboardProvider.getUpcomingAssignments(limit: 10).length > 5)
+                    if (dashboardProvider.getUpcomingAssignments(limit: 10).length +
+                            dashboardProvider.getUpcomingQuizzes(limit: 10).length >
+                        5)
                       TextButton(
                         onPressed: () {
                           _showAllDeadlines(context, dashboardProvider);
@@ -300,6 +302,7 @@ class _EnhancedDashboardTabState extends State<EnhancedDashboardTab>
                 const SizedBox(height: AppTheme.spacingM),
                 DeadlineTimelineWidget(
                   assignments: dashboardProvider.getUpcomingAssignments(limit: 5),
+                  quizzes: dashboardProvider.getUpcomingQuizzes(limit: 5),
                 ),
               ],
             ),
@@ -347,6 +350,7 @@ class _EnhancedDashboardTabState extends State<EnhancedDashboardTab>
                       children: [
                         DeadlineTimelineWidget(
                           assignments: provider.getUpcomingAssignments(limit: 0),
+                          quizzes: provider.getUpcomingQuizzes(limit: 0),
                         ),
                       ],
                     ),

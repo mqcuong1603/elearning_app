@@ -151,6 +151,54 @@ class DashboardProvider with ChangeNotifier {
     return allBestScores.reduce((a, b) => a + b) / allBestScores.length;
   }
 
+  // ==================== QUIZ DEADLINE TRACKING ====================
+
+  /// Get quizzes due today
+  List<QuizModel> getQuizzesDueToday() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+
+    return _allQuizzes.where((quiz) {
+      return quiz.closeDate.isAfter(today) &&
+          quiz.closeDate.isBefore(tomorrow) &&
+          quiz.isAvailable;
+    }).toList();
+  }
+
+  /// Get quizzes due this week
+  List<QuizModel> getQuizzesDueThisWeek() {
+    final now = DateTime.now();
+    final weekFromNow = now.add(const Duration(days: 7));
+
+    return _allQuizzes.where((quiz) {
+      return quiz.closeDate.isAfter(now) &&
+          quiz.closeDate.isBefore(weekFromNow) &&
+          quiz.isAvailable;
+    }).toList();
+  }
+
+  /// Get upcoming quizzes (sorted by close date)
+  List<QuizModel> getUpcomingQuizzes({int limit = 10}) {
+    final now = DateTime.now();
+    final upcoming = _allQuizzes
+        .where((quiz) => quiz.closeDate.isAfter(now) && quiz.isAvailable)
+        .toList();
+
+    upcoming.sort((a, b) => a.closeDate.compareTo(b.closeDate));
+
+    return limit > 0 ? upcoming.take(limit).toList() : upcoming;
+  }
+
+  /// Get overdue quizzes (close date passed, not submitted)
+  List<QuizModel> getOverdueQuizzes() {
+    final now = DateTime.now();
+    return _allQuizzes.where((quiz) {
+      final submissions = _quizSubmissions[quiz.id] ?? [];
+      return submissions.isEmpty && quiz.closeDate.isBefore(now);
+    }).toList();
+  }
+
   // ==================== DEADLINE TRACKING ====================
 
   /// Get assignments due today
@@ -363,6 +411,7 @@ class DashboardProvider with ChangeNotifier {
       'totalQuizzes': totalQuizzes,
       'completedQuizzes': completedQuizzes,
       'pendingQuizzes': pendingQuizzes,
+      'overdueQuizzes': getOverdueQuizzes().length,
       'averageAssignmentGrade': avgAssignmentGrade,
       'averageQuizScore': avgQuizScore,
       'assignmentCompletionRate':

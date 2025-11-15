@@ -1462,6 +1462,13 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
                           ),
                       ],
                     ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Text(
+                      'Due: ${AppConstants.formatDateTime(quiz.closeDate)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                    ),
                   ],
                 ),
               ),
