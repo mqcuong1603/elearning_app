@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../services/firestore_service.dart';
 import '../../config/app_theme.dart';
 import '../../config/app_constants.dart';
@@ -35,7 +34,7 @@ class _AllChatsDashboardScreenState extends State<AllChatsDashboardScreen> {
       final firestoreService = FirestoreService();
 
       // Fetch user data to get their role
-      final userData = await firestoreService.getDocument(
+      final userData = await firestoreService.read(
         collection: AppConstants.collectionUsers,
         documentId: userId,
       );
