@@ -324,16 +324,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         title: const Text('My Courses'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notifications feature coming soon!'),
-                ),
-              );
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _handleLogout,
             tooltip: 'Logout',

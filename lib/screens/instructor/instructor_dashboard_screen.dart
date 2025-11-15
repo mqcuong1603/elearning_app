@@ -20,6 +20,7 @@ import 'semester_management_screen.dart';
 import 'course_management_screen.dart';
 import 'student_management_screen.dart';
 import 'group_management_screen.dart';
+import 'all_chats_dashboard_screen.dart';
 
 class InstructorDashboardScreen extends StatefulWidget {
   const InstructorDashboardScreen({super.key});
@@ -298,17 +299,6 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
               );
             },
             tooltip: 'Profile',
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              // TODO: Navigate to notifications
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notifications feature coming soon!'),
-                ),
-              );
-            },
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -607,6 +597,19 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const GroupManagementScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  context,
+                  icon: Icons.chat,
+                  title: 'All Chats\nDashboard',
+                  color: Colors.green,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AllChatsDashboardScreen(),
                       ),
                     );
                   },
