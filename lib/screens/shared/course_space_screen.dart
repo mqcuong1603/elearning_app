@@ -79,6 +79,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
   // Loading state
   bool _isLoading = true;
+  bool _isLoadingSubmissions = false;
 
   @override
   void initState() {
@@ -172,48 +173,53 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   ) async {
     if (widget.currentUserRole != AppConstants.roleStudent) return;
 
+    // Check if we have new items to load
+    final newAssignments = assignments.where((a) => !_loadedAssignmentIds.contains(a.id)).toList();
+    final newQuizzes = quizzes.where((q) => !_loadedQuizIds.contains(q.id)).toList();
+
+    if (newAssignments.isEmpty && newQuizzes.isEmpty) {
+      return; // Nothing new to load
+    }
+
+    setState(() {
+      _isLoadingSubmissions = true;
+    });
+
     try {
       final assignmentService = context.read<AssignmentService>();
       final quizService = context.read<QuizService>();
 
-      bool hasNewData = false;
-
       // Load assignment submissions (only for new assignments)
-      for (final assignment in assignments) {
-        if (!_loadedAssignmentIds.contains(assignment.id)) {
-          final submission = await assignmentService.getLatestSubmission(
-            assignmentId: assignment.id,
-            studentId: widget.currentUserId,
-          );
-          _assignmentSubmissions[assignment.id] = submission != null;
-          _loadedAssignmentIds.add(assignment.id);
-          hasNewData = true;
-        }
+      for (final assignment in newAssignments) {
+        final submission = await assignmentService.getLatestSubmission(
+          assignmentId: assignment.id,
+          studentId: widget.currentUserId,
+        );
+        _assignmentSubmissions[assignment.id] = submission != null;
+        _loadedAssignmentIds.add(assignment.id);
       }
 
       // Load quiz submissions (only for new quizzes)
-      for (final quiz in quizzes) {
-        if (!_loadedQuizIds.contains(quiz.id)) {
-          final submissions = await quizService.getStudentSubmissions(
-            quizId: quiz.id,
-            studentId: widget.currentUserId,
-          );
-          if (submissions.isNotEmpty) {
-            // Get best score
-            submissions.sort((a, b) => b.score.compareTo(a.score));
-            _quizSubmissions[quiz.id] = submissions.first;
-          }
-          _loadedQuizIds.add(quiz.id);
-          hasNewData = true;
+      for (final quiz in newQuizzes) {
+        final submissions = await quizService.getStudentSubmissions(
+          quizId: quiz.id,
+          studentId: widget.currentUserId,
+        );
+        if (submissions.isNotEmpty) {
+          // Get best score
+          submissions.sort((a, b) => b.score.compareTo(a.score));
+          _quizSubmissions[quiz.id] = submissions.first;
         }
-      }
-
-      // Only setState if we loaded new data
-      if (mounted && hasNewData) {
-        setState(() {});
+        _loadedQuizIds.add(quiz.id);
       }
     } catch (e) {
       print('Error loading submissions: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingSubmissions = false;
+        });
+      }
     }
   }
 
@@ -429,6 +435,11 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
                   // Load submissions for assignments and quizzes
                   _loadSubmissionsForStudent(assignments, quizzes);
+                }
+
+                // Show loading indicator while submissions are being loaded
+                if (_isLoadingSubmissions && widget.currentUserRole == AppConstants.roleStudent) {
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 // Combine all classwork items
