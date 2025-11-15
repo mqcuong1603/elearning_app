@@ -74,7 +74,12 @@ class AssignmentService {
         descending: false,
       );
 
-      return data.map((json) => AssignmentModel.fromJson(json)).toList();
+      final assignments = data.map((json) => AssignmentModel.fromJson(json)).toList();
+
+      // Cache assignments for offline access
+      await _cacheAssignmentsForCourse(courseId, assignments);
+
+      return assignments;
     } catch (e) {
       print('Get assignments by course error: $e');
 
@@ -96,14 +101,19 @@ class AssignmentService {
           // Sort in memory by deadline ascending
           assignments.sort((a, b) => a.deadline.compareTo(b.deadline));
 
+          // Cache assignments
+          await _cacheAssignmentsForCourse(courseId, assignments);
+
           return assignments;
         } catch (fallbackError) {
           print('Fallback query also failed: $fallbackError');
-          return [];
+          // Try to get from offline cache
+          return _getCachedAssignmentsForCourse(courseId);
         }
       }
 
-      return [];
+      // Try to get from offline cache
+      return _getCachedAssignmentsForCourse(courseId);
     }
   }
 
@@ -1052,6 +1062,50 @@ class AssignmentService {
       );
     } catch (e) {
       print('Clear assignments cache error: $e');
+    }
+  }
+
+  /// Private: Cache assignments for a course
+  Future<void> _cacheAssignmentsForCourse(
+    String courseId,
+    List<AssignmentModel> assignments,
+  ) async {
+    try {
+      final assignmentsJson = assignments.map((a) => a.toJson()).toList();
+      await _hiveService.cacheWithExpiration(
+        boxName: AppConstants.hiveBoxAssignments,
+        key: 'assignments_$courseId',
+        value: assignmentsJson,
+        duration: AppConstants.cacheValidDuration,
+      );
+      print('✅ Cached ${assignments.length} assignments for course $courseId');
+    } catch (e) {
+      print('Error caching assignments for course: $e');
+    }
+  }
+
+  /// Private: Get cached assignments for a course
+  List<AssignmentModel> _getCachedAssignmentsForCourse(String courseId) {
+    try {
+      final cached = _hiveService.getCached(key: 'assignments_$courseId');
+      if (cached != null && cached is List) {
+        final assignments = cached
+            .map((json) {
+              if (json is Map) {
+                return AssignmentModel.fromJson(Map<String, dynamic>.from(json));
+              }
+              return null;
+            })
+            .whereType<AssignmentModel>()
+            .toList();
+        print('📦 Retrieved ${assignments.length} cached assignments for course $courseId');
+        return assignments;
+      }
+      print('⚠️ No cached assignments found for course $courseId');
+      return [];
+    } catch (e) {
+      print('Error getting cached assignments for course: $e');
+      return [];
     }
   }
 
