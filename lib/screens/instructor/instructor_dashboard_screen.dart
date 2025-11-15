@@ -13,6 +13,7 @@ import '../../models/course_model.dart';
 import '../../models/semester_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
+import '../common/profile_screen.dart';
 import '../debug/enrollment_debug_screen.dart';
 import '../debug/data_migration_screen.dart';
 import 'semester_management_screen.dart';
@@ -287,6 +288,18 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
         title: const Text('Instructor Dashboard'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+              );
+            },
+            tooltip: 'Profile',
+          ),
+          IconButton(
             icon: const Icon(Icons.notifications),
             onPressed: () {
               // TODO: Navigate to notifications
@@ -318,15 +331,20 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: AppTheme.primaryColor,
-                      child: Text(
-                        currentUser?.fullName.substring(0, 1).toUpperCase() ??
-                            'A',
-                        style: TextStyle(
-                          fontSize: 24,
-                          color: AppTheme.textOnPrimaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      backgroundImage: currentUser?.avatarUrl != null
+                          ? NetworkImage(currentUser!.avatarUrl!)
+                          : null,
+                      child: currentUser?.avatarUrl == null
+                          ? Text(
+                              currentUser?.fullName.substring(0, 1).toUpperCase() ??
+                                  'A',
+                              style: TextStyle(
+                                fontSize: 24,
+                                color: AppTheme.textOnPrimaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
                     ),
                     const SizedBox(width: AppTheme.spacingM),
                     Expanded(

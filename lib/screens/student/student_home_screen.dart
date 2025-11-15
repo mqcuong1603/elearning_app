@@ -15,6 +15,7 @@ import '../../models/quiz_model.dart';
 import '../auth/login_screen.dart';
 import '../shared/course_space_screen.dart';
 import '../shared/messaging/conversations_list_screen.dart';
+import '../common/profile_screen.dart';
 import './all_forums_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
@@ -400,14 +401,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: AppTheme.primaryColor,
-                    child: Text(
-                      currentUser?.fullName.substring(0, 1).toUpperCase() ?? 'S',
-                      style: TextStyle(
-                        fontSize: 24,
-                        color: AppTheme.textOnPrimaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    backgroundImage: currentUser?.avatarUrl != null
+                        ? NetworkImage(currentUser!.avatarUrl!)
+                        : null,
+                    child: currentUser?.avatarUrl == null
+                        ? Text(
+                            currentUser?.fullName.substring(0, 1).toUpperCase() ?? 'S',
+                            style: TextStyle(
+                              fontSize: 24,
+                              color: AppTheme.textOnPrimaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: AppTheme.spacingM),
                   Expanded(
@@ -737,86 +743,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildProfileTab(dynamic currentUser) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      child: Column(
-        children: [
-          // Profile Header
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: AppTheme.primaryColor,
-            child: Text(
-              currentUser?.fullName.substring(0, 1).toUpperCase() ?? 'S',
-              style: TextStyle(
-                fontSize: 40,
-                color: AppTheme.textOnPrimaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          Text(
-            currentUser?.fullName ?? 'Student',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          if (currentUser?.studentId != null) ...[
-            const SizedBox(height: AppTheme.spacingS),
-            Text(
-              'Student ID: ${currentUser!.studentId}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondaryColor,
-                  ),
-            ),
-          ],
-          const SizedBox(height: AppTheme.spacingL),
-
-          // Profile Info
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.email),
-                  title: const Text('Email'),
-                  subtitle: Text(currentUser?.email ?? 'N/A'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: const Text('Username'),
-                  subtitle: Text(currentUser?.username ?? 'N/A'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.school),
-                  title: const Text('Role'),
-                  subtitle: Text(
-                    currentUser?.role == AppConstants.roleStudent
-                        ? 'Student'
-                        : 'Instructor',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingL),
-
-          // Actions
-          ElevatedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Edit profile feature coming soon!'),
-                ),
-              );
-            },
-            icon: const Icon(Icons.edit),
-            label: const Text('Edit Profile'),
-          ),
-        ],
-      ),
-    );
+    // Use the ProfileScreen component directly
+    return const ProfileScreen();
   }
 
   Widget _buildStatCard({
