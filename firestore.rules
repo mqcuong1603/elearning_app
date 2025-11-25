@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // NOTE: This app uses custom authentication (not Firebase Auth)
+    // Authentication is handled in the app code with hardcoded credentials
+    // For development/testing, these rules allow access without Firebase Authentication
+
+    // Users collection
+    match /users/{userId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Semesters collection
+    match /semesters/{semesterId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Courses collection
+    match /courses/{courseId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Groups collection
+    match /groups/{groupId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Announcements collection
+    match /announcements/{announcementId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Assignments collection
+    match /assignments/{assignmentId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Assignment submissions collection
+    match /assignment_submissions/{submissionId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Quizzes collection
+    match /quizzes/{quizId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Questions collection
+    match /questions/{questionId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Quiz submissions collection
+    match /quiz_submissions/{submissionId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Materials collection
+    match /materials/{materialId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Forum topics collection
+    match /forum_topics/{topicId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Forum replies collection
+    match /forum_replies/{replyId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Comments collection
+    match /comments/{commentId} {
+      // Allow all operations (authentication is handled in app)
+      allow read, write: if true;
+    }
+
+    // Allow all other collections for flexibility
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

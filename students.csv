@@ -1,0 +1,5 @@
+studentId,fullName,email,password
+S001,John Doe,john@test.com,pass123
+S002,Jane Smith,jane@test.com,pass456
+S001,Duplicate ID,dup@test.com,pass789
+S003,Invalid,notanemail,pass000
