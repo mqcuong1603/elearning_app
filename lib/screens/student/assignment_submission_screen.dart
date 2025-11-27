@@ -233,13 +233,25 @@ class _AssignmentSubmissionScreenState
   }
 
   Future<void> _openAttachment(String url, String filename) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    try {
+      final uri = Uri.parse(url);
+      // Try launching directly - canLaunchUrl can be unreliable on Android
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open $filename. Please check your browser or file viewer is installed.'),
+          ),
+        );
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open $filename')),
+          SnackBar(content: Text('Error opening file: $e')),
         );
       }
     }
