@@ -88,16 +88,20 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
 
       // Open/download file using URL launcher
       final uri = Uri.parse(fileUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      // Try launching directly - canLaunchUrl can be unreliable on Android
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
 
-        if (mounted) {
+      if (mounted) {
+        if (launched) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Opening: $fileName')),
           );
+        } else {
+          throw 'Could not open $fileName. Please check your browser or file viewer is installed.';
         }
-      } else {
-        throw 'Could not open $fileName';
       }
 
       // Reload stats
@@ -117,10 +121,14 @@ class _MaterialDetailsScreenState extends State<MaterialDetailsScreen> {
   Future<void> _openLink(String url) async {
     try {
       final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'Could not launch $url';
+      // Try launching directly - canLaunchUrl can be unreliable on Android
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        throw 'Could not launch $url. Please check your browser is installed.';
       }
     } catch (e) {
       if (mounted) {

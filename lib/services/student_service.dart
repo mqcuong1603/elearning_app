@@ -490,7 +490,13 @@ class StudentService {
       final cached = _hiveService.getCached(key: 'all_students');
       if (cached != null && cached is List) {
         return cached
-            .map((json) => UserModel.fromJson(json as Map<String, dynamic>))
+            .map((json) {
+              // Convert dynamic map to Map<String, dynamic>
+              final Map<String, dynamic> typedMap = json is Map
+                  ? Map<String, dynamic>.from(json as Map)
+                  : json as Map<String, dynamic>;
+              return UserModel.fromJson(typedMap);
+            })
             .toList();
       }
       return [];

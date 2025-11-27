@@ -487,31 +487,30 @@ class _AssignmentTrackingScreenState extends State<AssignmentTrackingScreen> {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingS),
+        padding: const EdgeInsets.all(6),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: AppTheme.spacingXS),
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 2),
             Flexible(
               child: Text(
                 value,
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             Flexible(
               child: Text(
                 label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: Colors.grey,
                 ),
                 overflow: TextOverflow.ellipsis,

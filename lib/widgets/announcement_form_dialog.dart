@@ -226,17 +226,26 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Attachments (Optional)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    const Flexible(
+                      child: Text(
+                        'Attachments (Optional)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: _pickFiles,
-                      icon: const Icon(Icons.attach_file, size: 20),
+                      icon: const Icon(Icons.attach_file, size: 18),
                       label: const Text('Add Files'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
                     ),
                   ],
                 ),

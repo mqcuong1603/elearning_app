@@ -108,19 +108,22 @@ class _AnnouncementCardState extends State<AnnouncementCard> {
   Future<void> _downloadAttachment(AttachmentModel attachment) async {
     try {
       final uri = Uri.parse(attachment.url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      // Try launching directly - canLaunchUrl can be unreliable on Android
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
 
-        // Track download (optional - you can track this)
-        if (mounted) {
+      if (mounted) {
+        if (launched) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Opening ${attachment.filename}...')),
           );
-        }
-      } else {
-        if (mounted) {
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Cannot open ${attachment.filename}')),
+            SnackBar(
+              content: Text('Cannot open ${attachment.filename}. Please check your browser or file viewer is installed.'),
+            ),
           );
         }
       }

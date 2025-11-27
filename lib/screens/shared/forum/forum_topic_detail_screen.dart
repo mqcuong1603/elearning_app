@@ -653,39 +653,26 @@ class _ForumTopicDetailScreenState extends State<ForumTopicDetailScreen> {
 
   Future<void> _downloadAttachment(AttachmentModel attachment) async {
     try {
-      if (kIsWeb) {
-        // On web, open file in new browser tab
-        final url = Uri.parse(attachment.url);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Opening ${attachment.filename}...'),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+      final url = Uri.parse(attachment.url);
+      // Try launching directly - canLaunchUrl can be unreliable on Android
+      final launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (mounted) {
+        if (launched) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(kIsWeb
+                ? 'Opening ${attachment.filename}...'
+                : 'Downloading ${attachment.filename}...'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
         } else {
-          throw Exception('Could not open file');
-        }
-      } else {
-        // On mobile/desktop, open with url_launcher (will download or open with default app)
-        final url = Uri.parse(attachment.url);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Downloading ${attachment.filename}...'),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
-        } else {
-          throw Exception('Could not download file');
+          throw Exception('Could not open file. Please check your browser or file viewer is installed.');
         }
       }
     } catch (e) {

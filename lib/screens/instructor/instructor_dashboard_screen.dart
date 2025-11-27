@@ -656,16 +656,20 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
             children: [
               Icon(
                 icon,
-                size: 48,
+                size: 40,
                 color: color ?? AppTheme.primaryColor,
               ),
-              const SizedBox(height: AppTheme.spacingM),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+              const SizedBox(height: AppTheme.spacingS),
+              Flexible(
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
               ),
             ],
           ),
