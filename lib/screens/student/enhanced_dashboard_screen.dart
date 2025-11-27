@@ -4,8 +4,6 @@ import '../../config/app_theme.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../widgets/student/progress_card_widget.dart';
 import '../../widgets/student/deadline_timeline_widget.dart';
-import '../../models/assignment_model.dart';
-import '../../models/quiz_model.dart';
 
 /// Enhanced Dashboard Screen with comprehensive learning progress tracking
 class EnhancedDashboardTab extends StatefulWidget {
