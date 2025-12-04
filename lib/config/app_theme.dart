@@ -3,38 +3,38 @@ import 'package:flutter/material.dart';
 /// App-wide theme configuration using Material Design 3
 /// Study-focused design with calming colors and clear visual hierarchy
 class AppTheme {
-  // Color Scheme - Study-friendly palette
-  // Primary: Calming teal-blue for focus and clarity
-  static const Color primaryColor = Color(0xFF2E7D8A); // Teal-blue
-  static const Color primaryLightColor = Color(0xFF5BA3B0);
-  static const Color primaryDarkColor = Color(0xFF1A5C66);
-  static const Color primarySurfaceColor = Color(0xFFE8F4F6);
+  // Color Scheme - Study-friendly palette with better readability
+  // Primary: Deep indigo-blue for clarity and professionalism
+  static const Color primaryColor = Color(0xFF4A5568); // Slate gray-blue
+  static const Color primaryLightColor = Color(0xFF718096);
+  static const Color primaryDarkColor = Color(0xFF2D3748);
+  static const Color primarySurfaceColor = Color(0xFFF7FAFC);
 
-  // Secondary: Deep navy for contrast and readability
-  static const Color secondaryColor = Color(0xFF1E3A5F); // Deep navy
-  static const Color secondaryLightColor = Color(0xFF4A6B8A);
+  // Secondary: Rich navy for contrast
+  static const Color secondaryColor = Color(0xFF1A365D); // Deep navy
+  static const Color secondaryLightColor = Color(0xFF2C5282);
   static const Color secondaryDarkColor = Color(0xFF0D2137);
 
-  // Accent: Warm coral for CTAs and highlights
-  static const Color accentColor = Color(0xFFE67E5A); // Warm coral
-  static const Color accentLightColor = Color(0xFFF5B8A5);
+  // Accent: Vibrant blue for CTAs and highlights
+  static const Color accentColor = Color(0xFF3182CE); // Bright blue
+  static const Color accentLightColor = Color(0xFF63B3ED);
 
-  // Semantic Colors - Softer variants for better UX
-  static const Color errorColor = Color(0xFFD45B5B);
-  static const Color errorLightColor = Color(0xFFFDECEC);
-  static const Color successColor = Color(0xFF4CAF7D);
-  static const Color successLightColor = Color(0xFFE8F5EE);
-  static const Color warningColor = Color(0xFFE6A23C);
-  static const Color warningLightColor = Color(0xFFFDF6E3);
-  static const Color infoColor = Color(0xFF5B9BD5);
-  static const Color infoLightColor = Color(0xFFE8F2FB);
+  // Semantic Colors - Clear and accessible
+  static const Color errorColor = Color(0xFFE53E3E);
+  static const Color errorLightColor = Color(0xFFFED7D7);
+  static const Color successColor = Color(0xFF38A169);
+  static const Color successLightColor = Color(0xFFC6F6D5);
+  static const Color warningColor = Color(0xFFD69E2E);
+  static const Color warningLightColor = Color(0xFFFEFCBF);
+  static const Color infoColor = Color(0xFF3182CE);
+  static const Color infoLightColor = Color(0xFFBEE3F8);
 
-  // Background Colors - Soft, easy on the eyes
-  static const Color backgroundColor = Color(0xFFF8FAFB);
+  // Background Colors - Clean and bright
+  static const Color backgroundColor = Color(0xFFF7FAFC);
   static const Color surfaceColor = Color(0xFFFFFFFF);
   static const Color cardColor = Color(0xFFFFFFFF);
-  static const Color scaffoldGradientStart = Color(0xFFF0F7F9);
-  static const Color scaffoldGradientEnd = Color(0xFFF8FAFB);
+  static const Color scaffoldGradientStart = Color(0xFFEDF2F7);
+  static const Color scaffoldGradientEnd = Color(0xFFF7FAFC);
 
   // Text Colors - Enhanced readability
   static const Color textPrimaryColor = Color(0xFF2D3748);
@@ -49,8 +49,8 @@ class AppTheme {
   static const Color cardBorderColor = Color(0xFFE8ECF0);
 
   // Role-Specific Colors
-  static const Color instructorColor = Color(0xFF2E7D8A);
-  static const Color studentColor = Color(0xFF4CAF7D);
+  static const Color instructorColor = Color(0xFF2C5282);
+  static const Color studentColor = Color(0xFF38A169);
 
   // Status Colors - Clear visual feedback
   static const Color statusNotSubmitted = Color(0xFFE6A23C);

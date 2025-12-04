@@ -255,46 +255,95 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
+        backgroundColor: AppTheme.secondaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               widget.course.name,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
             ),
             Text(
               widget.course.code,
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.textOnPrimaryColor.withOpacity(0.8),
+                color: Colors.white.withOpacity(0.8),
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.message),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ConversationsListScreen(),
-                ),
-              );
-            },
-            tooltip: 'Messages',
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.message_outlined, size: 22),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ConversationsListScreen(),
+                  ),
+                );
+              },
+              tooltip: 'Messages',
+            ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.textOnPrimaryColor,
-          labelColor: AppTheme.textOnPrimaryColor,
-          unselectedLabelColor: AppTheme.textOnPrimaryColor.withOpacity(0.7),
-          tabs: const [
-            Tab(icon: Icon(Icons.stream), text: 'Stream'),
-            Tab(icon: Icon(Icons.assignment), text: 'Classwork'),
-            Tab(icon: Icon(Icons.people), text: 'People'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.secondaryColor,
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white.withOpacity(0.6),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.campaign_outlined, size: 22),
+                  text: 'Stream',
+                ),
+                Tab(
+                  icon: Icon(Icons.library_books_outlined, size: 22),
+                  text: 'Classwork',
+                ),
+                Tab(
+                  icon: Icon(Icons.people_outline, size: 22),
+                  text: 'People',
+                ),
+              ],
+            ),
+          ),
         ),
       ),
       body: TabBarView(
@@ -1311,136 +1360,162 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       statusIcon = Icons.warning;
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingM,
         vertical: AppTheme.spacingS,
       ),
-      child: InkWell(
-        onTap: () {
-          if (widget.currentUserRole == AppConstants.roleInstructor) {
-            // Instructor: Navigate to tracking dashboard
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => AssignmentTrackingScreen(
-                  assignment: assignment,
-                  courseId: widget.course.id,
-                ),
-              ),
-            );
-          } else {
-            // Student: Check if read-only mode
-            if (widget.isReadOnly) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text(
-                    'Cannot submit assignments in past semesters. Switch to the current semester to submit work.',
-                  ),
-                  backgroundColor: AppTheme.warningColor,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              return;
-            }
-
-            // Student: Navigate to submission screen
-            final authService = context.read<AuthService>();
-            final currentUser = authService.currentUser;
-
-            if (currentUser != null) {
+      decoration: AppTheme.elevatedCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (widget.currentUserRole == AppConstants.roleInstructor) {
+              // Instructor: Navigate to tracking dashboard
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => AssignmentSubmissionScreen(
+                  builder: (context) => AssignmentTrackingScreen(
                     assignment: assignment,
-                    student: currentUser,
+                    courseId: widget.course.id,
                   ),
                 ),
               );
+            } else {
+              // Student: Check if read-only mode
+              if (widget.isReadOnly) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text(
+                      'Cannot submit assignments in past semesters. Switch to the current semester to submit work.',
+                    ),
+                    backgroundColor: AppTheme.warningColor,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+
+              // Student: Navigate to submission screen
+              final authService = context.read<AuthService>();
+              final currentUser = authService.currentUser;
+
+              if (currentUser != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => AssignmentSubmissionScreen(
+                      assignment: assignment,
+                      student: currentUser,
+                    ),
+                  ),
+                );
+              }
             }
-          }
-        },
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingM),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusM),
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                  ),
+                  child: Icon(
+                    Icons.assignment_outlined,
+                    color: statusColor,
+                    size: 26,
+                  ),
                 ),
-                child: Icon(
-                  Icons.assignment,
-                  color: statusColor,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      assignment.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Row(
-                      children: [
-                        Icon(
-                          statusIcon,
-                          size: 14,
-                          color: statusColor,
-                        ),
-                        const SizedBox(width: AppTheme.spacingXS),
-                        Text(
-                          statusText,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: statusColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        const SizedBox(width: AppTheme.spacingS),
-                        Text(
-                          'Due: ${AppConstants.formatDeadline(assignment.deadline)}',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textSecondaryColor,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Add action buttons for instructors
-              if (widget.currentUserRole == AppConstants.roleInstructor) ...[
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      _confirmDeleteAssignment(assignment);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        assignment.title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
                         children: [
-                          Icon(Icons.delete, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  statusIcon,
+                                  size: 12,
+                                  color: statusColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: statusColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacingS),
+                          Flexible(
+                            child: Text(
+                              'Due: ${AppConstants.formatDeadline(assignment.deadline)}',
+                              style:
+                                  Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppTheme.textSecondaryColor,
+                                      ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ] else
-                const Icon(Icons.chevron_right),
-            ],
+                // Add action buttons for instructors
+                if (widget.currentUserRole == AppConstants.roleInstructor) ...[
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'delete') {
+                        _confirmDeleteAssignment(assignment);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1481,162 +1556,203 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
       statusIcon = Icons.schedule;
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingM,
         vertical: AppTheme.spacingS,
       ),
-      child: InkWell(
-        onTap: () {
-          if (widget.currentUserRole == AppConstants.roleInstructor) {
-            // Instructors go to quiz management
-            Navigator.of(context)
-                .push(
-                  MaterialPageRoute(
-                    builder: (_) => QuizManagementScreen(
-                      courseId: widget.course.id,
-                      courseName: widget.course.name,
-                    ),
-                  ),
-                )
-                .then((_) => _loadData());
-          } else {
-            // Students: Check if read-only mode
-            if (widget.isReadOnly) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text(
-                    'Cannot take quizzes in past semesters. Switch to the current semester to take quizzes.',
-                  ),
-                  backgroundColor: AppTheme.warningColor,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              return;
-            }
-
-            // Students can take the quiz if it's available
-            if (quiz.isAvailable) {
+      decoration: AppTheme.elevatedCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (widget.currentUserRole == AppConstants.roleInstructor) {
+              // Instructors go to quiz management
               Navigator.of(context)
                   .push(
                     MaterialPageRoute(
-                      builder: (_) => QuizTakingScreen(
-                        quizId: quiz.id,
+                      builder: (_) => QuizManagementScreen(
                         courseId: widget.course.id,
+                        courseName: widget.course.name,
                       ),
                     ),
                   )
-                  .then((_) => _reloadQuizSubmissions(quiz.id));
+                  .then((_) => _loadData());
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(quiz.isUpcoming
-                      ? 'Quiz will be available on ${quiz.openDate}'
-                      : 'Quiz is closed'),
-                ),
-              );
+              // Students: Check if read-only mode
+              if (widget.isReadOnly) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text(
+                      'Cannot take quizzes in past semesters. Switch to the current semester to take quizzes.',
+                    ),
+                    backgroundColor: AppTheme.warningColor,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+
+              // Students can take the quiz if it's available
+              if (quiz.isAvailable) {
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) => QuizTakingScreen(
+                          quizId: quiz.id,
+                          courseId: widget.course.id,
+                        ),
+                      ),
+                    )
+                    .then((_) => _reloadQuizSubmissions(quiz.id));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(quiz.isUpcoming
+                        ? 'Quiz will be available on ${quiz.openDate}'
+                        : 'Quiz is closed'),
+                  ),
+                );
+              }
             }
-          }
-        },
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingM),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusM),
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                  ),
+                  child: Icon(
+                    Icons.quiz_outlined,
+                    color: statusColor,
+                    size: 26,
+                  ),
                 ),
-                child: Icon(
-                  Icons.quiz,
-                  color: statusColor,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      quiz.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Row(
-                      children: [
-                        Icon(
-                          statusIcon,
-                          size: 14,
-                          color: statusColor,
-                        ),
-                        const SizedBox(width: AppTheme.spacingXS),
-                        Text(
-                          statusText,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        quiz.title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  statusIcon,
+                                  size: 12,
+                                  color: statusColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    fontSize: 11,
                                     color: statusColor,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                        ),
-                        const SizedBox(width: AppTheme.spacingS),
-                        if (bestSubmission == null)
-                          Text(
-                            '${quiz.totalQuestions} questions • ${quiz.durationMinutes} min',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppTheme.textSecondaryColor,
-                                    ),
+                                ),
+                              ],
+                            ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Row(
-                      children: [
-                        Text(
-                          'Due: ${AppConstants.formatDeadline(quiz.closeDate)}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textSecondaryColor,
-                              ),
-                        ),
-                        if (widget.currentUserRole == AppConstants.roleStudent) ...[
                           const SizedBox(width: AppTheme.spacingS),
+                          if (bestSubmission == null)
+                            Text(
+                              '${quiz.totalQuestions} questions • ${quiz.durationMinutes} min',
+                              style:
+                                  Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppTheme.textSecondaryColor,
+                                      ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_outlined,
+                            size: 12,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                          const SizedBox(width: 4),
                           Text(
-                            '•',
+                            'Due: ${AppConstants.formatDeadline(quiz.closeDate)}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppTheme.textSecondaryColor,
                                 ),
                           ),
-                          const SizedBox(width: AppTheme.spacingS),
-                          Icon(
-                            Icons.refresh,
-                            size: 14,
-                            color: attemptsRemaining > 0
-                                ? AppTheme.successColor
-                                : AppTheme.errorColor,
-                          ),
-                          const SizedBox(width: AppTheme.spacingXS),
-                          Text(
-                            '$attemptsUsed/$maxAttempts attempts',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: attemptsRemaining > 0
-                                      ? AppTheme.successColor
-                                      : AppTheme.errorColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
+                          if (widget.currentUserRole == AppConstants.roleStudent) ...[
+                            const SizedBox(width: AppTheme.spacingM),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (attemptsRemaining > 0
+                                        ? AppTheme.successColor
+                                        : AppTheme.errorColor)
+                                    .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.refresh,
+                                    size: 11,
+                                    color: attemptsRemaining > 0
+                                        ? AppTheme.successColor
+                                        : AppTheme.errorColor,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '$attemptsUsed/$maxAttempts',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: attemptsRemaining > 0
+                                          ? AppTheme.successColor
+                                          : AppTheme.errorColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1645,91 +1761,131 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
 
   // Build Material Card
   Widget _buildMaterialCard(MaterialModel material) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingM,
         vertical: AppTheme.spacingS,
       ),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context)
-              .push(
-                MaterialPageRoute(
-                  builder: (_) => MaterialDetailsScreen(material: material),
+      decoration: AppTheme.elevatedCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(
+                    builder: (_) => MaterialDetailsScreen(material: material),
+                  ),
+                )
+                .then((_) => _loadData()); // Reload data when returning
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warningColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                  ),
+                  child: Icon(
+                    Icons.folder_outlined,
+                    color: AppTheme.warningColor,
+                    size: 26,
+                  ),
                 ),
-              )
-              .then((_) => _loadData()); // Reload data when returning
-        },
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingM),
-                decoration: BoxDecoration(
-                  color: AppTheme.warningLightColor,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                ),
-                child: Icon(
-                  Icons.folder,
-                  color: AppTheme.warningColor,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      material.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Row(
-                      children: [
-                        if (material.hasFiles) ...[
-                          Icon(
-                            Icons.attach_file,
-                            size: 14,
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                          const SizedBox(width: AppTheme.spacingXS),
-                          Text(
-                            '${material.files.length} files',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppTheme.textSecondaryColor,
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        material.title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (material.hasFiles) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primarySurfaceColor,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.attach_file,
+                                    size: 12,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${material.files.length} files',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppTheme.primaryColor,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                          ),
-                        ],
-                        if (material.hasFiles && material.hasLinks)
-                          const Text(' • '),
-                        if (material.hasLinks) ...[
-                          Icon(
-                            Icons.link,
-                            size: 14,
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                          const SizedBox(width: AppTheme.spacingXS),
-                          Text(
-                            '${material.links.length} links',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppTheme.textSecondaryColor,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          if (material.hasFiles && material.hasLinks)
+                            const SizedBox(width: 8),
+                          if (material.hasLinks) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.infoLightColor,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.link,
+                                    size: 12,
+                                    color: AppTheme.infoColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${material.links.length} links',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppTheme.infoColor,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                          ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1990,17 +2146,24 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 80,
-              color: AppTheme.textDisabledColor,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.primarySurfaceColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 48,
+                color: AppTheme.primaryLightColor,
+              ),
             ),
             const SizedBox(height: AppTheme.spacingL),
             Text(
               message,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppTheme.textSecondaryColor,
-                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimaryColor,
+                    fontWeight: FontWeight.w700,
                   ),
               textAlign: TextAlign.center,
             ),
@@ -2008,7 +2171,8 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             Text(
               description,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textDisabledColor,
+                    color: AppTheme.textSecondaryColor,
+                    height: 1.5,
                   ),
               textAlign: TextAlign.center,
             ),
