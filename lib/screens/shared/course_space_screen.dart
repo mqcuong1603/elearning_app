@@ -281,26 +281,7 @@ class _CourseSpaceScreenState extends State<CourseSpaceScreen>
             ),
           ],
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.message_outlined, size: 22),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ConversationsListScreen(),
-                  ),
-                );
-              },
-              tooltip: 'Messages',
-            ),
-          ),
-        ],
+        actions: const [],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Container(

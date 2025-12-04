@@ -19,6 +19,7 @@ import 'semester_management_screen.dart';
 import 'course_management_screen.dart';
 import 'student_management_screen.dart';
 import 'group_management_screen.dart';
+import '../shared/messaging/conversations_list_screen.dart';
 
 class InstructorDashboardScreen extends StatefulWidget {
   const InstructorDashboardScreen({super.key});
@@ -583,6 +584,19 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const GroupManagementScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  context,
+                  icon: Icons.chat_bubble_outline,
+                  title: 'Messages',
+                  color: AppTheme.accentColor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ConversationsListScreen(),
                       ),
                     );
                   },
