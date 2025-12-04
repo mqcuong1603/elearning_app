@@ -213,11 +213,25 @@ class GroupService {
         throw Exception('Group not found');
       }
 
-      // Check if group has students
+      // Check if group has students that actually exist
       if (group.hasStudents) {
-        throw Exception(
-          'Cannot delete group with students. Please remove all students first.',
-        );
+        // Verify if any of the student IDs correspond to existing students
+        int existingStudentCount = 0;
+        for (final studentId in group.studentIds) {
+          final studentData = await _firestoreService.read(
+            collection: AppConstants.collectionUsers,
+            documentId: studentId,
+          );
+          if (studentData != null) {
+            existingStudentCount++;
+          }
+        }
+
+        if (existingStudentCount > 0) {
+          throw Exception(
+            'Cannot delete group with students. Please remove all students first.',
+          );
+        }
       }
 
       await _firestoreService.delete(
