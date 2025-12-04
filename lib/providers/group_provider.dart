@@ -87,7 +87,12 @@ class GroupProvider extends ChangeNotifier {
         studentIds: studentIds,
       );
 
-      // Reload groups
+      // Optimistically add the new group to local list immediately
+      _groups.add(group);
+      _applyFilters();
+      notifyListeners();
+
+      // Also reload from server to ensure consistency
       if (_selectedCourseId != null) {
         await loadGroupsByCourse(_selectedCourseId!);
       } else {
