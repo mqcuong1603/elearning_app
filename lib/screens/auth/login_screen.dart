@@ -94,235 +94,322 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacingL),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App Logo/Icon
-                Icon(
-                  Icons.school,
-                  size: 80,
-                  color: AppTheme.primaryColor,
-                ),
-                const SizedBox(height: AppTheme.spacingL),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.scaffoldGradient,
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.spacingL),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // App Logo/Icon with study-themed design
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.auto_stories_rounded,
+                      size: 56,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingL),
 
-                // App Title
-                Text(
-                  'E-Learning Management',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.spacingS),
-                Text(
-                  'Faculty of Information Technology',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.spacingXL),
+                  // App Title with refined typography
+                  Text(
+                    'E-Learning',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w800,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spacingXS),
+                  Text(
+                    'Faculty of Information Technology',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.textSecondaryColor,
+                          letterSpacing: 0.5,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spacingXL),
 
-                // Login Card
-                Card(
-                  elevation: AppTheme.elevationM,
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacingL),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Title
-                          Text(
-                            'Login',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: AppTheme.spacingL),
-
-                          // Username Field
-                          TextFormField(
-                            controller: _usernameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Username',
-                              prefixIcon: Icon(Icons.person),
-                              hintText: 'Enter your username',
-                            ),
-                            textInputAction: TextInputAction.next,
-                            enabled: !_isLoading,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return AppConstants.validationRequired;
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: AppTheme.spacingM),
-
-                          // Password Field
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              prefixIcon: const Icon(Icons.lock),
-                              hintText: 'Enter your password',
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                            ),
-                            textInputAction: TextInputAction.done,
-                            enabled: !_isLoading,
-                            onFieldSubmitted: (_) => _handleLogin(),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return AppConstants.validationRequired;
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: AppTheme.spacingL),
-
-                          // Error Message
-                          if (_errorMessage != null)
-                            Container(
-                              padding: const EdgeInsets.all(AppTheme.spacingM),
-                              decoration: BoxDecoration(
-                                color: AppTheme.errorColor.withOpacity(0.1),
-                                borderRadius:
-                                    BorderRadius.circular(AppTheme.radiusM),
-                                border: Border.all(
-                                  color: AppTheme.errorColor,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.error_outline,
-                                    color: AppTheme.errorColor,
-                                    size: 20,
+                  // Login Card with enhanced styling
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    decoration: AppTheme.elevatedCardDecoration,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppTheme.spacingL),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Welcome text
+                            Text(
+                              'Welcome back',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                  const SizedBox(width: AppTheme.spacingS),
-                                  Expanded(
-                                    child: Text(
-                                      _errorMessage!,
-                                      style: TextStyle(
-                                        color: AppTheme.errorColor,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          if (_errorMessage != null)
+                            const SizedBox(height: AppTheme.spacingXS),
+                            Text(
+                              'Sign in to continue your learning journey',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: AppTheme.spacingL),
+
+                            // Username Field
+                            TextFormField(
+                              controller: _usernameController,
+                              decoration: InputDecoration(
+                                labelText: 'Username',
+                                prefixIcon: Icon(
+                                  Icons.person_outline_rounded,
+                                  color: AppTheme.primaryColor.withOpacity(0.7),
+                                ),
+                                hintText: 'Enter your username',
+                              ),
+                              textInputAction: TextInputAction.next,
+                              enabled: !_isLoading,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return AppConstants.validationRequired;
+                                }
+                                return null;
+                              },
+                            ),
                             const SizedBox(height: AppTheme.spacingM),
 
-                          // Login Button
-                          ElevatedButton(
-                            onPressed: _isLoading ? null : _handleLogin,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
+                            // Password Field
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                prefixIcon: Icon(
+                                  Icons.lock_outline_rounded,
+                                  color: AppTheme.primaryColor.withOpacity(0.7),
+                                ),
+                                hintText: 'Enter your password',
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                ),
+                              ),
+                              textInputAction: TextInputAction.done,
+                              enabled: !_isLoading,
+                              onFieldSubmitted: (_) => _handleLogin(),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return AppConstants.validationRequired;
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: AppTheme.spacingL),
+
+                            // Error Message with refined styling
+                            if (_errorMessage != null) ...[
+                              Container(
+                                padding: const EdgeInsets.all(AppTheme.spacingM),
+                                decoration: AppTheme.statusBadgeDecoration(
+                                    AppTheme.errorColor),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.error_outline_rounded,
+                                      color: AppTheme.errorColor,
+                                      size: 20,
                                     ),
-                                  )
-                                : const Text('Login'),
-                          ),
-                        ],
+                                    const SizedBox(width: AppTheme.spacingS),
+                                    Expanded(
+                                      child: Text(
+                                        _errorMessage!,
+                                        style: TextStyle(
+                                          color: AppTheme.errorColor,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppTheme.spacingM),
+                            ],
+
+                            // Login Button with enhanced styling
+                            SizedBox(
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _handleLogin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Sign In',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: AppTheme.spacingL),
+                  const SizedBox(height: AppTheme.spacingL),
 
-                // Info Card
-                Card(
-                  color: AppTheme.infoColor.withOpacity(0.1),
-                  child: Padding(
+                  // Info Card with cleaner design
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 400),
                     padding: const EdgeInsets.all(AppTheme.spacingM),
+                    decoration: BoxDecoration(
+                      color: AppTheme.infoLightColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                      border: Border.all(
+                        color: AppTheme.infoColor.withOpacity(0.2),
+                      ),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: AppTheme.infoColor,
-                              size: 20,
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.infoColor.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.lightbulb_outline_rounded,
+                                color: AppTheme.infoColor,
+                                size: 18,
+                              ),
                             ),
                             const SizedBox(width: AppTheme.spacingS),
                             Text(
-                              'Test Credentials',
+                              'Demo Credentials',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                                 color: AppTheme.infoColor,
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppTheme.spacingS),
-                        Text(
-                          'Instructor:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimaryColor,
-                          ),
-                        ),
-                        Text(
-                          'Username: ${AppConstants.adminUsername}',
-                          style: TextStyle(
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                        ),
-                        Text(
-                          'Password: ${AppConstants.adminPassword}',
-                          style: TextStyle(
-                            color: AppTheme.textSecondaryColor,
-                          ),
+                        const SizedBox(height: AppTheme.spacingM),
+                        _buildCredentialRow(
+                          'Instructor',
+                          AppConstants.adminUsername,
+                          AppConstants.adminPassword,
                         ),
                         const SizedBox(height: AppTheme.spacingS),
                         Text(
-                          'Student credentials will be created by instructor.',
+                          'Student accounts are created by instructors',
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.textSecondaryColor,
-                            fontStyle: FontStyle.italic,
+                            color: AppTheme.textMutedColor,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCredentialRow(String role, String username, String password) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingS),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              role,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppTheme.spacingS),
+          Expanded(
+            child: Text(
+              '$username / $password',
+              style: TextStyle(
+                color: AppTheme.textSecondaryColor,
+                fontSize: 13,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,5 +1,16 @@
 studentId,fullName,email,password
-S001,John Doe,john@test.com,pass123
-S002,Jane Smith,jane@test.com,pass456
-S001,Duplicate ID,dup@test.com,pass789
-S003,Invalid,notanemail,pass000
+S001,Nguyen Van An,an.nguyen@student.edu.vn,Student@123
+S002,Tran Thi Bich,bich.tran@student.edu.vn,Student@456
+S003,Le Hoang Cuong,cuong.le@student.edu.vn,Student@789
+S004,Pham Minh Duc,duc.pham@student.edu.vn,Student@101
+S005,Vo Thi Hoa,hoa.vo@student.edu.vn,Student@102
+S006,Dang Quoc Hung,hung.dang@student.edu.vn,Student@103
+S007,Nguyen Thi Lan,lan.nguyen@student.edu.vn,Student@104
+S008,Bui Van Minh,minh.bui@student.edu.vn,Student@105
+S009,Hoang Thi Ngoc,ngoc.hoang@student.edu.vn,Student@106
+S010,Truong Van Phuc,phuc.truong@student.edu.vn,Student@107
+S011,Le Thi Quynh,quynh.le@student.edu.vn,Student@108
+S012,Nguyen Hoang Son,son.nguyen@student.edu.vn,Student@109
+S013,Phan Thi Thao,thao.phan@student.edu.vn,Student@110
+S014,Vu Minh Tuan,tuan.vu@student.edu.vn,Student@111
+S015,Cao Thi Uyen,uyen.cao@student.edu.vn,Student@112

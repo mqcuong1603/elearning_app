@@ -1,4 +1,19 @@
 code,name,sessions,semesterId
-CS101,Programming,10,2025-2
-CS102,Data Structures,15,2025-2
-CS104,Invalid Sessions,15,2026-1
+CS101,Introduction to Programming,10,2024-1
+CS102,Data Structures and Algorithms,15,2024-1
+CS103,Object-Oriented Programming,10,2024-1
+CS104,Database Management Systems,10,2024-2
+CS105,Web Development Fundamentals,10,2024-2
+CS106,Mobile Application Development,10,2024-2
+CS201,Software Engineering,15,2025-1
+CS202,Computer Networks,10,2025-1
+CS203,Operating Systems,10,2025-1
+CS204,Artificial Intelligence,10,2025-2
+CS205,Machine Learning,10,2025-2
+CS206,Cloud Computing,10,2025-2
+CS301,Cybersecurity Fundamentals,10,2026-1
+CS302,Big Data Analytics,10,2026-1
+CS303,DevOps Practices,10,2026-1
+CS304,Blockchain Technology,10,2026-2
+CS305,Internet of Things,10,2026-2
+CS306,Computer Vision,10,2026-2

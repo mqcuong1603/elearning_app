@@ -19,6 +19,7 @@ import 'semester_management_screen.dart';
 import 'course_management_screen.dart';
 import 'student_management_screen.dart';
 import 'group_management_screen.dart';
+import '../shared/messaging/conversations_list_screen.dart';
 
 class InstructorDashboardScreen extends StatefulWidget {
   const InstructorDashboardScreen({super.key});
@@ -587,6 +588,19 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
                     );
                   },
                 ),
+                _buildActionCard(
+                  context,
+                  icon: Icons.chat_bubble_outline,
+                  title: 'Messages',
+                  color: AppTheme.accentColor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ConversationsListScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ],
@@ -602,7 +616,8 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
     required String value,
     required Color color,
   }) {
-    return Card(
+    return Container(
+      decoration: AppTheme.elevatedCardDecoration,
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(
@@ -610,26 +625,34 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  icon,
-                  color: color,
-                  size: 24,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 22,
+                  ),
                 ),
                 const Spacer(),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: color,
                       ),
                 ),
               ],
             ),
-            const SizedBox(height: AppTheme.spacingS),
+            const SizedBox(height: AppTheme.spacingM),
             Text(
               title,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppTheme.textSecondaryColor,
+                    fontWeight: FontWeight.w500,
                   ),
             ),
           ],
@@ -645,33 +668,57 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
     required VoidCallback onTap,
     Color? color,
   }) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusL),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 40,
-                color: color ?? AppTheme.primaryColor,
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              Flexible(
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
+    final cardColor = color ?? AppTheme.primaryColor;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+        border: Border.all(color: AppTheme.cardBorderColor),
+        boxShadow: [
+          BoxShadow(
+            color: cardColor.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cardColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 28,
+                    color: cardColor,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: AppTheme.spacingM),
+                Flexible(
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -682,83 +729,116 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
     final authService = context.read<AuthService>();
     final currentUser = authService.currentUser;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      child: InkWell(
-        onTap: () {
-          if (currentUser != null) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => CourseSpaceScreen(
-                  course: course,
-                  currentUserId: currentUser.id,
-                  currentUserRole: AppConstants.roleInstructor,
-                ),
-              ),
-            );
-          }
-        },
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: AppTheme.primaryColor,
-                radius: 24,
-                child: Text(
-                  course.code.substring(0, 2).toUpperCase(),
-                  style: TextStyle(
-                    color: AppTheme.textOnPrimaryColor,
-                    fontWeight: FontWeight.bold,
+      decoration: AppTheme.elevatedCardDecoration,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (currentUser != null) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CourseSpaceScreen(
+                    course: course,
+                    currentUserId: currentUser.id,
+                    currentUserRole: AppConstants.roleInstructor,
                   ),
                 ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.code,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+              );
+            }
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                  ),
+                  child: Center(
+                    child: Text(
+                      course.code.substring(0, 2).toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Text(
-                      course.name,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: AppTheme.spacingXS),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.timer,
-                          size: 14,
-                          color: AppTheme.textSecondaryColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${course.sessions} sessions',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textSecondaryColor,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: AppTheme.textSecondaryColor,
-              ),
-            ],
+                const SizedBox(width: AppTheme.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        course.code,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryColor,
+                            ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingXS),
+                      Text(
+                        course.name,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppTheme.spacingS),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primarySurfaceColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: 12,
+                              color: AppTheme.primaryColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${course.sessions} sessions',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primarySurfaceColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
